@@ -10,6 +10,7 @@ import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/maintenance_viewmodel.dart';
 import '../viewmodels/lease_viewmodel.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/language_toggle_button.dart';
 import '../widgets/maintenance_card.dart';
 
 /// Opens the "New Maintenance Request" bottom sheet. Shared by the
@@ -71,6 +72,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
           ),
         ),
         actions: [
+          const LanguageToggleButton(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,

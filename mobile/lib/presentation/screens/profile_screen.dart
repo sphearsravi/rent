@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/language_toggle_button.dart';
 
 /// Profile screen showing tenant details
 class ProfileScreen extends StatefulWidget {
@@ -44,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         actions: [
+          const LanguageToggleButton(),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _showLogoutDialog,

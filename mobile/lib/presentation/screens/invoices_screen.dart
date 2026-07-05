@@ -10,6 +10,7 @@ import '../../data/models/payment_model.dart' show InvoiceModel;
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/invoice_viewmodel.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/language_toggle_button.dart';
 import 'invoice_detail_screen.dart';
 
 /// Invoices tab. Shows every invoice for the current tenant with filter
@@ -77,6 +78,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
         ),
         actions: [
+          const LanguageToggleButton(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refresh,

@@ -8,6 +8,7 @@ import '../../data/models/dashboard_model.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/dashboard_viewmodel.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/language_toggle_button.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/property_card.dart';
 import '../widgets/payment_list_item.dart';
@@ -257,6 +258,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
+          const LanguageToggleButton(),
         ],
       ),
     );

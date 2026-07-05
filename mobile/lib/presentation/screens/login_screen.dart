@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/language_toggle_button.dart';
 import '../widgets/loading_overlay.dart';
 import '../../data/services/fcm_service.dart';
 
@@ -152,6 +153,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Widget _buildHeader() {
     return Column(
       children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: LanguageToggleButton(color: AppTheme.primaryIndigo),
+        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

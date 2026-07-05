@@ -93,6 +93,21 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
   }
 
   Widget _buildContent(PaymentViewModel viewModel) {
+    // Invoice-driven entry (opened from an invoice's "Pay now"): we already
+    // have the invoice and immediately show the payment-method sheet as a
+    // modal, then redirect to the gateway. The pending-invoices list is never
+    // loaded here, so DON'T render the list / "No Pending Invoices" empty
+    // state — it would flash behind the sheet and on the way to KNET. Show a
+    // neutral spinner instead.
+    if (_invoiceArg != null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     if (viewModel.error != null) {
       return _buildErrorState(viewModel.error!);
     }

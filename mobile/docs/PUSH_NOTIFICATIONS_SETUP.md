@@ -102,7 +102,7 @@ cd C:\Users\r.shankar\RentCollectionTenantFlutter
 flutter pub get
 
 # Build the APK pointing at the demo backend
-flutter build apk --debug --dart-define=API_BASE_URL=http://alrtam-001-site3.ktempurl.com/api
+flutter build apk --debug --dart-define=API_BASE_URL=http://demo.example.com/api
 ```
 
 The output APK is at `build/app/outputs/flutter-apk/app-debug.apk`.

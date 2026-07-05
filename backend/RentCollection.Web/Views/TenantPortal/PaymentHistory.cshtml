@@ -1,0 +1,630 @@
+@model List<RentCollection.Core.Entities.Payment>
+@{
+    ViewData["Title"] = "Payment History";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - VIIJAR</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <nav class="tenant-navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-building"></i>
+                <span>@L["VIIJAR Tenant Portal"]</span>
+            </div>
+            <div class="navbar-menu">
+                <a href="/TenantPortal/Dashboard" class="nav-link">
+                    <i class="fas fa-home"></i> @L["Dashboard"]
+                </a>
+                <a href="/TenantPortal/MyDetails" class="nav-link">
+                    <i class="fas fa-user"></i> @L["My Details"]
+                </a>
+                <a href="/TenantPortal/MakePayment" class="nav-link">
+                    <i class="fas fa-credit-card"></i> @L["Make Payment"]
+                </a>
+                <a href="/TenantPortal/PaymentHistory" class="nav-link active">
+                    <i class="fas fa-history"></i> @L["Payment History"]
+                </a>
+                <a href="/TenantPortal/Logout" class="nav-link logout">
+                    <i class="fas fa-sign-out-alt"></i> @L["Logout"]
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-history"></i> @L["Payment History"]</h1>
+                <p class="text-muted">@L["View all your payment transactions"]</p>
+            </div>
+            <a href="/TenantPortal/MakePayment" class="btn btn-primary">
+                <i class="fas fa-plus"></i> @L["Make New Payment"]
+            </a>
+        </div>
+
+        @if (Model != null && Model.Any())
+        {
+            <div class="stats-row">
+                <div class="stat-box">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <div>
+                        <h3>@Model.Count</h3>
+                        <p>@L["Total Payments"]</p>
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <div>
+                        <h3>@Model.Sum(p => p.AmountPaid).ToString("N3") KWD</h3>
+                        <p>@L["Total Amount Paid"]</p>
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                        <h3>@Model.Count(p => p.PaymentStatus == "Completed")</h3>
+                        <p>@L["Completed Payments"]</p>
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <i class="fas fa-clock"></i>
+                    <div>
+                        <h3>@Model.Count(p => p.PaymentStatus == "Pending")</h3>
+                        <p>@L["Pending Payments"]</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="history-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> @L["All Payments"]</h3>
+                    <div class="filter-group">
+                        <input type="text" id="searchInput" class="search-input" placeholder="@(L["Search payments..."].Value)" onkeyup="filterTable()">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="payment-table" id="paymentTable">
+                        <thead>
+                            <tr>
+                                <th>@L["Date"]</th>
+                                <th>@L["Property"]</th>
+                                <th>@L["Unit"]</th>
+                                <th>@L["Amount"]</th>
+                                <th>@L["Method"]</th>
+                                <th>@L["Reference"]</th>
+                                <th>@L["Status"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var payment in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="date-cell">
+                                            <i class="fas fa-calendar"></i>
+                                            <span>@payment.PaymentDate.ToString("dd MMM yyyy")</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>@payment.Lease?.Unit?.Property?.PropertyName</strong>
+                                    </td>
+                                    <td>
+                                        <span class="unit-badge">@L["Unit"] @payment.Lease?.Unit?.UnitNumber</span>
+                                    </td>
+                                    <td>
+                                        <span class="amount-cell">@payment.AmountPaid.ToString("N3") KWD</span>
+                                    </td>
+                                    <td>
+                                        <div class="method-cell">
+                                            @if (payment.PaymentMethod == "Bank Transfer")
+                                            {
+                                                <i class="fas fa-university"></i>
+                                            }
+                                            else if (payment.PaymentMethod == "Cash")
+                                            {
+                                                <i class="fas fa-money-bill"></i>
+                                            }
+                                            else if (payment.PaymentMethod == "Check")
+                                            {
+                                                <i class="fas fa-money-check"></i>
+                                            }
+                                            else if (payment.PaymentMethod == "K-Net")
+                                            {
+                                                <i class="fas fa-credit-card"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="fas fa-wallet"></i>
+                                            }
+                                            <span>@payment.PaymentMethod</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(payment.TransactionReference))
+                                        {
+                                            <span class="reference-cell">@payment.TransactionReference</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (payment.PaymentStatus == "Completed")
+                                        {
+                                            <span class="badge badge-success">
+                                                <i class="fas fa-check-circle"></i> @payment.PaymentStatus
+                                            </span>
+                                        }
+                                        else if (payment.PaymentStatus == "Pending")
+                                        {
+                                            <span class="badge badge-warning">
+                                                <i class="fas fa-clock"></i> @payment.PaymentStatus
+                                            </span>
+                                        }
+                                        else if (payment.PaymentStatus == "Rejected")
+                                        {
+                                            <span class="badge badge-danger">
+                                                <i class="fas fa-times-circle"></i> @payment.PaymentStatus
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-secondary">@payment.PaymentStatus</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state-card">
+                <i class="fas fa-receipt"></i>
+                <h3>@L["No Payment History"]</h3>
+                <p>@L["You haven't made any payments yet. Start by making your first payment."]</p>
+                <a href="/TenantPortal/MakePayment" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> @L["Make Your First Payment"]
+                </a>
+            </div>
+        }
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function filterTable() {
+            const input = document.getElementById('searchInput');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById('paymentTable');
+            const tr = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < tr.length; i++) {
+                let found = false;
+                const td = tr[i].getElementsByTagName('td');
+                for (let j = 0; j < td.length; j++) {
+                    if (td[j]) {
+                        const txtValue = td[j].textContent || td[j].innerText;
+                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                tr[i].style.display = found ? '' : 'none';
+            }
+        }
+    </script>
+</body>
+</html>
+
+<style>
+    body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+    }
+
+    .tenant-navbar {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        padding: 1rem 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .navbar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .navbar-brand i {
+        font-size: 1.75rem;
+    }
+
+    .navbar-menu {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+
+    .nav-link:hover {
+        background: rgba(255,255,255,0.2);
+    }
+
+    .nav-link.active {
+        background: rgba(255,255,255,0.3);
+    }
+
+    .nav-link.logout:hover {
+        background: rgba(220,38,38,0.8);
+    }
+
+    .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .page-header .text-muted {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin-top: 0.5rem;
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        transition: transform 0.3s;
+    }
+
+    .stat-box:hover {
+        transform: translateY(-4px);
+    }
+
+    .stat-box i {
+        font-size: 2.5rem;
+        color: #6366f1;
+        width: 60px;
+        text-align: center;
+    }
+
+    .stat-box h3 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+    }
+
+    .stat-box p {
+        color: #6b7280;
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .history-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .card-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .card-header h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .search-input {
+        padding: 0.625rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        width: 250px;
+        transition: all 0.3s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .payment-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .payment-table thead {
+        background: #f9fafb;
+    }
+
+    .payment-table th {
+        padding: 1rem 1.5rem;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+        white-space: nowrap;
+    }
+
+    .payment-table td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        color: #1f2937;
+    }
+
+    .payment-table tbody tr {
+        transition: background 0.2s;
+    }
+
+    .payment-table tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    .date-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #6b7280;
+    }
+
+    .date-cell i {
+        color: #6366f1;
+    }
+
+    .unit-badge {
+        background: #e0e7ff;
+        color: #4338ca;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .amount-cell {
+        font-weight: 700;
+        color: #059669;
+        font-size: 1.05rem;
+    }
+
+    .method-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .method-cell i {
+        color: #6366f1;
+    }
+
+    .reference-cell {
+        font-family: 'Courier New', monospace;
+        background: #f3f4f6;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+
+    .badge {
+        padding: 0.5rem 0.875rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        white-space: nowrap;
+    }
+
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .text-muted {
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .empty-state-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+
+    .empty-state-card i {
+        font-size: 4rem;
+        color: #9ca3af;
+        margin-bottom: 1.5rem;
+        display: block;
+    }
+
+    .empty-state-card h3 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-card p {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    @@media (max-width: 768px) {
+        .navbar-container {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .navbar-menu {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+        }
+
+        .dashboard-container {
+            padding: 1rem;
+        }
+
+        .stats-row {
+            grid-template-columns: 1fr;
+        }
+
+        .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .search-input {
+            width: 100%;
+        }
+
+        .payment-table {
+            font-size: 0.875rem;
+        }
+
+        .payment-table th,
+        .payment-table td {
+            padding: 0.75rem;
+        }
+    }
+</style>

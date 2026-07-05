@@ -1,0 +1,13 @@
+{
+  "name": "rentcollection.web-styles",
+  "private": true,
+  "description": "Tailwind CSS build pipeline for the Razor admin (Sprint 3 A6a). Not shipped — only used at build time to compile Styles/tailwind.css into wwwroot/css/tailwind.css, which is what _Layout.cshtml references.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./Styles/tailwind.css -o ./wwwroot/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./Styles/tailwind.css -o ./wwwroot/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.1.18",
+    "@tailwindcss/cli": "^4.1.18"
+  }
+}

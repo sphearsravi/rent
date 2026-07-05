@@ -1,0 +1,126 @@
+@model RentCollection.Application.DTOs.AdminPaymentVerificationDto
+@{
+    ViewData["Title"] = $"Payment {Model.ReceiptNumber}";
+    var audit = ViewBag.AuditHistory as List<RentCollection.Application.Interfaces.PaymentAuditDto>
+                ?? new List<RentCollection.Application.Interfaces.PaymentAuditDto>();
+
+    string StatusClass(string s) => s?.ToLowerInvariant() switch
+    {
+        "completed" or "approved" => "badge-success",
+        "pending" or "pendingverification" => "badge-warning",
+        "failed" or "rejected" or "cancelled" => "badge-danger",
+        _ => "badge-secondary"
+    };
+}
+
+<div class="page-container">
+    @{
+        var actions = new System.Text.StringBuilder();
+        actions.Append("<a href=\"/Payments\" class=\"btn btn-secondary\"><i class=\"fas fa-arrow-left\"></i> Back to Payments</a>");
+    }
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = $"Payment {Model.ReceiptNumber}",
+        ["Subtitle"] = "Payment details, mismatch review and audit trail",
+        ["ActionsHtml"] = new Microsoft.AspNetCore.Html.HtmlString(actions.ToString())
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <div class="card" style="padding:24px;margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+            <div>
+                <h2 style="margin:0;">@("KWD " + Model.Amount.ToString("N3"))</h2>
+                <p style="color:#6b7280;margin:4px 0 0;">@Model.PaymentType &bull; @Model.PaymentDate.ToString("dd MMM yyyy, HH:mm")</p>
+            </div>
+            <span class="badge @StatusClass(Model.Status)">@Model.Status</span>
+        </div>
+    </div>
+
+    <div class="card" style="padding:24px;margin-bottom:20px;">
+        <h3 style="margin-top:0;">Details</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+            <div><strong>Receipt #</strong><div>@Model.ReceiptNumber</div></div>
+            <div><strong>Payment ID</strong><div>@Model.PaymentId</div></div>
+            <div><strong>Tenant</strong><div>@Model.TenantName</div></div>
+            <div><strong>Tenant Civil ID</strong><div>@Model.TenantCivilID</div></div>
+            <div><strong>Payment Civil ID</strong><div>@(string.IsNullOrEmpty(Model.PaymentCivilID) ? "—" : Model.PaymentCivilID)</div></div>
+            <div><strong>Lease</strong><div>@Model.LeaseReference</div></div>
+            <div><strong>Building</strong><div>@(string.IsNullOrEmpty(Model.BuildingName) ? "—" : Model.BuildingName)</div></div>
+            <div><strong>Unit</strong><div>@(string.IsNullOrEmpty(Model.UnitNumber) ? "—" : Model.UnitNumber)</div></div>
+            <div><strong>Transaction Ref</strong><div>@(string.IsNullOrEmpty(Model.TransactionReference) ? "—" : Model.TransactionReference)</div></div>
+            <div><strong>Checkout Payment ID</strong><div>@(string.IsNullOrEmpty(Model.CheckoutPaymentId) ? "—" : Model.CheckoutPaymentId)</div></div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.PaymentKNETMID) || !string.IsNullOrEmpty(Model.PaymentKNETAccountID))
+    {
+        <div class="card" style="padding:24px;margin-bottom:20px;">
+            <h3 style="margin-top:0;">KNET</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+                <div><strong>Payment KNET Account</strong><div>@(Model.PaymentKNETAccountID ?? "—")</div></div>
+                <div><strong>Building KNET Account</strong><div>@(Model.BuildingKNETAccountID ?? "—")</div></div>
+                <div><strong>Payment KNET MID</strong><div>@(Model.PaymentKNETMID ?? "—")</div></div>
+                <div><strong>Building KNET MID</strong><div>@(Model.BuildingKNETMID ?? "—")</div></div>
+            </div>
+        </div>
+    }
+
+    @if (Model.HasMismatch)
+    {
+        <div class="card" style="padding:24px;margin-bottom:20px;border-left:4px solid #f59e0b;">
+            <h3 style="margin-top:0;color:#b45309;"><i class="fas fa-exclamation-triangle"></i> Mismatch Detected</h3>
+            <ul>
+                @if (Model.CivilIDMismatch) { <li>Civil ID mismatch between payment and tenant record.</li> }
+                @if (Model.BuildingMismatch) { <li>Building/property mismatch between payment and lease.</li> }
+                @if (Model.KNETMIDMismatch) { <li>KNET MID mismatch between payment and building.</li> }
+            </ul>
+            @if (!string.IsNullOrEmpty(Model.MismatchDetails))
+            {
+                <p style="color:#6b7280;">@Model.MismatchDetails</p>
+            }
+            <form asp-action="ResolveMismatch" method="post" style="margin-top:12px;">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="paymentId" value="@Model.PaymentId" />
+                <div class="form-group">
+                    <label for="resolutionNotes">Resolution notes</label>
+                    <textarea id="resolutionNotes" name="resolutionNotes" class="form-control" rows="2" placeholder="Explain how this mismatch was reviewed/resolved"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Mark Resolved</button>
+            </form>
+        </div>
+    }
+
+    <div class="card" style="padding:24px;">
+        <h3 style="margin-top:0;">Audit Trail</h3>
+        @if (audit.Count == 0)
+        {
+            <p style="color:#6b7280;">No audit records for this payment.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Details</th>
+                        <th>Resolved</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in audit)
+                    {
+                        <tr>
+                            <td>@a.AuditTimestamp.ToString("dd MMM yyyy, HH:mm")</td>
+                            <td>@a.AuditType</td>
+                            <td>@("KWD " + a.Amount.ToString("N3"))</td>
+                            <td>@(string.IsNullOrEmpty(a.Details) ? "—" : a.Details)</td>
+                            <td>@(a.IsResolved ? "Yes" : (a.IsMismatch ? "No" : "—"))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

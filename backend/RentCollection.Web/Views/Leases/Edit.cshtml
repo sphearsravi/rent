@@ -1,0 +1,524 @@
+﻿@model RentCollection.Core.Entities.Lease
+
+@{
+    ViewData["Title"] = "Edit Lease";
+    var isClosed = (bool?)ViewBag.IsClosed ?? false;
+    var ro = isClosed ? "readonly" : null;
+    var dis = isClosed ? "disabled" : null;
+}
+
+<div class="container-fluid">
+    <div class="page-header">
+        <div>
+            <h1>@L["Edit Lease"]</h1>
+            <p class="text-muted">
+                @L["Update lease agreement details"]
+                @if (isClosed)
+                {
+                    <span class="badge bg-warning" style="margin-left:0.5rem;">
+                        <i class="fas fa-lock"></i> Closed Ã¢â‚¬” read-only
+                    </span>
+                }
+            </p>
+        </div>
+        <div>
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> @L["Back to List"]
+            </a>
+        </div>
+    </div>
+
+    @if (isClosed)
+    {
+        @* LEASE_AUDIT Flaw #9 Ã¢â‚¬” closed leases (Terminated / Renewed /
+           Expired) are historical records. The form is rendered so the
+           operator can still read the values, but every input is locked
+           and the controller will refuse a POST anyway. To make a change,
+           create a renewal. *@
+        <div class="alert alert-warning" style="margin-bottom:1rem;">
+            <i class="fas fa-info-circle"></i>
+            <strong>@L["This lease is"] @Model.Status.</strong>
+            @L["Closed leases preserve financial history and cannot be edited."]
+            <a asp-action="Details" asp-route-id="@Model.LeaseId">@L["Open the lease detail page"]</a> @L["to renew or view the audit trail."]
+        </div>
+    }
+
+    <div class="form-card">
+        <form asp-action="Edit" method="post">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+            <input type="hidden" asp-for="LeaseId" />
+            <input type="hidden" asp-for="CreatedDate" />
+            <input type="hidden" asp-for="RowVersion" />
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Building, Unit & Tenant"]</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="buildingSelect" class="control-label">@L["Building"]</label>
+                            <select id="buildingSelect" class="form-control select2-enable"
+                                    asp-items="ViewBag.PropertyId" disabled="@dis">
+                                <option value="">@L["-- Select Building --"]</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                @L["Picking a building filters the Unit list below."]
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="UnitId" class="control-label">@L["Unit"]</label>
+                            <select asp-for="UnitId" id="unitSelect" class="form-control select2-enable"
+                                    asp-items="ViewBag.UnitId" disabled="@dis">
+                                <option value="">@L["-- Select Unit --"]</option>
+                            </select>
+                            <span asp-validation-for="UnitId" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label asp-for="TenantId" class="control-label">@L["Tenant"]</label>
+                            <select asp-for="TenantId" id="tenantSelect" class="form-control select2-enable"
+                                    asp-items="ViewBag.TenantId" disabled="@dis">
+                                <option value="">@L["-- Select Tenant --"]</option>
+                            </select>
+                            <span asp-validation-for="TenantId" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* Sprint 11 — units-by-building dict for the client-side cascade. *@
+            <script id="unitsByBuilding" type="application/json">@Html.Raw(ViewBag.UnitsByBuildingJson ?? "{}")</script>
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Lease Duration"]</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="LeaseStartDate" class="control-label">@L["Start Date"]</label>
+                            <input asp-for="LeaseStartDate" class="form-control" type="date" />
+                            <span asp-validation-for="LeaseStartDate" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="LeaseEndDate" class="control-label">@L["End Date"]</label>
+                            <input asp-for="LeaseEndDate" class="form-control" type="date" />
+                            <span asp-validation-for="LeaseEndDate" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Financial Details"]</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="MonthlyRent" class="control-label">@L["Monthly Rent"]</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KWD</span>
+                                <input asp-for="MonthlyRent" class="form-control" type="number" step="0.001" min="0" />
+                            </div>
+                            <span asp-validation-for="MonthlyRent" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="SecurityDeposit" class="control-label">
+                                @L["Security Deposit"] <span class="text-muted small">@L["(optional)"]</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">KWD</span>
+                                <input asp-for="SecurityDeposit" class="form-control" type="number"
+                                       step="0.001" min="0"
+                                       data-val-required="false" />
+                            </div>
+                            <span asp-validation-for="SecurityDeposit" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="PaymentDueDay" class="control-label">@L["Payment Due Date"]</label>
+                            <input asp-for="PaymentDueDay" class="form-control" type="number" min="1" max="31" placeholder="@(L["Day of month (1-31)"].Value)" />
+                            <span asp-validation-for="PaymentDueDay" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="LateFeeAmount" class="control-label">@L["Late Fee Amount (Optional)"]</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KWD</span>
+                                <input asp-for="LateFeeAmount" class="form-control" type="number" step="0.001" min="0" />
+                            </div>
+                            <span asp-validation-for="LateFeeAmount" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="LateFeeGracePeriod" class="control-label">@L["Late Fee Grace Period (Days)"]</label>
+                            <input asp-for="LateFeeGracePeriod" class="form-control" type="number" min="0" placeholder="@(L["Grace period in days"].Value)" />
+                            <span asp-validation-for="LateFeeGracePeriod" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Lease Settings"]</h3>
+                @* LEASE_AUDIT Flaw #8 Ã¢â‚¬” Status is no longer editable. The
+                   value is shown as a read-only badge here so operators
+                   know what state they're looking at; lifecycle changes go
+                   through Renew / Terminate / Transfer on the Details page. *@
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="control-label">@L["Lease Status"]</label>
+                            <div>
+                                @{
+                                    var statusBadgeClass = Model.Status switch
+                                    {
+                                        "Active" => "bg-success",
+                                        "Pending" => "bg-secondary",
+                                        "Expired" => "bg-warning text-dark",
+                                        "Terminated" => "bg-danger",
+                                        "Renewed" => "bg-info text-dark",
+                                        _ => "bg-secondary",
+                                    };
+                                }
+                                <span class="badge @statusBadgeClass" style="padding:0.5rem 0.75rem; font-size:0.9rem;">
+                                    @Model.Status
+                                </span>
+                                <small class="text-muted" style="margin-left:0.5rem;">
+                                    @L["Use the Details page to renew, terminate, or transfer."]
+                                </small>
+                            </div>
+                            @* Status is intentionally NOT bound to the
+                               form Ã¢â‚¬” controller carries the persisted
+                               value forward on POST. *@
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="LeaseType" class="control-label">@L["Lease Type"]</label>
+                            <select asp-for="LeaseType" class="form-control">
+                                <option value="Fixed">@L["Fixed Term"]</option>
+                                <option value="Month-to-Month">@L["Month-to-Month"]</option>
+                                <option value="Annual">@L["Annual"]</option>
+                            </select>
+                            <span asp-validation-for="LeaseType" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Insurance (optional)"]</h3>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="InsuranceAmount" class="control-label">@L["Insurance Amount"]</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KWD</span>
+                                <input asp-for="InsuranceAmount" class="form-control" type="number" step="0.001" min="0" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="InsuranceFrequency" class="control-label">@L["Frequency"]</label>
+                            <select asp-for="InsuranceFrequency" class="form-control">
+                                <option value="None">@L["None"]</option>
+                                <option value="Monthly">@L["Monthly"]</option>
+                                <option value="Annual">@L["Annual"]</option>
+                                <option value="OneTime">@L["One-time"]</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="InsuranceStartDate" class="control-label">@L["Start Date (optional)"]</label>
+                            <input asp-for="InsuranceStartDate" class="form-control" type="date" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> @L["Save Changes"]
+                </button>
+                <a asp-action="Index" class="btn btn-secondary">@L["Cancel"]</a>
+                <a asp-action="Details" asp-route-id="@Model.LeaseId" class="btn btn-info">
+                    <i class="fas fa-info-circle"></i> @L["View Details"]
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    <script>
+        // Sprint 11 — same Select2 + Building→Unit cascade as Create.cshtml.
+        // On Edit the lease's existing Unit is already model-bound; we derive
+        // the Building from it so the form opens with the cascade pre-positioned.
+        (function () {
+            if (typeof jQuery === 'undefined' || typeof jQuery.fn.select2 === 'undefined') {
+                console.warn('Select2 not available; Lease form using native selects.');
+                return;
+            }
+            var $ = jQuery;
+            var unitsByBuilding = {};
+            try {
+                unitsByBuilding = JSON.parse(document.getElementById('unitsByBuilding').textContent || '{}');
+            } catch (e) { console.error('Failed to parse unitsByBuilding JSON', e); }
+
+            $('.select2-enable').select2({ theme: 'bootstrap-5', width: '100%' });
+
+            var $building = $('#buildingSelect');
+            var $unit = $('#unitSelect');
+            var preselectedUnitId = $unit.val();
+
+            function rebuildUnitOptions(propertyId, preserveSelection) {
+                var current = preserveSelection ? $unit.val() : '';
+                $unit.empty().append('<option value="">-- Select Unit --</option>');
+                var list = propertyId && unitsByBuilding[propertyId] ? unitsByBuilding[propertyId] : [];
+                list.forEach(function (u) {
+                    var opt = new Option(u.text, u.id, false, String(u.id) === String(current));
+                    $unit.append(opt);
+                });
+                $unit.trigger('change.select2');
+            }
+
+            // Edit-page bootstrap: ensure the Unit dropdown has its option set
+            // even before the user touches Building. (Building is already
+            // pre-selected by the controller's selectedPropertyId param.)
+            if (preselectedUnitId && $building.val()) {
+                rebuildUnitOptions($building.val(), /* preserveSelection */ true);
+            }
+
+            $building.on('change', function () {
+                rebuildUnitOptions(this.value, /* preserveSelection */ false);
+            });
+        })();
+    </script>
+}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        color: #1e293b;
+        min-height: 100vh;
+    }
+
+    .container-fluid {
+        color: #1e293b;
+    }
+
+    .form-card {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+        padding-bottom: 2rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .form-section:last-of-type {
+        border-bottom: none;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #6366f1;
+        display: inline-block;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #475569;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #cbd5e1;
+        color: #1e293b;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .input-group {
+        display: flex;
+        width: 100%;
+    }
+
+    .input-group-text {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #cbd5e1;
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        color: #475569;
+        font-weight: 500;
+    }
+
+    .input-group .form-control {
+        border-radius: 0 8px 8px 0;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+
+    .btn-info {
+        background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+        color: white;
+    }
+
+    .btn-info:hover {
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    }
+
+    .text-danger {
+        color: #ef4444;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .alert-danger {
+        background-color: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #334155;
+        margin: 0;
+    }
+
+    .page-header .text-muted {
+        color: #475569;
+        margin: 0.5rem 0 0 0;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    @@media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .form-card {
+            padding: 1rem;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+    }
+</style>

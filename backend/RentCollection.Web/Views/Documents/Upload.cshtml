@@ -1,0 +1,580 @@
+@{
+    ViewData["Title"] = "Upload Document";
+}
+
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1>@L["Upload Document"]</h1>
+            <p class="text-muted">@L["Upload a new document to the system"]</p>
+        </div>
+        <a href="/Documents" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> @L["Back to Documents"]
+        </a>
+    </div>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i>
+            @TempData["ErrorMessage"]
+        </div>
+    }
+
+    <div class="form-card">
+        <form asp-action="Upload" method="post" enctype="multipart/form-data">
+            <div class="form-section">
+                <h3 class="section-title">@L["File Selection"]</h3>
+
+                <div class="file-upload-area" id="fileUploadArea">
+                    <div class="file-upload-content">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h4>@L["Click to select file or drag and drop"]</h4>
+                        <p>@L["Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, and more"]</p>
+                        <p class="file-size-limit">@L["Maximum file size: 50 MB"]</p>
+                        <input type="file" name="file" id="fileInput" class="file-input" required />
+                        <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-folder-open"></i> @L["Choose File"]
+                        </button>
+                    </div>
+                    <div id="filePreview" class="file-preview" style="display: none;">
+                        <div class="file-preview-icon">
+                            <i class="fas fa-file" id="previewIcon"></i>
+                        </div>
+                        <div class="file-preview-info">
+                            <span id="fileName" class="file-name"></span>
+                            <span id="fileSize" class="file-size"></span>
+                        </div>
+                        <button type="button" class="btn-remove" onclick="removeFile()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Document Information"]</h3>
+
+                <div class="form-group">
+                    <label for="documentType" class="form-label">
+                        <i class="fas fa-tags"></i> @L["Document Type"] <span class="required">*</span>
+                    </label>
+                    <select name="documentType" id="documentType" class="form-control" required>
+                        <option value="">@L["Select document type"]</option>
+                        <option value="Lease Agreement">@L["Lease Agreement"]</option>
+                        <option value="Invoice">@L["Invoice"]</option>
+                        <option value="Receipt">@L["Receipt"]</option>
+                        <option value="ID Document">@L["ID Document"]</option>
+                        <option value="Contract">@L["Contract"]</option>
+                        <option value="Report">@L["Report"]</option>
+                        <option value="Other">@L["Other"]</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description" class="form-label">
+                        <i class="fas fa-file-alt"></i> @L["Description (Optional)"]
+                    </label>
+                    <textarea name="description" id="description" class="form-control" rows="4"
+                              placeholder="@(L["Add any additional notes or description about this document..."].Value)"></textarea>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title"><i class="fas fa-link"></i> @L["Link to Entity (Optional)"]</h3>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="control-label">@L["Entity Type"]</label>
+                            <select id="entityTypeSelect" name="relatedEntityType" class="form-control">
+                                <option value="">@L["-- None --"]</option>
+                                <option value="Tenant">@L["Tenant"]</option>
+                                <option value="Property">@L["Property"]</option>
+                                <option value="Lease">@L["Lease"]</option>
+                                <option value="Maintenance">@L["Maintenance Request"]</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row" id="entitySelectRow" style="display: none;">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="control-label" id="entityLabel">@L["Select Entity"]</label>
+
+                            <!-- Tenant Dropdown -->
+                            <select id="tenantSelect" name="relatedEntityId" class="form-control entity-select" style="display: none;">
+                                <option value="">@L["-- Select Tenant --"]</option>
+                                @if (ViewData["Tenants"] != null)
+                                {
+                                    foreach (dynamic tenant in (IEnumerable<dynamic>)ViewData["Tenants"])
+                                    {
+                                        <option value="@tenant.TenantId">@tenant.Name</option>
+                                    }
+                                }
+                            </select>
+
+                            <!-- Property Dropdown -->
+                            <select id="propertySelect" name="relatedEntityId" class="form-control entity-select" style="display: none;">
+                                <option value="">@L["-- Select Property --"]</option>
+                                @if (ViewData["Properties"] != null)
+                                {
+                                    foreach (dynamic property in (IEnumerable<dynamic>)ViewData["Properties"])
+                                    {
+                                        <option value="@property.PropertyId">@property.Name</option>
+                                    }
+                                }
+                            </select>
+
+                            <!-- Lease Dropdown -->
+                            <select id="leaseSelect" name="relatedEntityId" class="form-control entity-select" style="display: none;">
+                                <option value="">@L["-- Select Lease --"]</option>
+                                @if (ViewData["Leases"] != null)
+                                {
+                                    foreach (dynamic lease in (IEnumerable<dynamic>)ViewData["Leases"])
+                                    {
+                                        <option value="@lease.LeaseId">@lease.Name</option>
+                                    }
+                                }
+                            </select>
+
+                            <!-- Maintenance Dropdown -->
+                            <select id="maintenanceSelect" name="relatedEntityId" class="form-control entity-select" style="display: none;">
+                                <option value="">@L["-- Select Maintenance Request --"]</option>
+                                @if (ViewData["MaintenanceRequests"] != null)
+                                {
+                                    foreach (dynamic request in (IEnumerable<dynamic>)ViewData["MaintenanceRequests"])
+                                    {
+                                        <option value="@request.RequestId">@request.Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> @L["Upload Document"]
+                </button>
+                <a href="/Documents" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> @L["Cancel"]
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .page-container {
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #111827;
+        }
+
+        .text-muted {
+            color: #6b7280;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .alert-danger {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .form-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .form-section:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 2px;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            transition: all 0.3s;
+            background: #f9fafb;
+            position: relative;
+        }
+
+        .file-upload-area.drag-over {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .file-upload-content i {
+            font-size: 3rem;
+            color: #9ca3af;
+            margin-bottom: 1rem;
+        }
+
+        .file-upload-content h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #111827;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .file-upload-content p {
+            color: #6b7280;
+            margin: 0.25rem 0;
+        }
+
+        .file-size-limit {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-preview {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .file-preview-icon i {
+            font-size: 2.5rem;
+            color: #3b82f6;
+        }
+
+        .file-preview-info {
+            flex: 1;
+            text-align: left;
+        }
+
+        .file-name {
+            display: block;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 0.25rem;
+        }
+
+        .file-size {
+            display: block;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .btn-remove {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: #fee2e2;
+            color: #ef4444;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-remove:hover {
+            background: #fecaca;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .form-label i {
+            color: #6b7280;
+            margin-right: 0.25rem;
+        }
+
+        .required {
+            color: #ef4444;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .file-upload-area {
+                padding: 2rem 1rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const filePreview = document.getElementById('filePreview');
+
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                showFilePreview(this.files[0]);
+            }
+        });
+
+        // Drag and drop functionality
+        fileUploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        });
+
+        fileUploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+        });
+
+        fileUploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                fileInput.files = e.dataTransfer.files;
+                showFilePreview(e.dataTransfer.files[0]);
+            }
+        });
+
+        function showFilePreview(file) {
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const previewIcon = document.getElementById('previewIcon');
+            const fileUploadContent = document.querySelector('.file-upload-content');
+
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+
+            // Update icon based on file type
+            const extension = file.name.split('.').pop().toLowerCase();
+            previewIcon.className = getFileIconClass(extension);
+
+            fileUploadContent.style.display = 'none';
+            filePreview.style.display = 'flex';
+        }
+
+        function removeFile() {
+            fileInput.value = '';
+            document.querySelector('.file-upload-content').style.display = 'block';
+            filePreview.style.display = 'none';
+        }
+
+        function formatFileSize(bytes) {
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            if (bytes === 0) return '0 B';
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function getFileIconClass(extension) {
+            const iconMap = {
+                'pdf': 'fas fa-file-pdf',
+                'doc': 'fas fa-file-word',
+                'docx': 'fas fa-file-word',
+                'xls': 'fas fa-file-excel',
+                'xlsx': 'fas fa-file-excel',
+                'ppt': 'fas fa-file-powerpoint',
+                'pptx': 'fas fa-file-powerpoint',
+                'jpg': 'fas fa-file-image',
+                'jpeg': 'fas fa-file-image',
+                'png': 'fas fa-file-image',
+                'gif': 'fas fa-file-image',
+                'zip': 'fas fa-file-archive',
+                'rar': 'fas fa-file-archive',
+                'txt': 'fas fa-file-alt'
+            };
+            return iconMap[extension] || 'fas fa-file';
+        }
+
+        // Entity selection dynamic behavior
+        document.getElementById('entityTypeSelect').addEventListener('change', function() {
+            const entityType = this.value;
+            const entityRow = document.getElementById('entitySelectRow');
+            const allSelects = document.querySelectorAll('.entity-select');
+
+            // Hide all entity selects
+            allSelects.forEach(select => {
+                select.style.display = 'none';
+                select.disabled = true;
+            });
+
+            if (entityType) {
+                entityRow.style.display = 'block';
+
+                // Show appropriate dropdown
+                let selectToShow = null;
+                switch(entityType) {
+                    case 'Tenant':
+                        selectToShow = document.getElementById('tenantSelect');
+                        break;
+                    case 'Property':
+                        selectToShow = document.getElementById('propertySelect');
+                        break;
+                    case 'Lease':
+                        selectToShow = document.getElementById('leaseSelect');
+                        break;
+                    case 'Maintenance':
+                        selectToShow = document.getElementById('maintenanceSelect');
+                        break;
+                }
+
+                if (selectToShow) {
+                    selectToShow.style.display = 'block';
+                    selectToShow.disabled = false;
+                }
+            } else {
+                entityRow.style.display = 'none';
+            }
+        });
+    </script>
+}

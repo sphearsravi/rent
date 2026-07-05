@@ -1,0 +1,669 @@
+﻿@model List<RentCollection.Core.Entities.Document>
+@using System.IO
+@using RentCollection.Core.Entities
+@{
+    ViewData["Title"] = "Documents";
+    var nameMap = ViewBag.NameMap as RentCollection.Web.Controllers.DocumentsController.EntityNameMap;
+    var filterType = ViewBag.FilterType as string ?? "";
+    var filterEntityId = ViewBag.FilterEntityId as int?;
+    var filterSearch = ViewBag.FilterSearch as string ?? "";
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = "Documents",
+        ["Subtitle"] = string.Format(L["Manage all your documents in one place ({0} documents)"].Value, Model.Count),
+        ["ActionLabel"] = "Upload Document",
+        ["ActionHref"] = Url.Action("Upload", "Documents"),
+        ["Crumbs"] = new (string label, string? href)[]
+            {
+                ("Admin", "/Dashboard"),
+                ("Documents", null)
+            }
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    @Html.AntiForgeryToken()
+
+    <!-- ─── Filter toolbar (P3): type chips + search ─── -->
+    <div class="docs-toolbar">
+        <div class="filter-chips" role="tablist" aria-label="Filter by linked entity type">
+            @{
+                var chips = new (string Label, string Value, string Icon)[]
+                {
+                    ("All", "", "fa-layer-group"),
+                    ("Tenant", DocumentLinkEntityTypes.Tenant, "fa-user"),
+                    ("Property", DocumentLinkEntityTypes.Property, "fa-building"),
+                    ("Lease", DocumentLinkEntityTypes.Lease, "fa-file-signature"),
+                    ("Maintenance", DocumentLinkEntityTypes.MaintenanceRequest, "fa-screwdriver-wrench"),
+                    ("Unlinked", "Unlinked", "fa-link-slash"),
+                };
+            }
+            @foreach (var c in chips)
+            {
+                var isActive = filterType == c.Value;
+                var href = c.Value == "" ? "/Documents" : $"/Documents?type={c.Value}";
+                <a class="type-chip @(isActive ? "is-active" : "")" href="@href" role="tab" aria-selected="@(isActive ? "true" : "false")">
+                    <i class="fas @c.Icon"></i> @L[c.Label]
+                </a>
+            }
+        </div>
+        <form method="get" action="/Documents" class="docs-search">
+            @if (!string.IsNullOrEmpty(filterType))
+            {
+                <input type="hidden" name="type" value="@filterType" />
+            }
+            @if (filterEntityId.HasValue)
+            {
+                <input type="hidden" name="entityId" value="@filterEntityId" />
+            }
+            <i class="fas fa-search"></i>
+            <input type="search" name="search" value="@filterSearch" placeholder="@(L["Search by name, description, or linked entity…"].Value)" aria-label="@(L["Search documents"].Value)" />
+            @if (!string.IsNullOrEmpty(filterSearch))
+            {
+                <a class="search-clear" href="/Documents@(string.IsNullOrEmpty(filterType) ? "" : $"?type={filterType}")" aria-label="@(L["Clear search"].Value)">Ã—</a>
+            }
+        </form>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="documents-grid">
+            @foreach (var document in Model)
+            {
+                <div class="document-card">
+                    <div class="document-icon">
+                        <i class="fas @GetFileIcon(document.DocumentName)"></i>
+                    </div>
+                    <div class="document-info">
+                        <h3 class="document-name" title="@document.DocumentName">@document.DocumentName</h3>
+                        <div class="document-meta">
+                            <span class="document-type-badge">@document.DocumentType</span>
+                            <span class="document-size">@FormatFileSize(document.FileSize)</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(document.Description))
+                        {
+                            <p class="document-description">@document.Description</p>
+                        }
+                        @if (document.Links?.Any() == true)
+                        {
+                            <div class="doc-info-row">
+                                <i class="fas fa-link"></i>
+                                <div class="doc-info-body">
+                                    <div class="doc-label">@L["Linked to"]</div>
+                                    <div class="doc-links">
+                                        @foreach (var link in document.Links)
+                                        {
+                                            var name = nameMap?.GetName(link.EntityType, link.EntityId);
+                                            var url  = nameMap?.GetUrl(link.EntityType, link.EntityId);
+                                            var icon = link.EntityType switch
+                                            {
+                                                DocumentLinkEntityTypes.Tenant => "fa-user",
+                                                DocumentLinkEntityTypes.Property => "fa-building",
+                                                DocumentLinkEntityTypes.Lease => "fa-file-signature",
+                                                DocumentLinkEntityTypes.MaintenanceRequest => "fa-screwdriver-wrench",
+                                                _ => "fa-link"
+                                            };
+                                            if (url != null && name != null)
+                                            {
+                                                <a class="link-pill" href="@url" title="@($"{link.EntityType}: {name}")">
+                                                    <i class="fas @icon"></i> @name
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="link-pill link-pill-missing" title="@(L["Linked entity no longer exists"].Value)">
+                                                    <i class="fas @icon"></i> @link.EntityType #@link.EntityId
+                                                </span>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="doc-info-row">
+                                <i class="fas fa-link-slash"></i>
+                                <div class="doc-info-body">
+                                    <div class="doc-label">@L["Unlinked"]</div>
+                                    <div class="doc-value text-muted">@L["Not attached to any entity"]</div>
+                                </div>
+                            </div>
+                        }
+                        <div class="document-footer">
+                            <div class="document-upload-info">
+                                <i class="fas fa-user"></i> @document.UploadedBy
+                                <span class="separator">·</span>
+                                <i class="fas fa-clock"></i> @document.UploadedDate.ToString("MMM dd, yyyy")
+                            </div>
+                            <div class="document-actions">
+                                <a href="/Documents/Download/@document.DocumentId" class="btn-icon btn-download" title="@(L["Download"].Value)">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <div class="kebab-wrap">
+                                    <button type="button" class="btn-icon kebab-btn" aria-label="@(L["More actions"].Value)" aria-haspopup="menu" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-vertical"></i>
+                                    </button>
+                                    <div class="kebab-menu" role="menu" hidden>
+                                        <a href="/Documents/Download/@document.DocumentId" role="menuitem"><i class="fas fa-download"></i> @L["Download"]</a>
+                                        @if (document.Links?.Any() == true)
+                                        {
+                                            var first = document.Links.First();
+                                            var url = nameMap?.GetUrl(first.EntityType, first.EntityId);
+                                            if (url != null)
+                                            {
+                                                <a href="@url" role="menuitem"><i class="fas fa-arrow-up-right-from-square"></i> @L["Open linked"]</a>
+                                            }
+                                        }
+                                        <form asp-action="Delete" asp-route-id="@document.DocumentId" method="post" class="kebab-form"
+                                              onsubmit="return confirm('Delete this document and ALL its links? This removes the file from disk too.');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" role="menuitem" class="kebab-danger">
+                                                <i class="fas fa-trash"></i> @L["Delete"]
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="fas fa-folder-open"></i>
+            <h3>@L["No Documents Found"]</h3>
+            <p>@L["Start by uploading your first document"]</p>
+            <a href="/Documents/Upload" class="btn btn-primary">
+                <i class="fas fa-upload"></i> @L["Upload Document"]
+            </a>
+        </div>
+    }
+</div>
+
+@{
+    string GetFileIcon(string fileName)
+    {
+        var extension = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
+        return extension switch
+        {
+            ".pdf" => "fa-file-pdf text-danger",
+            ".doc" or ".docx" => "fa-file-word text-primary",
+            ".xls" or ".xlsx" => "fa-file-excel text-success",
+            ".ppt" or ".pptx" => "fa-file-powerpoint text-warning",
+            ".jpg" or ".jpeg" or ".png" or ".gif" => "fa-file-image text-info",
+            ".zip" or ".rar" => "fa-file-archive text-secondary",
+            ".txt" => "fa-file-alt text-muted",
+            _ => "fa-file text-muted"
+        };
+    }
+
+    string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}
+
+@section Styles {
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .page-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .alert-success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-danger {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .document-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .document-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .document-icon {
+            background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .document-icon i {
+            font-size: 3.5rem;
+        }
+
+        .document-info {
+            padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .document-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111827;
+            margin: 0 0 0.75rem 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .document-meta {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .document-type-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .document-size {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .document-description {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin: 0 0 0.75rem 0;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .document-related {
+            font-size: 0.875rem;
+            color: #6b7280;
+            padding: 0.5rem;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .document-related i {
+            color: #3b82f6;
+            margin-right: 0.25rem;
+        }
+
+        .doc-info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .doc-info-row i {
+            color: #06b6d4;
+            font-size: 1rem;
+            margin-top: 0.25rem;
+        }
+
+        .doc-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            margin-bottom: 0.25rem;
+        }
+
+        .doc-value {
+            font-size: 0.875rem;
+            color: #111827;
+        }
+
+        .badge-info {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .document-footer {
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .document-upload-info {
+            font-size: 0.75rem;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .separator {
+            color: #d1d5db;
+        }
+
+        .document-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e5e7eb;
+            color: #6b7280;
+            text-decoration: none;
+            transition: all 0.2s;
+            background: white;
+            cursor: pointer;
+        }
+
+        .btn-icon:hover {
+            background: #f9fafb;
+        }
+
+        .btn-download:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        .btn-icon-danger:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #d1d5db;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+            color: #111827;
+        }
+
+        .empty-state p {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+
+        /* P3 — Toolbar (chips + search) */
+        .docs-toolbar {
+            display: flex; flex-wrap: wrap; gap: 0.75rem;
+            justify-content: space-between; align-items: center;
+            margin: 0 0 1.25rem;
+        }
+        .filter-chips {
+            display: flex; gap: 0.4rem; flex-wrap: wrap;
+        }
+        .type-chip {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.4rem 0.85rem;
+            background: rgba(99, 102, 241,0.06);
+            color: #4338ca;
+            border-radius: 999px;
+            font-size: 0.8rem; font-weight: 500;
+            border: 1px solid rgba(99, 102, 241,0.15);
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .type-chip:hover { background: rgba(99, 102, 241,0.12); }
+        .type-chip.is-active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white; border-color: transparent;
+        }
+        .type-chip i { font-size: 0.75rem; }
+        .docs-search {
+            position: relative;
+            display: flex; align-items: center;
+            background: white;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 0.45rem 0.85rem;
+            min-width: 280px;
+        }
+        .docs-search:focus-within {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241,0.1);
+        }
+        .docs-search i { color: #94a3b8; margin-right: 0.5rem; }
+        .docs-search input {
+            flex: 1; border: 0; outline: none; background: transparent;
+            font-size: 0.875rem; color: #1e293b; min-width: 200px;
+        }
+        .search-clear {
+            color: #94a3b8; text-decoration: none; font-size: 1.1rem;
+            padding: 0 0.4rem; line-height: 1; margin-left: 0.3rem;
+        }
+        .search-clear:hover { color: #64748b; }
+
+        /* P3 — Resolved link pills */
+        .doc-info-body { flex: 1; min-width: 0; }
+        .doc-links { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+        .link-pill {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.3rem 0.7rem;
+            background: white; color: #334155;
+            border: 1px solid #e2e8f0; border-radius: 6px;
+            font-size: 0.8rem; text-decoration: none;
+            max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .link-pill:hover {
+            border-color: #6366f1; color: #6366f1;
+            background: rgba(99, 102, 241,0.04);
+        }
+        .link-pill i { color: #6366f1; font-size: 0.7rem; flex-shrink: 0; }
+        .link-pill-missing {
+            background: #fef2f2; color: #991b1b; border-color: #fecaca;
+            cursor: not-allowed;
+        }
+        .link-pill-missing i { color: #ef4444; }
+
+        /* P3 — Kebab menu */
+        .kebab-wrap { position: relative; display: inline-block; }
+        .kebab-menu {
+            position: absolute; top: 100%; right: 0; z-index: 10;
+            background: white; min-width: 180px;
+            border: 1px solid #e2e8f0; border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(15,23,42,0.12);
+            padding: 0.35rem; margin-top: 4px;
+        }
+        .kebab-menu[hidden] { display: none; }
+        .kebab-menu a, .kebab-menu button {
+            display: flex; align-items: center; gap: 0.6rem; width: 100%;
+            padding: 0.5rem 0.75rem; border-radius: 6px;
+            color: #334155; text-decoration: none; font-size: 0.85rem;
+            background: none; border: 0; cursor: pointer; text-align: start;
+            font-family: inherit;
+        }
+        .kebab-menu a:hover, .kebab-menu button:hover { background: #f8fafc; color: #6366f1; }
+        .kebab-menu a i, .kebab-menu button i { width: 16px; color: #94a3b8; }
+        .kebab-form { margin: 0; }
+        .kebab-danger:hover { background: rgba(239,68,68,0.08) !important; color: #dc2626 !important; }
+        .kebab-danger:hover i { color: #dc2626 !important; }
+
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .documents-grid {
+                grid-template-columns: 1fr;
+            }
+            .docs-search { width: 100%; min-width: 0; }
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        // Kebab open/close — single global "click outside closes" listener.
+        document.querySelectorAll('.kebab-btn').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const menu = btn.parentElement.querySelector('.kebab-menu');
+                const wasOpen = !menu.hasAttribute('hidden');
+                document.querySelectorAll('.kebab-menu').forEach(m => m.setAttribute('hidden', ''));
+                document.querySelectorAll('.kebab-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+                if (!wasOpen) {
+                    menu.removeAttribute('hidden');
+                    btn.setAttribute('aria-expanded', 'true');
+                }
+            });
+        });
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.kebab-menu').forEach(m => m.setAttribute('hidden', ''));
+            document.querySelectorAll('.kebab-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+        });
+    </script>
+}

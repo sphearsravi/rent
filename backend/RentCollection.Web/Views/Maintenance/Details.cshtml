@@ -1,0 +1,525 @@
+@model RentCollection.Core.Entities.MaintenanceRequest
+@{
+    ViewData["Title"] = "Maintenance Request Details";
+}
+
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1>@L["Maintenance Request"] #@Model.RequestId</h1>
+            <p class="text-muted">@L["View maintenance request details"]</p>
+        </div>
+        <div class="header-actions">
+            @if (Model.Status != "Completed" && Model.Status != "Cancelled")
+            {
+                <a href="/Maintenance/Close/@Model.RequestId" class="btn btn-success">
+                    <i class="fas fa-check-circle"></i> @L["Close Request"]
+                </a>
+            }
+            <a href="/Maintenance/Edit/@Model.RequestId" class="btn btn-primary">
+                <i class="fas fa-edit"></i> @L["Edit"]
+            </a>
+            <a href="/Maintenance" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> @L["Back to List"]
+            </a>
+        </div>
+    </div>
+
+    <div class="details-card">
+        <div class="status-header">
+            <div class="status-badges">
+                <span class="status-badge status-@Model.Status.ToLower().Replace(" ", "-")">
+                    @Model.Status
+                </span>
+                <span class="priority-badge priority-@Model.Priority.ToLower()">
+                    @Model.Priority @L["Priority"]
+                </span>
+            </div>
+            <div class="request-date">
+                <i class="fas fa-calendar"></i>
+                @L["Requested on"] @Model.RequestDate.ToString("MMMM dd, yyyy")
+            </div>
+        </div>
+
+        <div class="details-section">
+            <h3 class="section-title">@L["Property Information"]</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label><i class="fas fa-building"></i> @L["Property"]</label>
+                    <div class="info-value">@Model.Property.PropertyName</div>
+                    <small class="text-muted">@Model.Property.Address, @Model.Property.Governorate</small>
+                </div>
+
+                @if (Model.Unit != null)
+                {
+                    <div class="info-item">
+                        <label><i class="fas fa-door-open"></i> @L["Unit"]</label>
+                        <div class="info-value">@L["Unit"] @Model.Unit.UnitNumber</div>
+                        <small class="text-muted">@Model.Unit.Bedrooms BR / @Model.Unit.Bathrooms BA</small>
+                    </div>
+                }
+
+                @if (Model.Tenant != null)
+                {
+                    <div class="info-item">
+                        <label><i class="fas fa-user"></i> @L["Tenant"]</label>
+                        <div class="info-value">@Model.Tenant.FirstName @Model.Tenant.LastName</div>
+                        <small class="text-muted">
+                            <i class="fas fa-envelope"></i> @Model.Tenant.Email<br />
+                            <i class="fas fa-phone"></i> @Model.Tenant.Phone
+                        </small>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="details-section">
+            <h3 class="section-title">@L["Request Details"]</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label><i class="fas fa-tags"></i> @L["Request Type"]</label>
+                    <div class="info-value">
+                        <i class="fas @GetRequestTypeIcon(Model.Category)"></i>
+                        @Model.Category
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <label><i class="fas fa-user-cog"></i> @L["Assigned To"]</label>
+                    <div class="info-value">
+                        @if (Model.AssignedToUser != null)
+                        {
+                            <div class="assigned-user">
+                                <div class="user-avatar">@Model.AssignedToUser.Email.Substring(0, 1).ToUpper()</div>
+                                <span>@Model.AssignedToUser.Email</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">@L["Unassigned"]</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-item full-width">
+                <label><i class="fas fa-file-alt"></i> @L["Description"]</label>
+                <div class="info-value description-box">@Model.Description</div>
+            </div>
+        </div>
+
+        @if (Model.Status == "Completed" || Model.CompletedDate != null || Model.ActualCost != null || !string.IsNullOrEmpty(Model.Notes))
+        {
+            <div class="details-section">
+                <h3 class="section-title">@L["Completion Details"]</h3>
+                <div class="info-grid">
+                    @if (Model.CompletedDate != null)
+                    {
+                        <div class="info-item">
+                            <label><i class="fas fa-calendar-check"></i> @L["Completed Date"]</label>
+                            <div class="info-value">@Model.CompletedDate.Value.ToString("MMMM dd, yyyy")</div>
+                            <small class="text-muted">
+                                @L["Duration:"] @((Model.CompletedDate.Value - Model.RequestDate).Days) @L["days"]
+                            </small>
+                        </div>
+                    }
+
+                    @if (Model.ActualCost != null)
+                    {
+                        <div class="info-item">
+                            <label><i class="fas fa-dollar-sign"></i> @L["Cost"]</label>
+                            <div class="info-value cost-value">KWD @Model.ActualCost.Value.ToString("N3")</div>
+                        </div>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.Notes))
+                {
+                    <div class="info-item full-width">
+                        <label><i class="fas fa-sticky-note"></i> @L["Notes"]</label>
+                        <div class="info-value notes-box">@Model.Notes</div>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="details-section">
+            <h3 class="section-title">@L["Audit Information"]</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label><i class="fas fa-clock"></i> @L["Created Date"]</label>
+                    <div class="info-value">@Model.CreatedDate.ToString("MMMM dd, yyyy HH:mm")</div>
+                </div>
+
+                @if (Model.ModifiedDate != null)
+                {
+                    <div class="info-item">
+                        <label><i class="fas fa-edit"></i> @L["Last Modified"]</label>
+                        <div class="info-value">@Model.ModifiedDate.Value.ToString("MMMM dd, yyyy HH:mm")</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="action-buttons-bottom">
+        @if (Model.Status != "Completed" && Model.Status != "Cancelled")
+        {
+            <a href="/Maintenance/Close/@Model.RequestId" class="btn btn-success">
+                <i class="fas fa-check-circle"></i> @L["Close Request"]
+            </a>
+        }
+        <a href="/Maintenance/Edit/@Model.RequestId" class="btn btn-primary">
+            <i class="fas fa-edit"></i> @L["Edit Request"]
+        </a>
+        <a href="/Maintenance/Delete/@Model.RequestId" class="btn btn-danger">
+            <i class="fas fa-trash"></i> @L["Delete Request"]
+        </a>
+        <a href="/Maintenance" class="btn btn-secondary">
+            <i class="fas fa-list"></i> @L["Back to List"]
+        </a>
+    </div>
+</div>
+
+@{
+    string GetRequestTypeIcon(string category)
+    {
+        return category switch
+        {
+            "Plumbing" => "fa-toilet",
+            "Electrical" => "fa-bolt",
+            "HVAC" => "fa-fan",
+            "Appliance" => "fa-blender",
+            "General" => "fa-wrench",
+            _ => "fa-tools"
+        };
+    }
+}
+
+@section Styles {
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .page-container {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+            font-size: 0.875rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+
+        .btn-danger {
+            background: white;
+            color: #ef4444;
+            border: 1px solid #fecaca;
+        }
+
+        .btn-danger:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        .details-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .status-header {
+            background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badges {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .status-open {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-in-progress {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-completed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-cancelled {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .priority-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .priority-low {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .priority-medium {
+            background-color: #fed7aa;
+            color: #92400e;
+        }
+
+        .priority-high {
+            background-color: #fecaca;
+            color: #991b1b;
+        }
+
+        .request-date {
+            color: #6b7280;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .details-section {
+            padding: 2rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .details-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 2px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .info-item label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .info-item label i {
+            margin-right: 0.25rem;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        .description-box,
+        .notes-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .cost-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #059669;
+        }
+
+        .assigned-user {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .action-buttons-bottom {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .header-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .status-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons-bottom {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+    </style>
+}

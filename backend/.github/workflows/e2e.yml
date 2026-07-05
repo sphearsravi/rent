@@ -1,0 +1,115 @@
+# Browser E2E workflow — spins up SQL Server, migrates + seeds it, boots the
+# app, installs Playwright, and runs the RentCollection.E2ETests suite headless
+# (video on failure). Kept OUT of the per-PR fast gate (ci.yml) because it needs
+# real infra; opt in by adding the `e2e` label to a PR, or run it manually.
+#
+# NOTE: authored to match the app's needs but not yet validated on a live GitHub
+# runner — treat the first run as a shakedown (SQL health cmd path and the app's
+# optional Sentry/OTEL config are the most likely things to tweak).
+name: e2e
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  e2e:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'e2e'
+    name: Browser E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      sql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'E2e_Str0ng_Pass!'
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P E2e_Str0ng_Pass! -No -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P E2e_Str0ng_Pass! -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+
+    env:
+      # One connection string used by EF migrations, the app, and the tests.
+      DB_CONN: "Server=localhost,1433;Database=RentCollectionDB;User Id=sa;Password=E2e_Str0ng_Pass!;TrustServerCertificate=true;Encrypt=false;"
+      ASPNETCORE_ENVIRONMENT: Development
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore + build
+        run: |
+          dotnet restore RentCollectionSystem.sln
+          dotnet build RentCollectionSystem.sln --configuration Release --no-restore
+
+      - name: Apply EF migrations
+        env:
+          ConnectionStrings__DefaultConnection: ${{ env.DB_CONN }}
+        run: |
+          dotnet tool install --global dotnet-ef --version 9.0.10
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef database update \
+            --project RentCollection.Infrastructure \
+            --startup-project RentCollection.Web
+
+      - name: Seed baseline (company + admin)
+        run: |
+          docker run --rm --network host mcr.microsoft.com/mssql-tools \
+            /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'E2e_Str0ng_Pass!' \
+            -d RentCollectionDB -i db/seed-e2e.sql
+
+      - name: Boot the app
+        env:
+          ConnectionStrings__DefaultConnection: ${{ env.DB_CONN }}
+          # Keep optional integrations quiet in CI (Sentry crashes startup if a
+          # DSN is configured-but-invalid; leave it empty to disable).
+          Sentry__Dsn: ''
+        run: |
+          dotnet run --project RentCollection.Web --configuration Release --no-build \
+            --urls http://localhost:5032 > app.log 2>&1 &
+          echo "APP_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 40); do
+            if curl -fs http://localhost:5032/Account/Login -o /dev/null; then
+              echo "app is up"; break
+            fi
+            sleep 2
+          done
+
+      - name: Install Playwright browsers
+        run: |
+          PW=$(find RentCollection.E2ETests/bin -name playwright.ps1 | head -1)
+          pwsh "$PW" install --with-deps chromium
+
+      - name: Run E2E tests
+        env:
+          RC_E2E_DB: ${{ env.DB_CONN }}
+          RC_E2E_BASE_URL: http://localhost:5032
+          RC_E2E_VIDEO: '1'
+        run: |
+          dotnet test RentCollectionSystem.sln --configuration Release --no-build \
+            --filter "FullyQualifiedName~RentCollection.E2ETests" \
+            --logger "trx;LogFileName=e2e-results.trx"
+
+      - name: Stop the app
+        if: always()
+        run: kill "${APP_PID}" 2>/dev/null || true
+
+      - name: Upload videos + results (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            RentCollection.E2ETests/videos/**
+            **/TestResults/*.trx
+            app.log
+          retention-days: 7

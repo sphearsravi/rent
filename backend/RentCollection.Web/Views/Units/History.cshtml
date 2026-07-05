@@ -1,0 +1,155 @@
+@model List<RentCollection.Web.Controllers.UnitsController.UnitHistoryRow>
+@{
+    var unit = (RentCollection.Core.Entities.Unit)ViewBag.Unit;
+    ViewData["Title"] = $"Unit {unit.UnitNumber} — History";
+
+    var tenancyRows = Model.Where(r => r.Kind == "Tenancy").ToList();
+    var distinctTenants = tenancyRows.Select(r => r.TenantName).Distinct().Count();
+    var totalDays = tenancyRows.Sum(r => r.Days);
+    var gapDays = Model.Where(r => r.Kind == "Gap").Sum(r => r.Days);
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = $"Unit {unit.UnitNumber} — History",
+        ["Subtitle"] = $"{unit.Property?.PropertyName} · {distinctTenants} distinct tenant{(distinctTenants == 1 ? "" : "s")} over {tenancyRows.Count} tenanc{(tenancyRows.Count == 1 ? "y" : "ies")}",
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            (L["Admin"].Value, "/Dashboard"),
+            (L["Properties"].Value, "/Properties"),
+            (unit.Property?.PropertyName ?? L["Property"].Value, $"/Properties/Details/{unit.PropertyId}"),
+            ($"Unit {unit.UnitNumber}", $"/Units/Details/{unit.UnitId}"),
+            (L["History"].Value, null),
+        }
+    })
+
+    <div class="unit-strip">
+        <div class="kpi-card"><div class="kpi-icon ki-tenants"><i class="fas fa-users"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Distinct tenants"]</div><div class="kpi-value">@distinctTenants</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-tenancies"><i class="fas fa-file-contract"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Tenancies"]</div><div class="kpi-value">@tenancyRows.Count</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-occdays"><i class="fas fa-calendar-check"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Occupied days"]</div><div class="kpi-value">@totalDays</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-gapdays"><i class="fas fa-door-open"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Vacant days"]</div><div class="kpi-value">@gapDays</div></div></div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="empty">
+            <i class="fas fa-clock-rotate-left"></i>
+            <h3>@L["No history yet"]</h3>
+            <p>@L["This unit has never been leased."]</p>
+        </div>
+    }
+    else
+    {
+        <ol class="timeline">
+            @foreach (var row in Model)
+            {
+                if (row.Kind == "Gap")
+                {
+                    <li class="tl-row tl-gap">
+                        <div class="tl-marker"><i class="fas fa-door-open"></i></div>
+                        <div class="tl-body">
+                            <div class="tl-head">
+                                <strong>@L["Vacant"]</strong>
+                                <span class="tl-period">@row.Start.ToString("dd MMM yyyy") → @row.End.ToString("dd MMM yyyy")</span>
+                                <span class="tl-days">@row.Days @(row.Days == 1 ? L["day"].Value : L["days"].Value)</span>
+                            </div>
+                        </div>
+                    </li>
+                }
+                else
+                {
+                    var statusClass = (row.LeaseStatus ?? "").ToLowerInvariant();
+                    <li class="tl-row tl-tenancy tl-@statusClass">
+                        <div class="tl-marker"><i class="fas fa-user"></i></div>
+                        <div class="tl-body">
+                            <div class="tl-head">
+                                <strong>@row.TenantName</strong>
+                                <span class="tl-status">@row.LeaseStatus</span>
+                                <span class="tl-period">@row.Start.ToString("dd MMM yyyy") → @row.End.ToString("dd MMM yyyy")</span>
+                                <span class="tl-days">@row.Days @(row.Days == 1 ? L["day"].Value : L["days"].Value)</span>
+                            </div>
+                            <div class="tl-meta">
+                                <a href="/Leases/Details/@row.LeaseId">@L["Lease #"]@row.LeaseId</a>
+                                @if (row.MonthlyRent.HasValue) { <span>· @row.MonthlyRent.Value.ToString("N3") @L["KWD / month"]</span> }
+                            </div>
+                        </div>
+                    </li>
+                }
+            }
+        </ol>
+    }
+</div>
+
+<style>
+    .page-container { padding: 1.5rem 2rem; max-width: 1000px; margin: 0 auto; }
+    .unit-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; margin-bottom: 1.25rem; }
+    @@media (max-width: 800px) { .unit-strip { grid-template-columns: repeat(2, 1fr); } }
+    .unit-strip .kpi-card {
+        display: flex; align-items: center; gap: 0.65rem;
+        padding: 0.85rem 1rem; background: white;
+        border: 1px solid #e2e8f0; border-radius: 12px;
+    }
+    .kpi-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white;
+        background: linear-gradient(135deg,#6366f1,#8b5cf6); }
+    .ki-tenants  { background: linear-gradient(135deg,#3b82f6,#06b6d4) !important; }
+    .ki-tenancies{ background: linear-gradient(135deg,#a855f7,#d946ef) !important; }
+    .ki-occdays  { background: linear-gradient(135deg,#10b981,#22c55e) !important; }
+    .ki-gapdays  { background: linear-gradient(135deg,#f59e0b,#f97316) !important; }
+    .kpi-label { font-size: 0.65rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+    .kpi-value { font-size: 1.2rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
+
+    .timeline { list-style: none; padding: 0; margin: 0; position: relative; }
+    .timeline::before {
+        content: ''; position: absolute; left: 22px; top: 0; bottom: 0;
+        width: 2px; background: linear-gradient(180deg,#e2e8f0,#f1f5f9);
+    }
+    .tl-row {
+        position: relative; padding-left: 60px; padding-bottom: 1.1rem; min-height: 56px;
+    }
+    .tl-marker {
+        position: absolute; left: 8px; top: 0;
+        width: 30px; height: 30px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: white; border: 3px solid white;
+        color: white; font-size: 0.75rem;
+        box-shadow: 0 2px 6px rgba(15,23,42,0.15);
+    }
+    .tl-gap .tl-marker      { background: #f59e0b; }
+    .tl-active .tl-marker    { background: #10b981; }
+    .tl-renewed .tl-marker   { background: #6366f1; }
+    .tl-terminated .tl-marker{ background: #ef4444; }
+    .tl-expired .tl-marker   { background: #94a3b8; }
+    .tl-pending .tl-marker   { background: #64748b; }
+    .tl-body {
+        background: white; border: 1px solid #e2e8f0;
+        border-radius: 10px; padding: 0.7rem 0.95rem;
+    }
+    .tl-gap .tl-body { background: #fffbeb; border-color: #fcd34d; }
+    .tl-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem; }
+    .tl-head strong { color: #0f172a; font-size: 0.95rem; }
+    .tl-period { color: #475569; font-size: 0.82rem; }
+    .tl-days { margin-left: auto; color: #94a3b8; font-size: 0.78rem; }
+    .tl-status {
+        font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.5rem;
+        border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .tl-active .tl-status     { background: rgba(16,185,129,0.15); color: #065f46; }
+    .tl-renewed .tl-status    { background: rgba(99,102,241,0.15); color: #4338ca; }
+    .tl-terminated .tl-status { background: rgba(239,68,68,0.12); color: #991b1b; }
+    .tl-expired .tl-status    { background: rgba(245,158,11,0.15); color: #92400e; }
+    .tl-meta { margin-top: 0.4rem; color: #64748b; font-size: 0.82rem; }
+    .tl-meta a { color: #6366f1; text-decoration: none; }
+
+    .empty {
+        text-align: center; padding: 3rem 1rem;
+        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+    }
+    .empty i { font-size: 2.5rem; color: #cbd5e1; display: block; margin-bottom: 0.6rem; }
+    .empty h3 { margin: 0 0 0.4rem; color: #334155; font-size: 1.05rem; }
+    .empty p { color: #64748b; margin: 0; }
+</style>

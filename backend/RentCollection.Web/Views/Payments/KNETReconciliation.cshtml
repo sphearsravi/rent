@@ -1,0 +1,142 @@
+@model List<RentCollection.Application.Interfaces.KNETReconciliationDto>
+@{
+    ViewData["Title"] = "KNET Reconciliation";
+    var start = ViewBag.StartDate as DateTime?;
+    var end = ViewBag.EndDate as DateTime?;
+
+    string StatusClass(string s) => s?.ToLowerInvariant() switch
+    {
+        "settled" or "matched" or "completed" or "reconciled" => "badge-success",
+        "pending" or "awaitingsettlement" => "badge-warning",
+        "unmatched" or "discrepancy" or "failed" or "unsettled" => "badge-danger",
+        _ => "badge-secondary"
+    };
+
+    var totalAmount = Model?.Sum(x => x.Amount) ?? 0m;
+    var totalSettled = Model?.Sum(x => x.SettledAmount ?? 0m) ?? 0m;
+    var totalDiscrepancy = Model?.Sum(x => x.DiscrepancyAmount ?? 0m) ?? 0m;
+}
+
+<div class="page-container">
+    @{
+        var actions = new System.Text.StringBuilder();
+        actions.Append("<a href=\"/Payments\" class=\"btn btn-secondary\"><i class=\"fas fa-arrow-left\"></i> Back to Payments</a>");
+        actions.Append("<a href=\"/Payments/Reconciliation\" class=\"btn btn-primary\"><i class=\"fas fa-balance-scale\"></i> Reconciliation</a>");
+    }
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = "KNET Reconciliation",
+        ["Subtitle"] = "KNET settlement transactions" +
+            (start.HasValue && end.HasValue
+                ? $" ({start.Value:dd MMM yyyy} – {end.Value:dd MMM yyyy})"
+                : ""),
+        ["ActionsHtml"] = new Microsoft.AspNetCore.Html.HtmlString(actions.ToString())
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    @if (Model != null && Model.Count > 0)
+    {
+        <div class="payment-summary">
+            <div class="summary-card">
+                <div class="summary-icon" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                    <i class="fas fa-credit-card"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>@Model.Count</h3>
+                    <p>Transactions</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>@("KWD " + totalAmount.ToString("N3"))</h3>
+                    <p>Total Amount</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>@("KWD " + totalSettled.ToString("N3"))</h3>
+                    <p>Total Settled</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="fas fa-not-equal"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>@("KWD " + totalDiscrepancy.ToString("N3"))</h3>
+                    <p>Total Discrepancy</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="padding:24px;">
+            <h3 style="margin-top:0;">Settlement Transactions</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Txn Date</th>
+                        <th>Property</th>
+                        <th>Transaction ID</th>
+                        <th>Checkout ID</th>
+                        <th>KNET Account</th>
+                        <th>KNET MID</th>
+                        <th>Bank</th>
+                        <th style="text-align:right;">Amount</th>
+                        <th style="text-align:right;">Settled</th>
+                        <th style="text-align:right;">Discrepancy</th>
+                        <th>Settlement</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model)
+                    {
+                        <tr>
+                            <td>@r.TransactionDate.ToString("dd MMM yyyy, HH:mm")</td>
+                            <td>@(string.IsNullOrEmpty(r.PropertyName) ? "—" : r.PropertyName)</td>
+                            <td>@(string.IsNullOrEmpty(r.TransactionId) ? "—" : r.TransactionId)</td>
+                            <td>@(string.IsNullOrEmpty(r.CheckoutPaymentId) ? "—" : r.CheckoutPaymentId)</td>
+                            <td>@(string.IsNullOrEmpty(r.KNETAccountID) ? "—" : r.KNETAccountID)</td>
+                            <td>@(string.IsNullOrEmpty(r.KNETMID) ? "—" : r.KNETMID)</td>
+                            <td>
+                                @if (string.IsNullOrEmpty(r.BankName) && string.IsNullOrEmpty(r.BankAccountNumber))
+                                {
+                                    <text>—</text>
+                                }
+                                else
+                                {
+                                    <div>
+                                        <strong>@(string.IsNullOrEmpty(r.BankName) ? "—" : r.BankName)</strong>
+                                        @if (!string.IsNullOrEmpty(r.BankAccountNumber))
+                                        {
+                                            <small class="text-muted d-block">@r.BankAccountNumber</small>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                            <td style="text-align:right;">@(r.Currency + " " + r.Amount.ToString("N3"))</td>
+                            <td style="text-align:right;">@(r.SettledAmount.HasValue ? r.Currency + " " + r.SettledAmount.Value.ToString("N3") : "—")</td>
+                            <td style="text-align:right;">@(r.DiscrepancyAmount.HasValue ? r.Currency + " " + r.DiscrepancyAmount.Value.ToString("N3") : "—")</td>
+                            <td>@(r.SettlementDate.HasValue ? r.SettlementDate.Value.ToString("dd MMM yyyy") : "—")</td>
+                            <td><span class="badge @StatusClass(r.ReconciliationStatus)">@(string.IsNullOrEmpty(r.ReconciliationStatus) ? "—" : r.ReconciliationStatus)</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="card" style="padding:48px 24px;text-align:center;">
+            <i class="fas fa-credit-card" style="font-size:3rem;color:#c7d2fe;margin-bottom:1rem;"></i>
+            <h3 style="margin:0 0 0.5rem;color:#334155;">No reconciliation data</h3>
+            <p style="color:#6b7280;margin:0;">There are no KNET settlement transactions for the selected period.</p>
+        </div>
+    }
+</div>

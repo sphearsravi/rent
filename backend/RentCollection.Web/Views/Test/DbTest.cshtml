@@ -1,0 +1,62 @@
+@model dynamic
+
+@{
+    ViewData["Title"] = "Database Connection Test";
+}
+
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header @(Model.Status == "Success" ? "bg-success text-white" : Model.Status == "Error" || Model.Status == "Failed" ? "bg-danger text-white" : "bg-warning text-dark")">
+            <h3><i class="fas fa-database"></i> Database Connection Test</h3>
+        </div>
+        <div class="card-body">
+            <div class="alert @(Model.Status == "Success" ? "alert-success" : Model.Status == "Error" || Model.Status == "Failed" ? "alert-danger" : "alert-warning")">
+                <h4>Status: @Model.Status</h4>
+                <p>@Model.Message</p>
+            </div>
+
+            @if (Model.Details != null && Model.Details.Count > 0)
+            {
+                <h5>Connection Details:</h5>
+                <table class="table table-bordered">
+                    <tbody>
+                        @foreach (var detail in Model.Details)
+                        {
+                            <tr>
+                                <th style="width: 200px;">@detail.Key</th>
+                                <td>
+                                    @if (detail.Key == "StackTrace")
+                                    {
+                                        <pre style="max-height: 300px; overflow-y: auto; background: #f5f5f5; padding: 10px;">@detail.Value</pre>
+                                    }
+                                    else
+                                    {
+                                        @detail.Value
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+
+            <div class="mt-4">
+                <a href="/" class="btn btn-primary">Back to Home</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        padding: 1rem 1.5rem;
+    }
+
+    .card-header h3 {
+        margin: 0;
+    }
+</style>

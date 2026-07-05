@@ -1,0 +1,21 @@
+{
+  "name": "rentcollection.tests.playwright",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:admin": "npx playwright test tests/admin/",
+    "test:tenant": "npx playwright test tests/tenant/",
+    "test:e2e": "npx playwright test tests/e2e/",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug",
+    "report": "npx playwright show-report"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

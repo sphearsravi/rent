@@ -1,0 +1,323 @@
+﻿@model List<RentCollection.Core.Entities.AuditLog>
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Lease History";
+    var lease = (RentCollection.Core.Entities.Lease)ViewBag.Lease;
+    var chain = (List<RentCollection.Web.Controllers.LeasesController.ChainTile>)ViewBag.Chain
+                 ?? new List<RentCollection.Web.Controllers.LeasesController.ChainTile>();
+    var filter = (string)(ViewBag.Filter ?? "all");
+
+    // Friendly display data per action type Ã¢â‚¬” drives icon + colour + label.
+    var actionMeta = new Dictionary<string, (string Icon, string Colour, string Verb)>
+    {
+        { "Created",     ("fa-circle-plus",    "#10b981", "Created") },
+        { "Edited",      ("fa-pen",            "#3b82f6", "Edited") },
+        { "Renewed",     ("fa-arrows-rotate",  "#6366f1", "Renewed") },
+        { "Terminated",  ("fa-circle-stop",    "#ef4444", "Terminated") },
+        { "Transferred", ("fa-arrow-right-arrow-left", "#f59e0b", "Transferred") },
+        { "Expired",     ("fa-clock",          "#94a3b8", "Expired") },
+        { "Deleted",     ("fa-trash",          "#dc2626", "Deleted") },
+    };
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = $"Lease #{lease.LeaseId} Ã¢â‚¬” History",
+        ["Subtitle"] = $"{lease.Tenant?.FirstName} {lease.Tenant?.LastName} Ã‚· {lease.Unit?.Property?.PropertyName} Unit {lease.Unit?.UnitNumber}",
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            (L["Admin"].Value, "/Dashboard"),
+            (L["Leases"].Value, "/Leases"),
+            ($"Lease #{lease.LeaseId}", $"/Leases/Details/{lease.LeaseId}"),
+            (L["History"].Value, null),
+        }
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <div class="header-back">
+        <a asp-action="Details" asp-route-id="@lease.LeaseId" class="btn-link">
+            <i class="fas fa-arrow-left"></i> @L["Back to lease detail"]
+        </a>
+    </div>
+
+    @* Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ Renewal chain bar Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ *@
+    @if (chain.Count > 1)
+    {
+        <div class="chain-card">
+            <h3 class="chain-title"><i class="fas fa-link"></i> @L["Renewal chain"]</h3>
+            <ol class="chain-strip">
+                @foreach (var tile in chain)
+                {
+                    var cls = tile.IsCurrent ? "chain-tile is-current" : "chain-tile";
+                    <li class="@cls">
+                        <a href="/Leases/@(tile.IsCurrent ? "History" : "Details")/@tile.LeaseId" title="@tile.Status">
+                            <div class="chain-id">#@tile.LeaseId</div>
+                            <div class="chain-status status-@tile.Status.ToLower()">@tile.Status</div>
+                            <div class="chain-period">@tile.Start.ToString("MMM yyyy") Ã¢â€ ’ @tile.End.ToString("MMM yyyy")</div>
+                        </a>
+                    </li>
+                }
+            </ol>
+        </div>
+    }
+
+    @* Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ Filter chips Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ *@
+    <div class="history-toolbar">
+        <div class="filter-chips" role="tablist">
+            @{
+                (string Label, string Value)[] chips =
+                {
+                    (L["All events"].Value, "all"),
+                    (L["Lifecycle only"].Value, "lifecycle"),
+                    (L["Edits only"].Value, "edits"),
+                };
+            }
+            @foreach (var c in chips)
+            {
+                var active = filter == c.Value;
+                var href = c.Value == "all"
+                    ? $"/Leases/History/{lease.LeaseId}"
+                    : $"/Leases/History/{lease.LeaseId}?filter={c.Value}";
+                <a class="filter-chip @(active ? "is-active" : "")" href="@href" role="tab" aria-selected="@(active ? "true" : "false")">
+                    @c.Label
+                </a>
+            }
+        </div>
+        <div class="history-meta">@Model.Count @(Model.Count == 1 ? L["event"].Value : L["events"].Value)</div>
+    </div>
+
+    @* Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ Timeline Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ *@
+    @if (Model.Any())
+    {
+        <ol class="timeline">
+            @foreach (var ev in Model)
+            {
+                var meta = actionMeta.TryGetValue(ev.Action, out var m)
+                    ? m
+                    : ((string Icon, string Colour, string Verb))("fa-circle", "#64748b", ev.Action);
+                bool synth = false;
+                Dictionary<string, JsonElement>? payload = null;
+                if (!string.IsNullOrWhiteSpace(ev.PayloadJson))
+                {
+                    try
+                    {
+                        payload = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(ev.PayloadJson);
+                        synth = payload != null && payload.TryGetValue("synthesised", out var s)
+                                && s.ValueKind == JsonValueKind.True;
+                    }
+                    catch { /* malformed Ã¢â‚¬” render raw below */ }
+                }
+                // Was this event on a chain lease that ISN'T the one we're
+                // viewing? Surface the link so the operator can jump.
+                var onAnotherLease = ev.EntityId != lease.LeaseId;
+
+                <li class="tl-event">
+                    <div class="tl-marker" style="background:@meta.Colour;">
+                        <i class="fas @meta.Icon"></i>
+                    </div>
+                    <div class="tl-body">
+                        <div class="tl-head">
+                            <strong>@meta.Verb</strong>
+                            @if (onAnotherLease)
+                            {
+                                <a class="tl-on-other" href="/Leases/History/@ev.EntityId">@L["on lease #"]@ev.EntityId</a>
+                            }
+                            @if (synth)
+                            {
+                                <span class="tl-synth" title="@(L["Reconstructed from row stamps during backfill"].Value)">@L["synthesised"]</span>
+                            }
+                            <span class="tl-when" title="@ev.At.ToString("u")">@ev.At.ToString("dd MMM yyyy HH:mm")</span>
+                        </div>
+                        <div class="tl-actor">
+                            <i class="fas fa-user"></i> @ev.ByUser
+                        </div>
+                        @if (payload != null && payload.Any(p => p.Key != "synthesised" && p.Key != "reason"))
+                        {
+                            <div class="tl-payload">
+                                @if (ev.Action == "Edited" && payload.TryGetValue("changes", out var changesNode)
+                                     && changesNode.ValueKind == JsonValueKind.Object)
+                                {
+                                    <ul class="tl-changes">
+                                        @foreach (var prop in changesNode.EnumerateObject())
+                                        {
+                                            var pair = prop.Value;
+                                            if (pair.ValueKind == JsonValueKind.Array && pair.GetArrayLength() == 2)
+                                            {
+                                                <li>
+                                                    <span class="tl-field">@prop.Name</span>
+                                                    <span class="tl-old">@pair[0].ToString()</span>
+                                                    <i class="fas fa-arrow-right"></i>
+                                                    <span class="tl-new">@pair[1].ToString()</span>
+                                                </li>
+                                            }
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <details class="tl-raw">
+                                        <summary>@L["Payload"]</summary>
+                                        <pre>@ev.PayloadJson</pre>
+                                    </details>
+                                }
+                            </div>
+                        }
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="fas fa-clock-rotate-left"></i>
+            <h3>@L["No history yet"]</h3>
+            <p>@L["Once this lease is renewed, terminated, transferred, or edited, the events will appear here."]</p>
+        </div>
+    }
+</div>
+
+<style>
+    .page-container { padding: 1.5rem 2rem; max-width: 1100px; margin: 0 auto; }
+    .header-back { margin-bottom: 1rem; }
+    .btn-link {
+        color: #6366f1; text-decoration: none; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.4rem;
+    }
+    .btn-link:hover { text-decoration: underline; }
+
+    /* Chain */
+    .chain-card {
+        background: rgba(255,255,255,0.95);
+        border: 1px solid rgba(99, 102, 241,0.18);
+        border-radius: 12px;
+        padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+    }
+    .chain-title { margin: 0 0 0.85rem; color: #334155; font-size: 0.95rem; display: flex; align-items: center; gap: 0.45rem; }
+    .chain-title i { color: #6366f1; }
+    .chain-strip {
+        display: flex; gap: 0.6rem; flex-wrap: wrap;
+        list-style: none; padding: 0; margin: 0;
+        align-items: stretch;
+    }
+    .chain-tile { flex: 1 1 180px; }
+    .chain-tile a {
+        display: block; padding: 0.7rem 0.85rem;
+        background: white; color: #334155;
+        border: 1px solid #e2e8f0; border-radius: 10px;
+        text-decoration: none; transition: all 0.15s;
+    }
+    .chain-tile a:hover { border-color: #6366f1; box-shadow: 0 4px 10px rgba(99, 102, 241,0.12); }
+    .chain-tile.is-current a {
+        border-color: #6366f1; background: linear-gradient(135deg, rgba(99, 102, 241,0.06), rgba(139, 92, 246,0.06));
+    }
+    .chain-id { font-weight: 700; color: #0f172a; font-size: 0.95rem; }
+    .chain-status {
+        display: inline-block; margin-top: 2px;
+        padding: 0.1rem 0.5rem; border-radius: 999px;
+        font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .chain-status.status-active     { background: rgba(16,185,129,0.12); color: #065f46; }
+    .chain-status.status-renewed    { background: rgba(99, 102, 241,0.12); color: #4338ca; }
+    .chain-status.status-terminated { background: rgba(239,68,68,0.10); color: #b91c1c; }
+    .chain-status.status-expired    { background: rgba(245,158,11,0.15); color: #92400e; }
+    .chain-status.status-pending    { background: #f1f5f9; color: #475569; }
+    .chain-period { margin-top: 4px; font-size: 0.72rem; color: #94a3b8; }
+
+    /* Toolbar */
+    .history-toolbar {
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .filter-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .filter-chip {
+        padding: 0.4rem 0.85rem;
+        background: rgba(99, 102, 241,0.06);
+        color: #4338ca;
+        border-radius: 999px;
+        font-size: 0.8rem; font-weight: 500;
+        border: 1px solid rgba(99, 102, 241,0.15);
+        text-decoration: none;
+    }
+    .filter-chip:hover { background: rgba(99, 102, 241,0.12); }
+    .filter-chip.is-active {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white; border-color: transparent;
+    }
+    .history-meta { font-size: 0.85rem; color: #64748b; }
+
+    /* Timeline */
+    .timeline {
+        list-style: none; padding: 0; margin: 0;
+        position: relative;
+    }
+    .timeline::before {
+        content: ''; position: absolute;
+        left: 20px; top: 0; bottom: 0;
+        width: 2px; background: linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 100%);
+    }
+    .tl-event {
+        position: relative; padding-left: 56px; padding-bottom: 1.25rem;
+        min-height: 50px;
+    }
+    .tl-marker {
+        position: absolute; left: 8px; top: 0;
+        width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        color: white; font-size: 0.7rem;
+        box-shadow: 0 2px 6px rgba(15,23,42,0.15);
+        border: 3px solid white;
+    }
+    .tl-body {
+        background: white;
+        border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: 0.7rem 0.95rem;
+    }
+    .tl-head {
+        display: flex; align-items: center; flex-wrap: wrap;
+        gap: 0.5rem; margin-bottom: 0.3rem;
+    }
+    .tl-head strong { color: #0f172a; font-size: 0.95rem; }
+    .tl-when {
+        color: #94a3b8; font-size: 0.75rem; margin-left: auto;
+    }
+    .tl-on-other {
+        font-size: 0.75rem; color: #6366f1; text-decoration: none;
+        background: rgba(99, 102, 241,0.08); padding: 0.1rem 0.5rem; border-radius: 6px;
+    }
+    .tl-on-other:hover { background: rgba(99, 102, 241,0.16); }
+    .tl-synth {
+        font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.4px;
+        background: #f1f5f9; color: #64748b;
+        padding: 0.1rem 0.45rem; border-radius: 4px;
+    }
+    .tl-actor { font-size: 0.8rem; color: #64748b; }
+    .tl-actor i { color: #94a3b8; margin-right: 0.3rem; }
+    .tl-payload { margin-top: 0.5rem; }
+    .tl-changes { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+    .tl-changes li {
+        display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+        font-size: 0.85rem;
+        background: #f8fafc; padding: 0.4rem 0.6rem; border-radius: 6px;
+    }
+    .tl-field { font-weight: 600; color: #334155; min-width: 120px; }
+    .tl-old { color: #94a3b8; text-decoration: line-through; }
+    .tl-new { color: #0f172a; font-weight: 600; }
+    .tl-changes i { color: #94a3b8; font-size: 0.65rem; }
+    .tl-raw summary { cursor: pointer; color: #64748b; font-size: 0.8rem; }
+    .tl-raw pre {
+        margin-top: 0.4rem; background: #f8fafc; padding: 0.6rem;
+        border-radius: 6px; font-size: 0.75rem; color: #334155;
+        max-height: 200px; overflow: auto;
+    }
+
+    .empty-state {
+        text-align: center; padding: 3rem 1.5rem;
+        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+    }
+    .empty-state i { font-size: 2.5rem; color: #cbd5e1; display: block; margin-bottom: 0.75rem; }
+    .empty-state h3 { margin: 0 0 0.4rem; color: #334155; font-size: 1.05rem; }
+    .empty-state p { margin: 0; color: #64748b; font-size: 0.9rem; }
+</style>

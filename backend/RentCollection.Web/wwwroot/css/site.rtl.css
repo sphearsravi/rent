@@ -1,0 +1,88 @@
+/* Arabic / RTL overrides. Scoped to <html dir="rtl">, so it's inert in English
+   and safe to load unconditionally. Mirrors the fixed sidebar + offsets (which
+   don't auto-flip) and text alignment; flex rows flip automatically via `dir`. */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap');
+
+html[dir="rtl"] body,
+html[dir="rtl"] .sidebar,
+html[dir="rtl"] .top-header,
+html[dir="rtl"] .main-content {
+    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* Fixed shell: sidebar right, header/content offset on the right */
+html[dir="rtl"] .sidebar {
+    left: auto;
+    right: 0;
+    border-right: none;
+    border-left: 1px solid rgba(99, 102, 241, 0.1);
+}
+html[dir="rtl"] .top-header {
+    left: 0;
+    right: 240px;
+}
+html[dir="rtl"] .main-content {
+    margin-left: 0;
+    margin-right: 240px;
+}
+
+/* Text alignment (doesn't auto-flip) */
+html[dir="rtl"] .nav-item,
+html[dir="rtl"] .user-dropdown,
+html[dir="rtl"] .user-dropdown-item,
+html[dir="rtl"] .main-content th,
+html[dir="rtl"] .main-content td,
+html[dir="rtl"] .fr-field label,
+html[dir="rtl"] .fr-zone-title,
+html[dir="rtl"] .page-header {
+    text-align: right;
+}
+
+html[dir="rtl"] .search-box input {
+    margin-left: 0;
+    margin-right: 0.5rem;
+}
+
+/* Sticky action bar reads right-to-left */
+html[dir="rtl"] .fr-actions { flex-direction: row-reverse; }
+
+/* Language switcher — segmented pill toggle (shared by header + login). */
+.lang-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    margin: 0 0.6rem;
+    padding: 3px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
+}
+.lang-switch button {
+    background: transparent;
+    border: none;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.4rem 0.9rem;
+    min-width: 44px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.lang-switch button:hover { color: #6366f1; }
+.lang-switch button.active {
+    background: #6366f1;
+    color: #ffffff;
+    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.45);
+}
+/* On the login page it's a fixed floating pill — lift it a touch more. */
+.login-body .lang-switch { box-shadow: 0 3px 10px rgba(15, 23, 42, 0.15); }
+
+/* Mobile shell */
+@media (max-width: 1024px) {
+    html[dir="rtl"] .sidebar { transform: translateX(100%); }
+    html[dir="rtl"] .top-header { right: 0; left: 0; }
+    html[dir="rtl"] .main-content { margin-right: 0; }
+}

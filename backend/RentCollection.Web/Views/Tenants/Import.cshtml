@@ -1,0 +1,172 @@
+﻿@{
+    ViewData["Title"] = "Import Tenants";
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = "Import Tenants",
+        ["Subtitle"] = "Upload a CSV or XLSX to bulk-create tenants",
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            ("Admin", "/Dashboard"),
+            ("Tenants", "/Tenants"),
+            ("Import", null)
+        }
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    @if (ViewBag.ErrorMessage != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-circle-exclamation"></i> @ViewBag.ErrorMessage
+        </div>
+    }
+
+    <div class="import-grid">
+        <div class="import-card">
+            <h3><i class="fas fa-upload"></i> @L["Upload file"]</h3>
+            <form method="post" enctype="multipart/form-data" asp-action="Import">
+                @Html.AntiForgeryToken()
+                <label for="fileInput" class="filedrop" id="fileDrop">
+                    <i class="fas fa-cloud-arrow-up"></i>
+                    <div class="filedrop-label">@L["Drop a file here, or click to browse"]</div>
+                    <div class="filedrop-sub">@L["Accepted:"] <code>.csv</code> Ã‚· <code>.xlsx</code> Ã‚· @L["max 10 MB"]</div>
+                    <input id="fileInput" name="file" type="file" accept=".csv,.xlsx" required hidden>
+                    <div class="filedrop-name" id="fileName" hidden></div>
+                </label>
+                <div class="form-actions">
+                    <a href="/Tenants" class="btn-cancel">@L["Cancel"]</a>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-circle-check"></i> @L["Validate & import"]
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="import-card import-card-help">
+            <h3><i class="fas fa-circle-info"></i> @L["How it works"]</h3>
+            <ol>
+                <li><a href="/Tenants/ImportTemplate"><i class="fas fa-file-arrow-down"></i> @L["Download the template"]</a> Ã¢â‚¬” same headers as the Export.</li>
+                <li>Fill in one row per tenant. <strong>First Name</strong> or <strong>Last Name</strong> is required; the rest are optional.</li>
+                <li>Rows whose <strong>Email</strong> or <strong>Client PACI</strong> already exists are skipped automatically Ã¢â‚¬” duplicates within the file are caught too.</li>
+                <li>If the <strong>Company</strong> name doesn't match an existing company, the row is assigned to the first company on file (and noted in the result page).</li>
+            </ol>
+            <div class="import-help-note">
+                <i class="fas fa-lightbulb"></i>
+                Exported XLSX from <a href="/Tenants">/Tenants Ã¢â€ ’ Export</a> imports back in unchanged.
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .page-container { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+        .import-grid {
+            display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.25rem;
+        }
+        @@media (max-width: 900px) { .import-grid { grid-template-columns: 1fr; } }
+        .import-card {
+            background: rgba(255,255,255,0.95);
+            border: 1px solid rgba(99, 102, 241,0.18);
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 4px rgba(15,23,42,0.05);
+        }
+        .import-card h3 {
+            margin: 0 0 1rem; color: #334155;
+            font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .import-card h3 i { color: #6366f1; }
+
+        .filedrop {
+            display: block; cursor: pointer;
+            border: 2px dashed #cbd5e1; border-radius: 12px;
+            padding: 2.5rem 1rem; text-align: center;
+            background: #f8fafc; transition: all 0.2s;
+        }
+        .filedrop:hover, .filedrop.drag {
+            border-color: #6366f1; background: rgba(99, 102, 241,0.04);
+        }
+        .filedrop i { font-size: 2.5rem; color: #94a3b8; margin-bottom: 0.6rem; }
+        .filedrop:hover i, .filedrop.drag i { color: #6366f1; }
+        .filedrop-label { font-weight: 600; color: #475569; margin-bottom: 0.3rem; }
+        .filedrop-sub   { font-size: 0.8rem; color: #94a3b8; }
+        .filedrop-sub code {
+            background: #e2e8f0; padding: 0 0.3rem;
+            border-radius: 4px; font-size: 0.78rem;
+        }
+        .filedrop-name {
+            margin-top: 0.85rem;
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 0.5rem 0.9rem;
+            font-size: 0.85rem; color: #334155;
+        }
+
+        .form-actions {
+            display: flex; justify-content: flex-end; gap: 0.6rem;
+            margin-top: 1.25rem;
+        }
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 0.45rem;
+            background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white;
+            border: 0; border-radius: 8px; padding: 0.65rem 1.1rem;
+            font-weight: 500; cursor: pointer;
+        }
+        .btn-primary:hover { box-shadow: 0 4px 12px rgba(99, 102, 241,0.3); }
+        .btn-cancel {
+            padding: 0.65rem 1.1rem; background: #f1f5f9; color: #475569;
+            border-radius: 8px; text-decoration: none;
+        }
+
+        .import-card-help ol { margin: 0 0 1rem 1.2rem; padding: 0; color: #475569; }
+        .import-card-help li { margin-bottom: 0.5rem; line-height: 1.5; }
+        .import-card-help a  { color: #6366f1; text-decoration: none; }
+        .import-card-help a:hover { text-decoration: underline; }
+        .import-help-note {
+            display: flex; gap: 0.55rem; align-items: flex-start;
+            background: rgba(99, 102, 241,0.06);
+            border-left: 3px solid #6366f1;
+            padding: 0.7rem 0.85rem; border-radius: 6px;
+            font-size: 0.85rem; color: #475569;
+        }
+        .import-help-note i { color: #6366f1; margin-top: 2px; }
+
+        .alert-danger {
+            background: #fef2f2; border: 1px solid #fecaca;
+            color: #991b1b; padding: 0.85rem 1rem; border-radius: 8px;
+            margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        // Drop zone Ã¢â‚¬” wire the label as both click-to-browse and drag target.
+        const drop = document.getElementById('fileDrop');
+        const input = document.getElementById('fileInput');
+        const name  = document.getElementById('fileName');
+        function showName() {
+            if (input.files && input.files.length) {
+                name.textContent = 'Ã°Å¸“â€ž ' + input.files[0].name + ' (' + Math.ceil(input.files[0].size / 1024) + ' KB)';
+                name.removeAttribute('hidden');
+            }
+        }
+        input.addEventListener('change', showName);
+        ['dragover', 'dragenter'].forEach(e => drop.addEventListener(e, ev => {
+            ev.preventDefault(); drop.classList.add('drag');
+        }));
+        ['dragleave', 'drop'].forEach(e => drop.addEventListener(e, ev => {
+            ev.preventDefault(); drop.classList.remove('drag');
+        }));
+        drop.addEventListener('drop', ev => {
+            if (ev.dataTransfer.files && ev.dataTransfer.files.length) {
+                input.files = ev.dataTransfer.files;
+                showName();
+            }
+        });
+    </script>
+}

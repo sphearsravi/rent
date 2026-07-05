@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- Sprint 4 reliability work — browser E2E suite. Slow (boots Chromium)
+         so CI runs it in a dedicated job; local devs run on demand with
+         `dotnet test RentCollection.E2ETests`. Requires the backend to be
+         listening on the URL in `BaseUrl` (default http://localhost:5032)
+         and Playwright browsers to be installed (one-time:
+         `pwsh bin/Debug/net8.0/playwright.ps1 install chromium`). -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.49.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <!-- Sprint 6 — referenced by the tenant-seed fixture so authenticated
+         journey tests can write a known-credentials tenant before the test
+         and clean up after. BCrypt matches the production tenant hash. -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RentCollection.Core\RentCollection.Core.csproj" />
+    <ProjectReference Include="..\RentCollection.Infrastructure\RentCollection.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

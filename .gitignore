@@ -1,0 +1,42 @@
+# ───────────────────────────────────────────────────────────────
+# Root .gitignore for the RentCollection monorepo (backend + mobile).
+# Each project also has its own .gitignore; this reinforces the rules
+# repo-wide and guarantees secrets/build artifacts never get committed.
+# ───────────────────────────────────────────────────────────────
+
+# ── Secrets — NEVER commit ──────────────────────────────────────
+**/appsettings.Production.json
+**/appsettings.Local.json
+**/secrets.json
+**/*.env
+**/.env
+# Flutter signing
+**/android/key.properties
+**/*.jks
+**/*.keystore
+# Real Firebase config (a placeholder google-services.json is committed)
+# Uncomment if you replace it with real credentials:
+# **/android/app/google-services.json
+
+# ── .NET build artifacts ────────────────────────────────────────
+**/bin/
+**/obj/
+**/publish/
+**/.vs/
+**/*.user
+**/TestResults/
+
+# ── Flutter build artifacts ─────────────────────────────────────
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+
+# ── IDE / OS ────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

@@ -1,0 +1,82 @@
+@{
+    ViewData["Title"] = "Record Refund";
+    var payment = ViewBag.Payment as RentCollection.Core.Entities.Payment;
+    var tenantName = payment == null
+        ? ""
+        : ((payment.Tenant?.FirstName ?? "") + " " + (payment.Tenant?.LastName ?? "")).Trim();
+}
+
+<div class="page-container">
+    @{
+        var actions = new System.Text.StringBuilder();
+        actions.Append("<a href=\"/Refunds\" class=\"btn btn-secondary\"><i class=\"fas fa-arrow-left\"></i> Back to Refunds</a>");
+    }
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = "Record Refund",
+        ["Subtitle"] = "Queue a refund against an existing payment",
+        ["ActionsHtml"] = new Microsoft.AspNetCore.Html.HtmlString(actions.ToString())
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    @if (payment == null)
+    {
+        <div class="card" style="padding:24px;">
+            <p style="color:#6b7280;margin:0;">The source payment could not be found. Return to <a href="/Refunds">Refunds</a>.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card" style="padding:24px;margin-bottom:20px;">
+            <h3 style="margin-top:0;">Source Payment</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+                <div><strong>Receipt #</strong><div>@(string.IsNullOrEmpty(payment.ReceiptNumber) ? $"#{payment.PaymentId}" : payment.ReceiptNumber)</div></div>
+                <div><strong>Payment ID</strong><div>@payment.PaymentId</div></div>
+                <div><strong>Tenant</strong><div>@(string.IsNullOrEmpty(tenantName) ? "—" : tenantName)</div></div>
+                <div><strong>Payment Type</strong><div>@payment.PaymentType</div></div>
+                <div><strong>Original Amount</strong><div>@("KWD " + payment.AmountPaid.ToString("N3"))</div></div>
+            </div>
+        </div>
+
+        <div class="card" style="padding:24px;">
+            <h3 style="margin-top:0;">Refund Details</h3>
+            <form action="/Refunds/Create" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="paymentId" value="@payment.PaymentId" />
+
+                <div class="form-group">
+                    <label for="amount">Amount (KWD)</label>
+                    <input type="number" id="amount" name="amount" class="form-control"
+                           step="0.001" min="0.001" max="@payment.AmountPaid"
+                           value="@payment.AmountPaid.ToString("0.000")" required />
+                    <small style="color:#6b7280;">Amount must be greater than 0 and no more than the original payment amount (KWD @payment.AmountPaid.ToString("N3")).</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="method">Method</label>
+                    <select id="method" name="method" class="form-control" required>
+                        <option value="BankTransfer">Bank Transfer</option>
+                        <option value="Cash">Cash</option>
+                        <option value="KNETReversal">KNET Reversal</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">Reason</label>
+                    <textarea id="reason" name="reason" class="form-control" rows="3"
+                              placeholder="Why is this refund being issued?" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="referenceNumber">Reference Number (optional)</label>
+                    <input type="text" id="referenceNumber" name="referenceNumber" class="form-control"
+                           placeholder="Bank/KNET reference, if any" />
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Queue Refund
+                </button>
+            </form>
+        </div>
+    }
+</div>

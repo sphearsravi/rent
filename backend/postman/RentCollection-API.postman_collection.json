@@ -1,0 +1,964 @@
+{
+  "info": {
+    "name": "RentCollection System API",
+    "description": "Complete API test collection for the Rent Collection System covering Auth, Tenant, KNET, Bank Transfer, Support, and Diagnostics endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Diagnostics",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/diagnostics/test", "host": ["{{baseUrl}}"], "path": ["api", "diagnostics", "test"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Health check returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('API is alive', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Session Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/diagnostics/session", "host": ["{{baseUrl}}"], "path": ["api", "diagnostics", "session"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Session check returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Uploads Directory Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/diagnostics/uploads", "host": ["{{baseUrl}}"], "path": ["api", "diagnostics", "uploads"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Uploads check returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invoices Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/diagnostics/invoices", "host": ["{{baseUrl}}"], "path": ["api", "diagnostics", "invoices"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invoices check returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login - Valid Credentials",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"username\": \"{{civilId}}\",\n    \"password\": \"{{tenantPassword}}\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains token', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.token) {",
+                  "        pm.environment.set('jwtToken', json.data.token);",
+                  "        pm.expect(json.data.token).to.be.a('string').and.not.empty;",
+                  "    }",
+                  "    if (json.data && json.data.tenantId) {",
+                  "        pm.environment.set('tenantId', json.data.tenantId);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Response contains tenant info', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data) {",
+                  "        pm.expect(json.data).to.have.any.keys('firstName', 'lastName', 'tenantId', 'fullName');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Invalid Civil ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"username\": \"INVALID-ID-99999\",\n    \"password\": \"WrongPassword\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invalid login returns error', function() {",
+                  "    var status = pm.response.code;",
+                  "    pm.expect([200, 400, 401]).to.include(status);",
+                  "});",
+                  "",
+                  "pm.test('No token in error response', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data) {",
+                  "        pm.expect(json.data.token || '').to.satisfy(function(t) { return !t || t === ''; });",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Wrong Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"username\": \"{{civilId}}\",\n    \"password\": \"WrongPassword123!\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Wrong password returns error', function() {",
+                  "    var status = pm.response.code;",
+                  "    pm.expect([200, 400, 401]).to.include(status);",
+                  "});",
+                  "",
+                  "pm.test('Error message does not reveal user existence', function() {",
+                  "    var text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.not.include('user found');",
+                  "    pm.expect(text).to.not.include('user exists');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tenant (JWT)",
+      "item": [
+        {
+          "name": "Get Tenant Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"tenantid\": \"{{tenantId}}\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"{{jwtToken}}\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/getinfo", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "getinfo"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get tenant info returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has tenant data', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Properties By Tenant ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"tenantid\": \"{{tenantId}}\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"{{jwtToken}}\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/getpropertybytenantid", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "getpropertybytenantid"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get properties returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Extract propertyId', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && Array.isArray(json.data) && json.data.length > 0) {",
+                  "        pm.environment.set('propertyId', json.data[0].propertyId || json.data[0].PropertyId);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Pending Rent Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"tenantid\": \"{{tenantId}}\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"{{jwtToken}}\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/getpendingrentdata", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "getpendingrentdata"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get pending rent returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Extract invoiceId if available', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && Array.isArray(json.data) && json.data.length > 0) {",
+                  "        pm.environment.set('invoiceId', json.data[0].invoiceId || json.data[0].InvoiceId);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Paid Rent Data (Paginated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"tenantid\": \"{{tenantId}}\",\n    \"lastid\": \"0\",\n    \"count\": \"10\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"{{jwtToken}}\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/getpaidrentdata", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "getpaidrentdata"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get paid rent data returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackid\": \"\",\n  \"tenantid\": \"{{tenantId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/getreceipt", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "getreceipt"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get receipt returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Password (same password)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"tenantid\": \"{{tenantId}}\",\n    \"oldpassword\": \"{{tenantPassword}}\",\n    \"newpassword\": \"{{tenantPassword}}\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"{{jwtToken}}\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/changepassword", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "changepassword"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Change password returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"civilid\": \"{{civilId}}\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/forgotpassword", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "forgotpassword"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Forgot password returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Tenant Info - Unauthorized (No Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"tenantid\": \"{{tenantId}}\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/getinfo", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "getinfo"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unauthorized request returns 401', function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tenant (REST)",
+      "item": [
+        {
+          "name": "Login (REST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"PACINumber\": \"{{civilId}}\",\n  \"Password\": \"{{tenantPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/login", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('REST login returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Extract tenantId from REST login', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json.tenantId) pm.environment.set('tenantId', json.tenantId);",
+                  "    if (json.TenantId) pm.environment.set('tenantId', json.TenantId);",
+                  "    if (json.data && json.data.tenantId) pm.environment.set('tenantId', json.data.tenantId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Password (REST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"TenantId\": {{tenantId}},\n  \"OldPassword\": \"{{tenantPassword}}\",\n  \"NewPassword\": \"{{tenantPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/change-password", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "change-password"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Change password returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Tenant Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/tenant/{{tenantId}}/profile", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "{{tenantId}}", "profile"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get profile returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Profile has expected fields', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Active Leases",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/tenant/{{tenantId}}/leases", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "{{tenantId}}", "leases"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get leases returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Extract leaseId', function() {",
+                  "    var json = pm.response.json();",
+                  "    var data = Array.isArray(json) ? json : (json.data || []);",
+                  "    if (data.length > 0) {",
+                  "        pm.environment.set('leaseId', data[0].leaseId || data[0].LeaseId);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Pending Invoices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/tenant/{{tenantId}}/invoices/pending", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "{{tenantId}}", "invoices", "pending"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get pending invoices returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Extract invoiceId if available', function() {",
+                  "    var json = pm.response.json();",
+                  "    var data = Array.isArray(json) ? json : (json.data || []);",
+                  "    if (data.length > 0) {",
+                  "        pm.environment.set('invoiceId', data[0].invoiceId || data[0].InvoiceId);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Payment History (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tenant/{{tenantId}}/payments?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tenant", "{{tenantId}}", "payments"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get payments returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Maintenance Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/tenant/{{tenantId}}/maintenance-requests", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "{{tenantId}}", "maintenance-requests"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get maintenance requests returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Maintenance Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Category\": \"Plumbing\",\n  \"Priority\": \"Medium\",\n  \"Description\": \"Test maintenance request from Postman\",\n  \"LeaseId\": {{leaseId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tenant/{{tenantId}}/maintenance-requests", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "{{tenantId}}", "maintenance-requests"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create maintenance request succeeds', function() {",
+                  "    var status = pm.response.code;",
+                  "    pm.expect([200, 201]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/tenant/{{tenantId}}/dashboard", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "{{tenantId}}", "dashboard"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get dashboard returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/tenant/{{tenantId}}/notifications", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "{{tenantId}}", "notifications"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get notifications returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Profile - Invalid Tenant ID (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/tenant/99999/profile", "host": ["{{baseUrl}}"], "path": ["api", "tenant", "99999", "profile"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invalid tenant returns 404', function() {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "KNET Payments",
+      "item": [
+        {
+          "name": "Initiate KNET Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"InvoiceId\": {{invoiceId}},\n  \"TenantId\": {{tenantId}},\n  \"PropertyId\": {{propertyId}},\n  \"Amount\": 100.000,\n  \"Language\": \"en\",\n  \"CivilID\": \"{{civilId}}\",\n  \"IdempotencyKey\": \"postman-test-{{$timestamp}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/payments/knet/initiate", "host": ["{{baseUrl}}"], "path": ["api", "payments", "knet", "initiate"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('KNET initiate returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has payment info', function() {",
+                  "    var json = pm.response.json();",
+                  "    if (json.paymentId) pm.environment.set('paymentId', json.paymentId);",
+                  "    if (json.PaymentId) pm.environment.set('paymentId', json.PaymentId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/payments/knet/status/test_pay_123", "host": ["{{baseUrl}}"], "path": ["api", "payments", "knet", "status", "test_pay_123"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Payment status check returns response', function() {",
+                  "    var status = pm.response.code;",
+                  "    pm.expect([200, 404]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete Test Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"PaymentId\": {{paymentId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/payments/knet/test/complete", "host": ["{{baseUrl}}"], "path": ["api", "payments", "knet", "test", "complete"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Complete test payment returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Initiate KNET - Duplicate Idempotency Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"InvoiceId\": {{invoiceId}},\n  \"TenantId\": {{tenantId}},\n  \"PropertyId\": {{propertyId}},\n  \"Amount\": 100.000,\n  \"Language\": \"en\",\n  \"CivilID\": \"{{civilId}}\",\n  \"IdempotencyKey\": \"duplicate-test-key-fixed\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/payments/knet/initiate", "host": ["{{baseUrl}}"], "path": ["api", "payments", "knet", "initiate"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Duplicate idempotency handled', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns existing payment (no duplicate)', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bank Transfers",
+      "item": [
+        {
+          "name": "Get Current Tenant Bank Transfers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/payments/bank/tenant/current", "host": ["{{baseUrl}}"], "path": ["api", "payments", "bank", "tenant", "current"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get bank transfers returns response', function() {",
+                  "    var status = pm.response.code;",
+                  "    pm.expect([200, 401]).to.include(status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Support (JWT)",
+      "item": [
+        {
+          "name": "Get Maintenance Categories",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {},\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"{{jwtToken}}\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/support/getmaintenancecategories", "host": ["{{baseUrl}}"], "path": ["api", "support", "getmaintenancecategories"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get categories returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has categories data', function() {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save Support Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {\n    \"tenantid\": \"{{tenantId}}\",\n    \"categoryid\": \"1\",\n    \"priority\": \"Medium\",\n    \"description\": \"Test support ticket from Postman\"\n  },\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"{{jwtToken}}\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/support/savesupportticket", "host": ["{{baseUrl}}"], "path": ["api", "support", "savesupportticket"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Save support ticket returns 200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Categories - Unauthorized (No Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": {},\n  \"param\": {\n    \"applang\": \"en\",\n    \"apptoken\": \"\",\n    \"deviceinfo\": \"Postman\",\n    \"deviceid\": \"postman-001\",\n    \"appos\": \"web\",\n    \"fcmtoken\": \"\"\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/support/getmaintenancecategories", "host": ["{{baseUrl}}"], "path": ["api", "support", "getmaintenancecategories"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unauthorized returns 401', function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

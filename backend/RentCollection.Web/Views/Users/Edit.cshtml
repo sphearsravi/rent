@@ -1,0 +1,520 @@
+@model RentCollection.Core.Entities.User
+
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+@section Styles {
+    <style>
+        .page-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #334155;
+            margin: 0;
+        }
+
+        .page-title i {
+            color: #6366f1;
+            margin-right: 0.5rem;
+        }
+
+        .text-muted {
+            color: #64748b;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.9);
+            color: #475569;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-back:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            color: #475569;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #334155;
+            margin: 0 0 1.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title i {
+            color: #6366f1;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #475569;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control, .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            background: white;
+            color: #1e293b;
+            box-sizing: border-box;
+        }
+
+        .form-control:focus, .form-select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-control::placeholder {
+            color: #94a3b8;
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+
+        .text-danger {
+            color: #dc2626;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-divider {
+            border: none;
+            border-top: 1px solid rgba(99, 102, 241, 0.2);
+            margin: 1.5rem 0;
+        }
+
+        .checkbox-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-check-input {
+            width: 18px;
+            height: 18px;
+            accent-color: #6366f1;
+            cursor: pointer;
+        }
+
+        .form-check-label {
+            font-size: 0.875rem;
+            color: #475569;
+            cursor: pointer;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Info Panel Styles */
+        .info-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #334155;
+            margin: 0 0 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-title i {
+            color: #6366f1;
+        }
+
+        .info-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #475569;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .info-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 1rem 0;
+        }
+
+        .info-list li {
+            font-size: 0.875rem;
+            color: #64748b;
+            padding: 0.25rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-list li i {
+            width: 16px;
+        }
+
+        .info-list.small li {
+            font-size: 0.75rem;
+        }
+
+        .text-success {
+            color: #10b981;
+        }
+
+        .text-info {
+            color: #6366f1;
+        }
+
+        .info-divider {
+            border: none;
+            border-top: 1px solid rgba(99, 102, 241, 0.2);
+            margin: 1rem 0;
+        }
+
+        .status-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .status-list li {
+            font-size: 0.75rem;
+            color: #64748b;
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+        }
+
+        @@media (max-width: 1024px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .form-row, .checkbox-row {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                justify-content: center;
+            }
+        }
+    </style>
+}
+
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-user-edit"></i> @L["Edit User"]
+            </h1>
+            <p class="text-muted">@L["Update user information and roles"]</p>
+        </div>
+        <a asp-action="Index" class="btn-back">
+            <i class="fas fa-arrow-left"></i> @L["Back to List"]
+        </a>
+    </div>
+
+    <div class="content-grid">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Edit" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert-danger"></div>
+                    <input type="hidden" asp-for="UserId" />
+
+                    <h5 class="section-title">
+                        <i class="fas fa-user-circle"></i> @L["Personal Information"]
+                    </h5>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label asp-for="Username" class="form-label">@L["Username"]</label>
+                            <input asp-for="Username" class="form-control" placeholder="@(L["Enter username"].Value)" />
+                            <span asp-validation-for="Username" class="text-danger"></span>
+                        </div>
+                        <div class="form-group">
+                            <label asp-for="Email" class="form-label">@L["Email"]</label>
+                            <input asp-for="Email" class="form-control" type="email" placeholder="user@example.com" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label asp-for="FirstName" class="form-label">@L["First Name"]</label>
+                            <input asp-for="FirstName" class="form-control" placeholder="@(L["Enter first name"].Value)" />
+                            <span asp-validation-for="FirstName" class="text-danger"></span>
+                        </div>
+                        <div class="form-group">
+                            <label asp-for="LastName" class="form-label">@L["Last Name"]</label>
+                            <input asp-for="LastName" class="form-control" placeholder="@(L["Enter last name"].Value)" />
+                            <span asp-validation-for="LastName" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="PhoneNumber" class="form-label">@L["Phone Number (Optional)"]</label>
+                        <input asp-for="PhoneNumber" class="form-control" placeholder="+1 (555) 123-4567" />
+                        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <h5 class="section-title">
+                        <i class="fas fa-lock"></i> @L["Security"]
+                    </h5>
+
+                    <div class="form-group">
+                        <label for="newPassword" class="form-label">@L["New Password (Optional)"]</label>
+                        <input type="password" name="newPassword" id="newPassword" class="form-control" placeholder="@(L["Leave blank to keep current password"].Value)" />
+                        <div class="form-hint">@L["Only enter a value if you want to change the password"]</div>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <h5 class="section-title">
+                        <i class="fas fa-shield-alt"></i> @L["Role & Permissions"]
+                    </h5>
+
+                    <div class="form-group">
+                        <label asp-for="Role" class="form-label">@L["Select Role"]</label>
+                        <select asp-for="Role" class="form-select">
+                            <option value="User">@L["User - Basic access"]</option>
+                            <option value="Accountant">@L["Accountant - Financial operations"]</option>
+                            <option value="Manager">@L["Manager - Manage properties and tenants"]</option>
+                            <option value="Admin">@L["Admin - Full system access"]</option>
+                        </select>
+                        <span asp-validation-for="Role" class="text-danger"></span>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <h5 class="section-title">
+                        <i class="fas fa-cog"></i> @L["Account Settings"]
+                    </h5>
+
+                    <div class="checkbox-row">
+                        <div class="form-check">
+                            <input asp-for="IsActive" class="form-check-input" />
+                            <label asp-for="IsActive" class="form-check-label">@L["Is Active"]</label>
+                        </div>
+                        <div class="form-check">
+                            <input asp-for="EmailVerified" class="form-check-input" />
+                            <label asp-for="EmailVerified" class="form-check-label">@L["Email Verified"]</label>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> @L["Cancel"]
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> @L["Save Changes"]
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="info-title">
+                    <i class="fas fa-info-circle"></i> @L["Information"]
+                </h5>
+
+                <p class="info-section-title">@L["Required Fields:"]</p>
+                <ul class="info-list">
+                    <li><i class="fas fa-check text-success"></i> @L["Username"]</li>
+                    <li><i class="fas fa-check text-success"></i> @L["Email"]</li>
+                    <li><i class="fas fa-check text-success"></i> @L["First Name"]</li>
+                    <li><i class="fas fa-check text-success"></i> @L["Last Name"]</li>
+                    <li><i class="fas fa-check text-success"></i> @L["Role"]</li>
+                </ul>
+
+                <hr class="info-divider">
+
+                <p class="info-section-title">@L["Password Update:"]</p>
+                <ul class="info-list small">
+                    <li><i class="fas fa-info-circle text-info"></i> @L["Password field is optional"]</li>
+                    <li><i class="fas fa-info-circle text-info"></i> @L["Leave blank to keep current password"]</li>
+                    <li><i class="fas fa-shield-alt text-info"></i> @L["New passwords are hashed securely"]</li>
+                </ul>
+
+                <hr class="info-divider">
+
+                <p class="info-section-title">@L["Current Status:"]</p>
+                <ul class="status-list">
+                    <li>
+                        <strong>@L["Status:"]</strong>
+                        @if (Model.IsActive)
+                        {
+                            <span class="badge badge-success">@L["Active"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-danger">@L["Inactive"]</span>
+                        }
+                    </li>
+                    <li>
+                        <strong>@L["Email:"]</strong>
+                        @if (Model.EmailVerified)
+                        {
+                            <span class="badge badge-success">@L["Verified"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-warning">@L["Not Verified"]</span>
+                        }
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

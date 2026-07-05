@@ -1,0 +1,647 @@
+@model List<RentCollection.Application.DTOs.AdminPaymentVerificationDto>
+@{
+    ViewData["Title"] = "Payments";
+    var totalPaid = Model.Sum(p => p.Amount);
+    var thisMonthTotal = Model.Where(p => p.PaymentDate.Month == DateTime.UtcNow.Month && p.PaymentDate.Year == DateTime.UtcNow.Year).Sum(p => p.Amount);
+    var mismatchCount = ViewBag.MismatchCount ?? Model.Count(p => p.HasMismatch);
+}
+
+<div class="page-container">
+    @{
+        var paymentsActionsBuilder = new System.Text.StringBuilder();
+        if (mismatchCount > 0)
+        {
+            paymentsActionsBuilder.Append($"<a href=\"/Payments/Mismatches\" class=\"btn btn-warning\"><i class=\"fas fa-exclamation-triangle\"></i> {mismatchCount} Mismatches</a>");
+        }
+        paymentsActionsBuilder.Append("<a href=\"/Payments/Reconciliation\" class=\"btn btn-secondary\"><i class=\"fas fa-balance-scale\"></i> Reconciliation</a>");
+        paymentsActionsBuilder.Append("<a href=\"/CashPayment/Record\" class=\"btn btn-primary\"><i class=\"fas fa-plus\"></i> Record Payment</a>");
+    }
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = "Payments",
+        ["Subtitle"] = "Track and manage rent payments with mismatch detection",
+        ["ActionsHtml"] = new Microsoft.AspNetCore.Html.HtmlString(paymentsActionsBuilder.ToString())
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <div class="payment-summary">
+        <div class="summary-card">
+            <div class="summary-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="summary-details">
+                <h3>@("KWD " + totalPaid.ToString("N3"))</h3>
+                <p>@L["Total Received"]</p>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                <i class="fas fa-calendar-check"></i>
+            </div>
+            <div class="summary-details">
+                <h3>@("KWD " + thisMonthTotal.ToString("N3"))</h3>
+                <p>@L["This Month"]</p>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                <i class="fas fa-receipt"></i>
+            </div>
+            <div class="summary-details">
+                <h3>@Model.Count</h3>
+                <p>@L["Total Transactions"]</p>
+            </div>
+        </div>
+        @if (mismatchCount > 0)
+        {
+            <div class="summary-card">
+                <div class="summary-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="summary-details">
+                    <h3>@mismatchCount</h3>
+                    <p>@L["Mismatches Detected"]</p>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Search/Filter Section -->
+    <div class="filter-section">
+        <form method="get" asp-action="Index">
+            <div class="filter-row">
+                <div class="search-group">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="civilId" value="@ViewBag.CivilId" placeholder="@(L["Search by Civil ID..."].Value)">
+                </div>
+                <div class="filter-group">
+                    <label>@L["Property:"]</label>
+                    <select name="propertyId">
+                        <option value="">@L["All Properties"]</option>
+                        @if (ViewBag.Properties != null)
+                        {
+                            foreach (var prop in ViewBag.Properties)
+                            {
+                                if (ViewBag.PropertyId != null && ViewBag.PropertyId == prop.PropertyId)
+                                {
+                                    <option value="@prop.PropertyId" selected>@prop.PropertyName</option>
+                                }
+                                else
+                                {
+                                    <option value="@prop.PropertyId">@prop.PropertyName</option>
+                                }
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>@L["Status:"]</label>
+                    <select name="status">
+                        <option value="">@L["All Status"]</option>
+                        <option value="Completed" selected="@(ViewBag.Status == "Completed")">@L["Completed"]</option>
+                        <option value="Pending" selected="@(ViewBag.Status == "Pending")">@L["Pending"]</option>
+                        <option value="Failed" selected="@(ViewBag.Status == "Failed")">@L["Failed"]</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>@L["Mismatch:"]</label>
+                    <select name="hasMismatch">
+                        <option value="">@L["All"]</option>
+                        <option value="true" selected="@(ViewBag.HasMismatch == true)">@L["Has Mismatch"]</option>
+                        <option value="false" selected="@(ViewBag.HasMismatch == false)">@L["No Mismatch"]</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-filter"></i> @L["Filter"]
+                </button>
+                <a href="/Payments" class="btn-clear">
+                    <i class="fas fa-times"></i> @L["Clear"]
+                </a>
+            </div>
+        </form>
+        <div class="filter-results">
+            <span id="resultCount">@L["Showing"] @Model.Count @L["payments"]</span>
+        </div>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="payments-table-card">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>@L["Date"]</th>
+                        <th>@L["Tenant / Civil ID"]</th>
+                        <th>@L["Property / Unit"]</th>
+                        <th>@L["Amount"]</th>
+                        <th>@L["Method"]</th>
+                        <th>@L["Status"]</th>
+                        <th>@L["KNET Info"]</th>
+                        <th>@L["Actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var payment in Model)
+                    {
+                        var rowClass = payment.HasMismatch ? "payment-row has-mismatch" : "payment-row";
+                        <tr class="@rowClass">
+                            <td>
+                                <div>
+                                    <strong>@payment.PaymentDate.ToString("MMM dd, yyyy")</strong>
+                                    <small class="text-muted d-block">@payment.PaymentDate.ToString("hh:mm tt")</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="tenant-info">
+                                    <div class="tenant-avatar-sm">
+                                        @(payment.TenantName.Length >= 2 ? payment.TenantName.Substring(0, 2).ToUpper() : "??")
+                                    </div>
+                                    <div>
+                                        <strong>@payment.TenantName</strong>
+                                        <small class="text-muted d-block">@payment.TenantCivilID</small>
+                                        @if (payment.CivilIDMismatch)
+                                        {
+                                            <span class="mismatch-badge" title="Payment made with different Civil ID: @payment.PaymentCivilID">
+                                                <i class="fas fa-exclamation-circle"></i> @L["Civil ID Mismatch"]
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>@payment.BuildingName</strong>
+                                    <small class="text-muted d-block">@L["Unit"] @payment.UnitNumber</small>
+                                    @if (payment.BuildingMismatch)
+                                    {
+                                        <span class="mismatch-badge">
+                                            <i class="fas fa-exclamation-circle"></i> @L["Building Mismatch"]
+                                        </span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <div class="amount-display">
+                                    <strong class="text-success">@("KWD " + payment.Amount.ToString("N3"))</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="payment-method">
+                                    @if (payment.PaymentType.Contains("KNET"))
+                                    {
+                                        <i class="fas fa-credit-card"></i>
+                                    }
+                                    else if (payment.PaymentType.Contains("Bank") || payment.PaymentType.Contains("Transfer"))
+                                    {
+                                        <i class="fas fa-university"></i>
+                                    }
+                                    else if (payment.PaymentType.Contains("Cash"))
+                                    {
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-wallet"></i>
+                                    }
+                                    <span>@payment.PaymentType</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-@payment.Status.ToLower().Replace(" ", "-")">
+                                    @payment.Status
+                                </span>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(payment.PaymentKNETMID))
+                                {
+                                    <div class="knet-info">
+                                        <small>MID: @payment.PaymentKNETMID</small>
+                                        @if (payment.KNETMIDMismatch)
+                                        {
+                                            <span class="mismatch-badge" title="Expected: @payment.BuildingKNETMID">
+                                                <i class="fas fa-exclamation-circle"></i> @L["Wrong MID"]
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                <a href="/Payments/Details/@payment.PaymentId" class="btn btn-sm btn-outline">
+                                    <i class="fas fa-eye"></i> @L["Details"]
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="fas fa-money-check-alt"></i>
+            <h3>@L["No Payments Found"]</h3>
+            <p>@L["Start recording payments when tenants pay rent"]</p>
+            <a href="/CashPayment/Record" class="btn btn-primary">
+                <i class="fas fa-plus"></i> @L["Record Payment"]
+            </a>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        .page-container {
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b, #475569);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .btn-outline:hover {
+            background: #f8fafc;
+            color: #334155;
+        }
+
+        .payment-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .summary-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.75rem;
+        }
+
+        .summary-details h3 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .summary-details p {
+            margin: 0.25rem 0 0 0;
+            color: #475569;
+            font-size: 0.875rem;
+        }
+
+        .filter-section {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-group {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.625rem 1rem;
+        }
+
+        .search-group i {
+            color: #94a3b8;
+            margin-right: 0.75rem;
+        }
+
+        .search-group input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.9rem;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .filter-group select {
+            padding: 0.625rem 0.875rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc;
+            font-size: 0.9rem;
+            min-width: 120px;
+        }
+
+        .btn-clear {
+            padding: 0.625rem 1rem;
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            text-decoration: none;
+        }
+
+        .filter-results {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f1f5f9;
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .payments-table-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .modern-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .modern-table thead {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .modern-table thead th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #334155;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .modern-table tbody td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .modern-table tbody tr:hover {
+            background: rgba(99, 102, 241, 0.04);
+        }
+
+        .modern-table tbody tr.has-mismatch {
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .modern-table tbody tr.has-mismatch:hover {
+            background: rgba(245, 158, 11, 0.12);
+        }
+
+        .tenant-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tenant-avatar-sm {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+
+        .d-block {
+            display: block;
+        }
+
+        .text-success {
+            color: #10b981;
+        }
+
+        .amount-display strong {
+            font-size: 1.125rem;
+        }
+
+        .payment-method {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #475569;
+        }
+
+        .status-badge {
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-completed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-failed {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .mismatch-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-top: 0.25rem;
+        }
+
+        .mismatch-badge i {
+            font-size: 0.65rem;
+        }
+
+        .knet-info {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #6366f1;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin: 0 0 0.5rem 0;
+            color: #334155;
+        }
+
+        .empty-state p {
+            color: #475569;
+            margin-bottom: 1.5rem;
+        }
+
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                flex-wrap: wrap;
+            }
+
+            .payment-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .payments-table-card {
+                overflow-x: auto;
+            }
+
+            .modern-table {
+                min-width: 1000px;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+}

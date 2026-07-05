@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>rcops</AssemblyName>
+    <RootNamespace>RentCollection.OpsCli</RootNamespace>
+    <!-- Sprint 5 — operational utility for the DB restore drill. Wraps the
+         live aggregator (IMonthEndCloseService) so the drill script can
+         compute a snapshot against any connection-string-pointed database
+         without spinning up the web app. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RentCollection.Application\RentCollection.Application.csproj" />
+    <ProjectReference Include="..\RentCollection.Infrastructure\RentCollection.Infrastructure.csproj" />
+    <ProjectReference Include="..\RentCollection.Core\RentCollection.Core.csproj" />
+  </ItemGroup>
+
+</Project>

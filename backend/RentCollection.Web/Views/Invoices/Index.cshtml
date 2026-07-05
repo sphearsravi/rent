@@ -1,0 +1,896 @@
+﻿@model IEnumerable<RentCollection.Core.Entities.Invoice>
+
+@{
+    ViewData["Title"] = "Invoices";
+    var totalInvoices = Model.Count();
+    var pendingAmount = Model.Where(i => i.Status == "Pending").Sum(i => i.TotalAmount - i.PaidAmount);
+    var paidAmount = Model.Sum(i => i.PaidAmount);
+    var overdueCount = Model.Count(i => i.Status == "Overdue");
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_AlertMessages")
+
+    @{
+        string invoicesActionsHtml;
+        using (var __sw = new System.IO.StringWriter())
+        {
+            Html.AntiForgeryToken().WriteTo(__sw, System.Text.Encodings.Web.HtmlEncoder.Default);
+            var antiForgery = __sw.ToString();
+            var generateUrl = Url.Action("GenerateMonthlyInvoices");
+            invoicesActionsHtml =
+                "<form action=\"" + generateUrl + "\" method=\"post\" style=\"display: inline;\">" +
+                antiForgery +
+                "<button type=\"submit\" class=\"btn btn-primary\">" +
+                "<i class=\"fas fa-file-invoice\"></i> Generate Monthly Invoices" +
+                "</button>" +
+                "</form>";
+        }
+    }
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = "Invoice Management",
+        ["Subtitle"] = "Manage and track all invoices for your properties",
+        ["ActionsHtml"] = new Microsoft.AspNetCore.Html.HtmlString(invoicesActionsHtml)
+    })
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        </div>
+    }
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-icon total">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="summary-info">
+                <h3>@totalInvoices</h3>
+                <p>@L["Total Invoices"]</p>
+            </div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-icon pending">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="summary-info">
+                <h3>KWD @pendingAmount.ToString("N3")</h3>
+                <p>@L["Pending Amount"]</p>
+            </div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-icon paid">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="summary-info">
+                <h3>KWD @paidAmount.ToString("N3")</h3>
+                <p>@L["Paid Amount"]</p>
+            </div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-icon overdue">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="summary-info">
+                <h3>@overdueCount</h3>
+                <p>@L["Overdue Count"]</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search/Filter Section -->
+    <div class="filter-section">
+        <div class="filter-row">
+            <div class="search-group">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="@(L["Search by invoice #, tenant name, email, or property..."].Value)" onkeyup="filterInvoices()">
+            </div>
+            <div class="filter-group">
+                <label>@L["Property:"]</label>
+                <select id="propertyFilter" onchange="filterInvoices()">
+                    <option value="">@L["All Properties"]</option>
+                    @foreach (var prop in Model.Select(i => i.Lease.Unit.Property).DistinctBy(p => p.PropertyId).OrderBy(p => p.PropertyName))
+                    {
+                        <option value="@prop.PropertyId">@prop.PropertyName</option>
+                    }
+                </select>
+            </div>
+            <button class="btn-clear" onclick="clearFilters()">
+                <i class="fas fa-times"></i> @L["Clear"]
+            </button>
+        </div>
+        <div class="filter-results">
+            <span id="resultCount">@L["Showing all"] @totalInvoices @L["invoices"]</span>
+        </div>
+    </div>
+
+    <!-- Filter Tabs — by Status -->
+    <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">
+            <i class="fas fa-list"></i> @L["All Invoices"]
+        </button>
+        <button class="filter-tab" data-filter="Pending">
+            <i class="fas fa-clock"></i> @L["Pending"]
+        </button>
+        <button class="filter-tab" data-filter="Paid">
+            <i class="fas fa-check"></i> @L["Paid"]
+        </button>
+        <button class="filter-tab" data-filter="Overdue">
+            <i class="fas fa-exclamation"></i> @L["Overdue"]
+        </button>
+    </div>
+
+    <!-- Filter Tabs — by InvoiceType (deposit + insurance plan) -->
+    <div class="filter-tabs type-tabs">
+        <button class="filter-tab type-tab active" data-type-filter="all">
+            <i class="fas fa-layer-group"></i> @L["All Types"]
+        </button>
+        <button class="filter-tab type-tab" data-type-filter="Rent">
+            <i class="fas fa-home"></i> @L["Rent"]
+        </button>
+        <button class="filter-tab type-tab" data-type-filter="Deposit">
+            <i class="fas fa-shield-halved"></i> @L["Deposit"]
+        </button>
+        <button class="filter-tab type-tab" data-type-filter="Insurance">
+            <i class="fas fa-umbrella"></i> @L["Insurance"]
+        </button>
+        <button class="filter-tab type-tab" data-type-filter="LateFee">
+            <i class="fas fa-triangle-exclamation"></i> @L["Late Fee"]
+        </button>
+        <button class="filter-tab type-tab" data-type-filter="Other">
+            <i class="fas fa-ellipsis"></i> @L["Other"]
+        </button>
+    </div>
+
+    <!-- Invoices Table -->
+    @* Sprint 25 — the 10-column table overflows on narrow viewports (<992px).
+       The inner .table-scroll wrapper gives it a horizontal scrollbar on
+       mobile/tablet instead of clipping the right-most columns. Min-width
+       keeps the layout stable; without it, browsers shrink columns until
+       text wraps unreadably. *@
+    <div class="table-container">
+      <div class="table-scroll" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table" style="min-width: 1100px;">
+            <thead>
+                <tr>
+                    <th>@L["Invoice #"]</th>
+                    <th>@L["Type"]</th>
+                    <th>@L["Tenant Name"]</th>
+                    <th>@L["Property/Unit"]</th>
+                    <th>@L["Invoice Date"]</th>
+                    <th>@L["Due Date"]</th>
+                    <th>@L["Amount (KWD)"]</th>
+                    <th>@L["Paid Amount (KWD)"]</th>
+                    <th>@L["Status"]</th>
+                    <th>@L["Actions"]</th>
+                </tr>
+            </thead>
+            <tbody id="invoiceTableBody">
+                @foreach (var invoice in Model)
+                {
+                    var tenantName = $"{invoice.Tenant.FirstName} {invoice.Tenant.LastName}";
+                    var tenantEmail = invoice.Tenant.Email ?? "";
+                    var propertyName = invoice.Lease.Unit.Property.PropertyName;
+                    var unitNumber = invoice.Lease.Unit.UnitNumber;
+                    var invoiceType = string.IsNullOrEmpty(invoice.InvoiceType) ? "Other" : invoice.InvoiceType;
+                    var (typePillBg, typePillFg, typePillIcon, typePillLabel) = invoiceType switch
+                    {
+                        "Rent"           => ("#dbeafe", "#1e40af", "fa-home",                  "Rent"),
+                        "Deposit"        => ("#d1fae5", "#065f46", "fa-shield-halved",        "Deposit"),
+                        "Insurance"      => ("#ede9fe", "#5b21b6", "fa-umbrella",             "Insurance"),
+                        "LateFee"        => ("#fee2e2", "#991b1b", "fa-triangle-exclamation", "Late Fee"),
+                        "MaintenanceFee" => ("#fef3c7", "#92400e", "fa-screwdriver-wrench",   "Maintenance"),
+                        _                => ("#f1f5f9", "#475569", "fa-ellipsis",             invoiceType),
+                    };
+                    <tr class="invoice-row"
+                        data-status="@invoice.Status"
+                        data-invoice-type="@invoiceType"
+                        data-tenant-name="@tenantName"
+                        data-tenant-email="@tenantEmail"
+                        data-property-id="@invoice.Lease.Unit.Property.PropertyId"
+                        data-property-name="@propertyName"
+                        data-unit-number="@unitNumber"
+                        data-invoice-id="@invoice.InvoiceId">
+                        <td><strong>#@invoice.InvoiceId.ToString("D5")</strong></td>
+                        <td>
+                            <span class="type-pill"
+                                  style="background:@typePillBg; color:@typePillFg;">
+                                <i class="fas @typePillIcon"></i> @typePillLabel
+                            </span>
+                        </td>
+                        <td>@invoice.Tenant.FirstName @invoice.Tenant.LastName</td>
+                        <td>
+                            @invoice.Lease.Unit.Property.PropertyName<br />
+                            <small class="text-muted">@L["Unit"] @invoice.Lease.Unit.UnitNumber</small>
+                        </td>
+                        <td>@invoice.InvoiceDate.ToString("dd MMM yyyy")</td>
+                        <td>@invoice.DueDate.ToString("dd MMM yyyy")</td>
+                        <td class="text-right"><strong>@invoice.TotalAmount.ToString("N3")</strong></td>
+                        <td class="text-right">@invoice.PaidAmount.ToString("N3")</td>
+                        <td>
+                            @if (invoice.Status == "Pending")
+                            {
+                                <span class="badge badge-warning">
+                                    <i class="fas fa-clock"></i> @L["Pending"]
+                                </span>
+                            }
+                            else if (invoice.Status == "Paid")
+                            {
+                                <span class="badge badge-success">
+                                    <i class="fas fa-check-circle"></i> @L["Paid"]
+                                </span>
+                            }
+                            else if (invoice.Status == "Overdue")
+                            {
+                                <span class="badge badge-danger">
+                                    <i class="fas fa-exclamation-circle"></i> @L["Overdue"]
+                                </span>
+                            }
+                            else if (invoice.Status == "Cancelled")
+                            {
+                                <span class="badge badge-secondary">
+                                    <i class="fas fa-ban"></i> @L["Cancelled"]
+                                </span>
+                            }
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a asp-action="Details" asp-route-id="@invoice.InvoiceId" class="btn-action btn-info" title="@(L["View Details"].Value)">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                @if (invoice.Status != "Paid")
+                                {
+                                    <form asp-action="MarkAsPaid" method="post" style="display: inline;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@invoice.InvoiceId" />
+                                        <button type="submit" class="btn-action btn-success" title="@(L["Mark as Paid"].Value)">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                }
+                                @if (invoice.Status == "Pending" && invoice.DueDate < DateTime.Now)
+                                {
+                                    <form asp-action="MarkAsOverdue" method="post" style="display: inline;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@invoice.InvoiceId" />
+                                        <button type="submit" class="btn-action btn-warning" title="@(L["Mark as Overdue"].Value)">
+                                            <i class="fas fa-exclamation"></i>
+                                        </button>
+                                    </form>
+                                }
+                                <a asp-action="Delete" asp-route-id="@invoice.InvoiceId" class="btn-action btn-danger" title="@(L["Delete"].Value)">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+      </div>
+      <!-- /.table-scroll (Sprint 25 horizontal-scroll wrapper) -->
+
+        <!-- No Results Message -->
+        <div id="noResultsMessage" class="no-results" style="display: none;">
+            <i class="fas fa-search"></i>
+            <h3>@L["No invoices found"]</h3>
+            <p>@L["Try adjusting your search criteria or filters"]</p>
+            <button class="btn btn-primary" onclick="clearFilters()">
+                <i class="fas fa-redo"></i> @L["Reset Filters"]
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .page-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s;
+        }
+
+        .summary-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .summary-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .summary-icon.total {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+
+        .summary-icon.pending {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .summary-icon.paid {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .summary-icon.overdue {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .summary-info h3 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .summary-info p {
+            color: #475569;
+            margin: 0.25rem 0 0 0;
+            font-size: 0.875rem;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* Type pill in table column */
+        .type-pill {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.4px;
+            white-space: nowrap;
+        }
+        .type-pill i { font-size: 0.7rem; }
+
+        /* Compact type-filter strip — sits below the status filter row */
+        .type-tabs { margin-top: -0.5rem; }
+        .filter-tab.type-tab {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .filter-tab {
+            padding: 0.75rem 1.5rem;
+            border: 2px solid #e2e8f0;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #475569;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-tab:hover {
+            border-color: #6366f1;
+            color: #6366f1;
+        }
+
+        .filter-tab.active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* Filter Section Styles */
+        .filter-section {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-group {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
+        }
+
+        .search-group i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .search-group input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .search-group input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #475569;
+            white-space: nowrap;
+        }
+
+        .filter-group select {
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+            min-width: 150px;
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .btn-clear {
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            color: #6b7280;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .filter-results {
+            margin-top: 0.75rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem 2rem;
+        }
+
+        .no-results i {
+            font-size: 3rem;
+            color: #d1d5db;
+            margin-bottom: 1rem;
+        }
+
+        .no-results h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+            color: #334155;
+        }
+
+        .no-results p {
+            color: #6b7280;
+            margin-bottom: 1rem;
+        }
+
+        .table-container {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .data-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            color: #334155;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .data-table tbody tr {
+            transition: background-color 0.2s;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-start;
+        }
+
+        .btn-action {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-info {
+            background: #6366f1;
+        }
+
+        .btn-info:hover {
+            background: #8b5cf6;
+            transform: scale(1.1);
+        }
+
+        .btn-success {
+            background: #10b981;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: scale(1.1);
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+            transform: scale(1.1);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+
+        @@media (max-width: 768px) {
+            .table-container {
+                overflow-x: auto;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        const totalInvoices = @Model.Count();
+        let currentTabFilter = 'all';
+        let currentTypeFilter = 'all';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Status tabs (existing)
+            const statusTabs = document.querySelectorAll('.filter-tab:not(.type-tab)');
+            statusTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    statusTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentTabFilter = this.getAttribute('data-filter');
+                    filterInvoices();
+                });
+            });
+
+            // Type tabs (deposit + insurance plan)
+            const typeTabs = document.querySelectorAll('.type-tab');
+            typeTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    typeTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentTypeFilter = this.getAttribute('data-type-filter');
+                    filterInvoices();
+                });
+            });
+        });
+
+        function filterInvoices() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const propertyFilter = document.getElementById('propertyFilter').value;
+
+            const rows = document.querySelectorAll('.invoice-row');
+            const table = document.querySelector('.data-table');
+            const noResults = document.getElementById('noResultsMessage');
+
+            let visibleCount = 0;
+            const hasFilters = searchTerm !== '' || propertyFilter !== '' || currentTabFilter !== 'all';
+
+            rows.forEach(row => {
+                const tenantName = (row.getAttribute('data-tenant-name') || '').toLowerCase();
+                const tenantEmail = (row.getAttribute('data-tenant-email') || '').toLowerCase();
+                const propertyId = row.getAttribute('data-property-id') || '';
+                const propertyName = (row.getAttribute('data-property-name') || '').toLowerCase();
+                const unitNumber = (row.getAttribute('data-unit-number') || '').toLowerCase();
+                const invoiceId = row.getAttribute('data-invoice-id') || '';
+                const status = row.getAttribute('data-status') || '';
+
+                // Status tab filter
+                const matchesTab = currentTabFilter === 'all' || status === currentTabFilter;
+
+                // InvoiceType tab filter (deposit + insurance plan)
+                const invoiceType = row.getAttribute('data-invoice-type') || '';
+                const matchesType = currentTypeFilter === 'all' || invoiceType === currentTypeFilter;
+                if (!matchesType) {
+                    row.style.display = 'none';
+                    return;
+                }
+
+                // Check search filter
+                const matchesSearch = searchTerm === '' ||
+                    tenantName.includes(searchTerm) ||
+                    tenantEmail.includes(searchTerm) ||
+                    propertyName.includes(searchTerm) ||
+                    unitNumber.includes(searchTerm) ||
+                    invoiceId.includes(searchTerm);
+
+                // Check property filter
+                const matchesProperty = propertyFilter === '' || propertyId === propertyFilter;
+
+                if (matchesTab && matchesSearch && matchesProperty) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Show/hide no results message
+            if (visibleCount === 0 && hasFilters) {
+                table.style.display = 'none';
+                noResults.style.display = 'block';
+            } else {
+                table.style.display = '';
+                noResults.style.display = 'none';
+            }
+
+            updateResultCount(visibleCount, hasFilters);
+        }
+
+        function updateResultCount(count, hasFilters) {
+            const resultSpan = document.getElementById('resultCount');
+            if (hasFilters) {
+                resultSpan.textContent = `Showing ${count} of ${totalInvoices} invoices`;
+            } else {
+                resultSpan.textContent = `Showing all ${totalInvoices} invoices`;
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('propertyFilter').value = '';
+
+            // Reset tab to "All"
+            const filterTabs = document.querySelectorAll('.filter-tab');
+            filterTabs.forEach(t => t.classList.remove('active'));
+            document.querySelector('.filter-tab[data-filter="all"]').classList.add('active');
+            currentTabFilter = 'all';
+
+            filterInvoices();
+        }
+    </script>
+}

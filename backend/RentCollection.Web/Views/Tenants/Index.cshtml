@@ -1,0 +1,1590 @@
+﻿@model List<RentCollection.Core.Entities.Tenant>
+@{
+    ViewData["Title"] = "Tenants";
+    var properties = ViewBag.Properties as List<RentCollection.Core.Entities.Property> ?? new List<RentCollection.Core.Entities.Property>();
+    var includeArchived = ViewBag.IncludeArchived as bool? ?? false;
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = "Tenants",
+        ["Subtitle"] = string.Format(L["Manage your tenants ({0} total)"].Value, Model.Count),
+        ["ActionLabel"] = "Add Tenant",
+        ["ActionHref"] = Url.Action("Create", "Tenants"),
+        ["Crumbs"] = new (string label, string? href)[]
+            {
+                ("Admin", "/Dashboard"),
+                ("Tenants", null)
+            }
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+    @await Html.PartialAsync("_NewCredential")
+
+    <!-- ─── Sprint 1 — Portfolio KPI strip ─── -->
+    <div class="tenants-strip" id="tenantsStrip" aria-live="polite">
+        <div class="kpi-card"><div class="kpi-icon ki-total"><i class="fas fa-users"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Tenants"]</div><div class="kpi-value skeleton" data-k="totalTenants">&nbsp;</div>
+            <div class="kpi-sub"><span data-k="activeTenants">—</span> @L["active"]</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-lease"><i class="fas fa-file-signature"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["With active leases"]</div><div class="kpi-value skeleton" data-k="withActiveLeases">&nbsp;</div>
+            <div class="kpi-sub">@L["currently leased"]</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-arrears"><i class="fas fa-triangle-exclamation"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["In arrears"]</div><div class="kpi-value skeleton" data-k="arrearsTenants">&nbsp;</div>
+            <div class="kpi-sub">@L["balance outstanding"]</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-tenure"><i class="fas fa-clock-rotate-left"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Avg tenure"]</div><div class="kpi-value skeleton" data-k="avgTenureMonths">&nbsp;</div>
+            <div class="kpi-sub">@L["months on file"]</div></div></div>
+    </div>
+
+    <!-- ─── Sprint 1 — Toolbar: chips + expiring filter + export ─── -->
+    <div class="tenants-toolbar">
+        <div class="filter-chips" id="filterChips" aria-label="Active filters"></div>
+        <div class="toolbar-right">
+            <label class="toolbar-label toolbar-archived" title="@(L["Include soft-deleted tenants"].Value)">
+                <input type="checkbox" id="includeArchived" @(includeArchived ? "checked" : "")
+                       onchange="window.location = this.checked ? '/Tenants?includeArchived=true' : '/Tenants'" />
+                @L["Show archived"]
+            </label>
+            <label class="toolbar-label" for="expiringFilter">@L["Lease expiring"]</label>
+            <select id="expiringFilter" class="form-control toolbar-select" onchange="filterTenants()">
+                <option value="">@L["Any"]</option>
+                <option value="30">@L["≤ 30 days"]</option>
+                <option value="60">@L["≤ 60 days"]</option>
+                <option value="90">@L["≤ 90 days"]</option>
+            </select>
+            <a class="btn-import" href="/Tenants/Import" aria-label="@(L["Bulk import tenants from CSV or XLSX"].Value)">
+                <i class="fas fa-file-arrow-up"></i> @L["Import"]
+            </a>
+            <a id="exportExcelLink" class="btn-export" href="/Tenants/ExportExcel" aria-label="@(L["Export filtered tenants as Excel"].Value)">
+                <i class="fas fa-file-excel"></i> @L["Export"]
+            </a>
+        </div>
+    </div>
+
+    @Html.AntiForgeryToken()
+
+    <!-- Search/Filter Section -->
+    <div class="filter-section">
+        <div class="filter-row">
+            <div class="search-group">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="@(L["Search by name, email, phone, or PACI..."].Value)" onkeyup="filterTenants()">
+            </div>
+            <div class="filter-group">
+                <label>@L["Property:"]</label>
+                <select id="propertyFilter" onchange="filterTenants()">
+                    <option value="">@L["All Properties"]</option>
+                    @foreach (var prop in properties.OrderBy(p => p.PropertyName))
+                    {
+                        <option value="@prop.PropertyId">@prop.PropertyName</option>
+                    }
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>@L["Status:"]</label>
+                <select id="statusFilter" onchange="filterTenants()">
+                    <option value="">@L["All Status"]</option>
+                    <option value="Active">@L["Active"]</option>
+                    <option value="Inactive">@L["Inactive"]</option>
+                </select>
+            </div>
+            <button class="btn-clear" onclick="clearFilters()">
+                <i class="fas fa-times"></i> @L["Clear"]
+            </button>
+        </div>
+        <div class="filter-results">
+            <span id="resultCount">Showing all @Model.Count tenants</span>
+        </div>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="tenants-table-card">
+            <table class="modern-table tenants-table">
+                <thead>
+                    <tr>
+                        <th class="col-select"><input type="checkbox" id="masterSelect" aria-label="@(L["Select all tenants on page"].Value)"></th>
+                        <th data-sort="name">@L["Name"] <i class="fas fa-sort sort-ind"></i></th>
+                        <th>@L["Contact"]</th>
+                        <th>@L["PACI"]</th>
+                        <th>@L["Property"]</th>
+                        <th data-sort="outstanding">@L["Outstanding"] <i class="fas fa-sort sort-ind"></i></th>
+                        <th data-sort="last">@L["Last payment"] <i class="fas fa-sort sort-ind"></i></th>
+                        <th>@L["Health"]</th>
+                        <th>@L["Status"]</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tenant in Model)
+                    {
+                        var property = properties.FirstOrDefault(p => p.PACINumber == tenant.BuildingPACINumber && !string.IsNullOrEmpty(tenant.BuildingPACINumber));
+                        var tenantName = $"{tenant.FirstName ?? ""} {tenant.LastName ?? ""}".ToLower();
+                        var tenantEmail = (tenant.Email ?? "").ToLower();
+                        var tenantPhone = (tenant.Phone ?? "").ToLower();
+                        var tenantPaci = (tenant.PACINumber ?? "").ToLower();
+                        var buildingPaci = (tenant.BuildingPACINumber ?? "").ToLower();
+                        var tenantStatus = tenant.Status ?? "Active";
+
+                        <tr class="tenant-row @(tenant.IsDeleted ? "is-archived" : "")"
+                            data-tenant-id="@tenant.TenantId"
+                            data-name="@tenantName"
+                            data-name-sort="@tenantName"
+                            data-email="@tenantEmail"
+                            data-phone="@tenantPhone"
+                            data-paci="@tenantPaci"
+                            data-building-paci="@buildingPaci"
+                            data-property-id="@(property?.PropertyId.ToString() ?? "")"
+                            data-property-name="@(property?.PropertyName?.ToLower() ?? "")"
+                            data-status="@tenantStatus"
+                            data-archived="@(tenant.IsDeleted ? "1" : "0")"
+                            data-outstanding="0"
+                            data-last="0"
+                            data-lease-end-days="">
+                            <td class="col-select" data-label="Select">
+                                <input type="checkbox" class="row-select" value="@tenant.TenantId" aria-label="Select tenant @(tenant.FirstName) @(tenant.LastName)">
+                            </td>
+                            <td data-label="Name">
+                                <a href="/Tenants/Details/@tenant.TenantId" class="tenant-info tenant-info-link">
+                                    <div class="tenant-avatar">
+                                        @{
+                                            var firstInitial = !string.IsNullOrEmpty(tenant.FirstName) && tenant.FirstName.Length > 0 ? tenant.FirstName[0] : 'T';
+                                            var lastInitial = !string.IsNullOrEmpty(tenant.LastName) && tenant.LastName.Length > 0 ? tenant.LastName[0] : 'N';
+                                        }
+                                        @firstInitial@lastInitial
+                                    </div>
+                                    <div>
+                                        <strong>@(tenant.FirstName ?? "") @(tenant.LastName ?? "")</strong>
+                                        @if (tenant.IsDeleted)
+                                        {
+                                            <span class="archived-badge" title="Soft-deleted on @(tenant.DeletedAt?.ToString("yyyy-MM-dd") ?? "—")">
+                                                <i class="fas fa-box-archive"></i> @L["Archived"]
+                                            </span>
+                                        }
+                                        <small class="text-muted d-block">ID: @tenant.TenantId</small>
+                                    </div>
+                                </a>
+                            </td>
+                            <td data-label="Contact">
+                                @if (!string.IsNullOrEmpty(tenant.Email))
+                                {
+                                    <a class="contact-line" href="mailto:@tenant.Email"><i class="fas fa-envelope"></i> @tenant.Email</a>
+                                }
+                                @if (!string.IsNullOrEmpty(tenant.Phone))
+                                {
+                                    <a class="contact-line" href="tel:@tenant.Phone"><i class="fas fa-phone"></i> @tenant.Phone</a>
+                                }
+                                @if (string.IsNullOrEmpty(tenant.Email) && string.IsNullOrEmpty(tenant.Phone))
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td data-label="PACI">
+                                @if (!string.IsNullOrEmpty(tenant.PACINumber))
+                                {
+                                    <div class="paci-badge"><i class="fas fa-id-card"></i><span>@tenant.PACINumber</span></div>
+                                }
+                                @if (!string.IsNullOrEmpty(tenant.BuildingPACINumber))
+                                {
+                                    <div class="building-paci-badge"><i class="fas fa-building"></i><span>@tenant.BuildingPACINumber</span></div>
+                                }
+                                @if (string.IsNullOrEmpty(tenant.PACINumber) && string.IsNullOrEmpty(tenant.BuildingPACINumber))
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td data-label="Property">
+                                @if (property != null)
+                                {
+                                    <a class="property-link" href="/Properties/Details/@property.PropertyId">
+                                        <strong>@property.PropertyName</strong>
+                                        <small class="text-muted d-block">@property.Area, @property.Governorate</small>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">@L["No property assigned"]</span>
+                                }
+                            </td>
+                            @* Sprint 1+2 — per-row KPIs populated by /Tenants/KpiBatch *@
+                            <td data-label="Outstanding">
+                                <a class="kpi-cell outstanding-cell" href="/Invoices?tenantId=@tenant.TenantId" title="@(L["View invoices"].Value)">
+                                    <span class="kpi-cell-value skeleton">&nbsp;</span>
+                                </a>
+                            </td>
+                            <td data-label="Last payment">
+                                <span class="kpi-cell last-cell">
+                                    <span class="kpi-cell-value skeleton">&nbsp;</span>
+                                    <small class="kpi-cell-sub leases-sub muted">&nbsp;</small>
+                                </span>
+                            </td>
+                            <td data-label="Health">
+                                <span class="health-badge health-pending" aria-label="@(L["Payment health"].Value)"><i class="fas fa-circle"></i></span>
+                            </td>
+                            <td data-label="Status">
+                                <button type="button"
+                                        class="status-badge status-toggle status-@tenantStatus.ToLower()"
+                                        data-status="@tenantStatus"
+                                        aria-label="@(L["Toggle tenant status"].Value)">@tenantStatus</button>
+                            </td>
+                            <td class="col-actions" data-label="Actions">
+                                <div class="kebab-wrap">
+                                    <button type="button" class="kebab-btn" aria-label="@(L["More actions"].Value)" aria-haspopup="menu" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-vertical"></i>
+                                    </button>
+                                    <div class="kebab-menu" role="menu" hidden>
+                                        <a href="/Tenants/Details/@tenant.TenantId" role="menuitem"><i class="fas fa-eye"></i> @L["View"]</a>
+                                        <a href="/Tenants/Edit/@tenant.TenantId" role="menuitem"><i class="fas fa-edit"></i> @L["Edit"]</a>
+                                        <a href="/Tenants/Statement/@tenant.TenantId" role="menuitem" download><i class="fas fa-file-pdf"></i> @L["Statement PDF"]</a>
+                                        <a href="/Leases/Create?tenantId=@tenant.TenantId" role="menuitem"><i class="fas fa-file-signature"></i> @L["Create Lease"]</a>
+                                        <a href="/CashPayment/Record?tenantId=@tenant.TenantId" role="menuitem"><i class="fas fa-money-bill"></i> @L["Record Payment"]</a>
+                                        <a href="/Invoices?tenantId=@tenant.TenantId" role="menuitem"><i class="fas fa-file-invoice-dollar"></i> @L["Invoices"]</a>
+                                        @if (!tenant.IsDeleted)
+                                        {
+                                            <button type="button" class="resend-login-btn" data-tenant-id="@tenant.TenantId" data-has-email="@(!string.IsNullOrEmpty(tenant.Email) ? "1" : "0")" role="menuitem">
+                                                <i class="fas fa-key"></i> @L["Resend login"]
+                                            </button>
+                                        }
+                                        @if (tenant.IsDeleted)
+                                        {
+                                            <button type="button" class="restore-btn" data-tenant-id="@tenant.TenantId" role="menuitem"><i class="fas fa-rotate-left"></i> @L["Restore"]</button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="forget-btn" data-tenant-id="@tenant.TenantId" role="menuitem"><i class="fas fa-user-slash"></i> @L["Forget (GDPR)"]</button>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ─── Sprint 5 — Floating bulk action bar ─── -->
+        <div class="bulk-bar" id="bulkBar" hidden role="region" aria-label="@(L["Bulk actions for selected tenants"].Value)">
+            <div class="bulk-count"><span id="bulkCount">0</span> @L["selected"]</div>
+            <div class="bulk-actions">
+                <button type="button" class="bulk-btn" data-action="activate">
+                    <i class="fas fa-toggle-on"></i> @L["Activate"]
+                </button>
+                <button type="button" class="bulk-btn" data-action="deactivate">
+                    <i class="fas fa-toggle-off"></i> @L["Deactivate"]
+                </button>
+                <button type="button" class="bulk-btn" data-action="export">
+                    <i class="fas fa-file-excel"></i> @L["Export"]
+                </button>
+                <button type="button" class="bulk-btn bulk-btn-danger" data-action="archive">
+                    <i class="fas fa-box-archive"></i> @L["Archive"]
+                </button>
+                <button type="button" class="bulk-btn bulk-btn-ghost" data-action="clear" aria-label="@(L["Clear selection"].Value)">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- No Results Message -->
+        <div class="no-results-message" id="noResultsMessage">
+            <i class="fas fa-search"></i>
+            <h4>@L["No matching tenants found"]</h4>
+            <p>@L["Try adjusting your search or filter criteria"]</p>
+            <button type="button" class="btn btn-secondary" onclick="clearFilters()">
+                <i class="fas fa-rotate-left"></i> @L["Clear filters"]
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="fas fa-users"></i>
+            <h3>@L["No Tenants Found"]</h3>
+            <p>@L["Start by adding your first tenant"]</p>
+            <a href="/Tenants/Create" class="btn btn-primary">
+                <i class="fas fa-user-plus"></i> @L["Add Tenant"]
+            </a>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .page-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+        }
+
+        .alert-danger {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .tenants-table-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .modern-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .modern-table thead {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .modern-table thead th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #334155;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .modern-table tbody td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .modern-table tbody tr:hover {
+            background: rgba(99, 102, 241, 0.04);
+        }
+
+        .tenant-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .tenant-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .paci-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .paci-badge i {
+            font-size: 0.75rem;
+        }
+
+        .building-paci-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .building-paci-badge i {
+            font-size: 0.75rem;
+        }
+
+        .status-badge {
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .status-active {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-inactive {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            text-decoration: none;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .btn-icon:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: #6366f1;
+            color: #6366f1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+            color: #334155;
+        }
+
+        .empty-state p {
+            color: #475569;
+            margin-bottom: 1.5rem;
+        }
+
+        .d-block {
+            display: block;
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-group {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.625rem 1rem;
+            transition: all 0.2s;
+        }
+
+        .search-group:focus-within {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-group i {
+            color: #94a3b8;
+            margin-right: 0.75rem;
+        }
+
+        .search-group input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+
+        .search-group input::placeholder {
+            color: #94a3b8;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .filter-group select {
+            padding: 0.625rem 2rem 0.625rem 0.875rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.5rem center/1.25rem;
+            font-size: 0.9rem;
+            color: #1e293b;
+            cursor: pointer;
+            min-width: 150px;
+            appearance: none;
+            transition: all 0.2s;
+        }
+
+        .filter-group select:focus {
+            border-color: #6366f1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .btn-clear {
+            padding: 0.625rem 1rem;
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .filter-results {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .filter-results span {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .filter-results strong {
+            color: #6366f1;
+        }
+
+        /* Hidden state for filtered elements */
+        .tenant-row.hidden {
+            display: none !important;
+        }
+
+        .no-results-message {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            color: #64748b;
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .no-results-message.show {
+            display: block;
+        }
+
+        .no-results-message i {
+            font-size: 3rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .no-results-message h4 {
+            font-size: 1.1rem;
+            color: #475569;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .no-results-message p {
+            margin: 0;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        @@media (max-width: 1024px) {
+            .modern-table {
+                font-size: 0.875rem;
+            }
+
+            .modern-table thead th,
+            .modern-table tbody td {
+                padding: 0.75rem;
+            }
+        }
+
+        /* Mobile: stop horizontal scroll, render each row as a card.
+         * data-label on every <td> turns into a ::before pill label so the
+         * row reads like a labelled key/value list. */
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-group { min-width: auto; }
+            .filter-group { width: 100%; }
+            .filter-group select { flex: 1; }
+
+            .tenants-table-card { background: transparent; border: 0; box-shadow: none; overflow: visible; }
+            .tenants-table thead { display: none; }
+            .tenants-table, .tenants-table tbody, .tenants-table tr { display: block; width: 100%; }
+            .tenants-table tr.tenant-row {
+                background: rgba(255,255,255,0.95);
+                border: 1px solid rgba(99, 102, 241,0.18);
+                border-radius: 12px;
+                margin-bottom: 0.85rem;
+                padding: 0.5rem 0.75rem;
+                box-shadow: 0 1px 4px rgba(15,23,42,0.05);
+            }
+            .tenants-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.55rem 0 !important;
+                border-bottom: 1px dashed #f1f5f9 !important;
+                text-align: right;
+            }
+            .tenants-table td:last-child { border-bottom: 0 !important; }
+            .tenants-table td::before {
+                content: attr(data-label);
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                font-weight: 600;
+                color: #64748b;
+                flex-shrink: 0;
+            }
+            /* The first cell (name + avatar) needs the label suppressed —
+             * the tenant card already reads as its own header. */
+            .tenants-table td[data-label="Name"]::before { display: none; }
+            .tenants-table td[data-label="Name"] { justify-content: flex-start; text-align: left; }
+            .tenants-table td.col-actions::before { display: none; }
+            .tenants-table td.col-actions { justify-content: flex-end; }
+
+            /* Right-aligned content needs to wrap nicely */
+            .contact-line { text-align: right; }
+            .kpi-cell { align-items: flex-end; }
+            .paci-badge, .building-paci-badge { display: inline-flex; }
+            .kebab-menu { right: 0; left: auto; }
+        }
+
+        /* ─── Sprint 1/2/3 — KPI strip, toolbar, per-row KPIs, kebab, health ─── */
+        .tenants-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.85rem;
+            margin: 0 0 1rem;
+        }
+        @@media (max-width: 1000px) { .tenants-strip { grid-template-columns: repeat(2, 1fr); } }
+        @@media (max-width: 560px)  { .tenants-strip { grid-template-columns: 1fr; } }
+        .tenants-strip .kpi-card {
+            display: flex; align-items: center; gap: 0.7rem;
+            padding: 0.85rem 1rem;
+            background: rgba(255,255,255,0.95);
+            border: 1px solid rgba(99, 102, 241,0.12);
+            border-radius: 12px;
+        }
+        .tenants-strip .kpi-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 0.95rem;
+            background: linear-gradient(135deg,#6366f1,#8b5cf6);
+        }
+        .ki-lease   { background: linear-gradient(135deg,#3b82f6,#06b6d4) !important; }
+        .ki-arrears { background: linear-gradient(135deg,#ef4444,#f43f5e) !important; }
+        .ki-tenure  { background: linear-gradient(135deg,#10b981,#22c55e) !important; }
+        .kpi-body { min-width: 0; }
+        .kpi-label { font-size: 0.65rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+        .kpi-value { font-size: 1.25rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
+        .kpi-sub   { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+
+        /* Skeleton shimmer (shared) */
+        .skeleton {
+            display: inline-block; min-width: 4rem; min-height: 1.1rem;
+            background: linear-gradient(90deg,#eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
+            background-size: 200% 100%;
+            border-radius: 6px;
+            animation: tnt-shimmer 1.4s infinite;
+        }
+        @@keyframes tnt-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Toolbar above table */
+        .tenants-toolbar {
+            display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+            margin: 0 0 0.75rem;
+        }
+        .filter-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; flex: 1; min-width: 0; }
+        .filter-chip {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.3rem 0.7rem;
+            background: rgba(99, 102, 241,0.08);
+            color: #4338ca;
+            border-radius: 999px;
+            font-size: 0.75rem; font-weight: 500;
+            border: 1px solid rgba(99, 102, 241,0.18);
+        }
+        .filter-chip button {
+            background: none; border: 0; cursor: pointer; color: #4338ca;
+            padding: 0; line-height: 1; font-size: 0.85rem;
+        }
+        .toolbar-right { display: flex; align-items: center; gap: 0.5rem; }
+        .toolbar-label { font-size: 0.75rem; color: #64748b; font-weight: 500; }
+        .toolbar-select { padding: 0.4rem 0.6rem; font-size: 0.85rem; height: auto; }
+        .btn-export {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.45rem 0.85rem;
+            background: linear-gradient(135deg,#10b981,#22c55e);
+            color: white; border-radius: 8px; text-decoration: none;
+            font-size: 0.85rem; font-weight: 500;
+        }
+        .btn-export:hover { box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
+        .btn-import {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.45rem 0.85rem;
+            background: linear-gradient(135deg,#6366f1,#8b5cf6);
+            color: white; border-radius: 8px; text-decoration: none;
+            font-size: 0.85rem; font-weight: 500;
+        }
+        .btn-import:hover { box-shadow: 0 4px 12px rgba(99, 102, 241,0.3); }
+
+        /* Table additions */
+        .tenants-table thead th { position: sticky; top: 0; background: #f8fafc; z-index: 2; }
+        .tenants-table th[data-sort] { cursor: pointer; user-select: none; }
+        .tenants-table th[data-sort]:hover { color: #6366f1; }
+        .sort-ind { opacity: 0.35; margin-left: 4px; font-size: 0.7rem; }
+        .tenants-table th.is-sort .sort-ind { opacity: 1; color: #6366f1; }
+
+        .tenant-info-link { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: inherit; }
+        .tenant-info-link:hover strong { color: #6366f1; }
+
+        .contact-line { display: block; color: #475569; text-decoration: none; font-size: 0.82rem; line-height: 1.5; }
+        .contact-line:hover { color: #6366f1; }
+        .contact-line i { color: #94a3b8; width: 14px; margin-right: 4px; }
+
+        .property-link { color: inherit; text-decoration: none; display: block; }
+        .property-link:hover strong { color: #6366f1; }
+
+        .kpi-cell { display: inline-flex; flex-direction: column; align-items: flex-start; text-decoration: none; color: inherit; }
+        .kpi-cell-value { font-weight: 600; color: #0f172a; }
+        .kpi-cell-sub { font-size: 0.7rem; color: #94a3b8; }
+        .outstanding-cell:hover .kpi-cell-value { color: #6366f1; }
+        .kpi-cell-value.muted, .kpi-cell-sub.muted { color: #94a3b8; }
+
+        .health-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 999px;
+            background: #f1f5f9; font-size: 0.55rem;
+        }
+        .health-badge.health-pending i { color: #cbd5e1; }
+        .health-badge.health-good    { background: rgba(16,185,129,0.12); }
+        .health-badge.health-good    i { color: #10b981; }
+        .health-badge.health-amber   { background: rgba(245,158,11,0.15); }
+        .health-badge.health-amber   i { color: #f59e0b; }
+        .health-badge.health-bad     { background: rgba(239,68,68,0.15); }
+        .health-badge.health-bad     i { color: #ef4444; }
+
+        .status-toggle {
+            border: 0; cursor: pointer;
+            font-family: inherit; font-size: inherit; font-weight: inherit;
+        }
+        .status-toggle:hover { filter: brightness(0.95); }
+        .status-toggle:disabled { opacity: 0.6; cursor: wait; }
+
+        /* Kebab menu */
+        .col-actions { text-align: right; }
+        .kebab-wrap { position: relative; display: inline-block; }
+        .kebab-btn {
+            background: none; border: 1px solid transparent; border-radius: 8px;
+            padding: 0.3rem 0.5rem; cursor: pointer; color: #64748b;
+        }
+        .kebab-btn:hover { background: #f1f5f9; color: #6366f1; }
+        .kebab-menu {
+            position: absolute; top: 100%; right: 0; z-index: 10;
+            background: white; min-width: 200px;
+            border: 1px solid #e2e8f0; border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(15,23,42,0.12);
+            padding: 0.35rem; margin-top: 4px;
+        }
+        .kebab-menu[hidden] { display: none; }
+        .kebab-menu a, .kebab-menu button {
+            display: flex; align-items: center; gap: 0.6rem; width: 100%;
+            padding: 0.5rem 0.75rem; border-radius: 6px;
+            color: #334155; text-decoration: none; font-size: 0.85rem;
+            background: none; border: 0; cursor: pointer; text-align: start;
+        }
+        .kebab-menu a:hover, .kebab-menu button:hover { background: #f8fafc; color: #6366f1; }
+        .kebab-menu a i, .kebab-menu button i { width: 16px; color: #94a3b8; }
+        .kebab-menu .forget-btn:hover { background: rgba(239,68,68,0.08); color: #dc2626; }
+        .kebab-menu .forget-btn:hover i { color: #dc2626; }
+        .kebab-menu .restore-btn:hover { background: rgba(16,185,129,0.08); color: #059669; }
+        .kebab-menu .restore-btn:hover i { color: #059669; }
+
+        /* Sprint 4 — archived row dimming + badge */
+        .tenant-row.is-archived td { background: repeating-linear-gradient(45deg,
+            rgba(148,163,184,0.03) 0 8px, transparent 8px 16px); color: #64748b; }
+        .tenant-row.is-archived .tenant-avatar { filter: grayscale(0.7); opacity: 0.7; }
+        .tenant-row.is-archived strong { color: #475569; }
+        .archived-badge {
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            background: #e2e8f0; color: #475569;
+            padding: 0.1rem 0.55rem; border-radius: 999px;
+            font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.4px; margin-left: 0.4rem; vertical-align: middle;
+        }
+        .archived-badge i { font-size: 0.65rem; }
+
+        /* Sprint 4 — Show archived toggle */
+        .toolbar-archived {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.35rem 0.75rem;
+            background: rgba(99, 102, 241,0.06);
+            border: 1px solid rgba(99, 102, 241,0.12);
+            border-radius: 8px; cursor: pointer;
+        }
+        .toolbar-archived input { accent-color: #6366f1; }
+
+        /* Sprint 5 — Bulk selection */
+        .col-select { width: 36px; padding-right: 0 !important; }
+        .col-select input[type="checkbox"] {
+            width: 16px; height: 16px; accent-color: #6366f1;
+            cursor: pointer; margin: 0;
+        }
+        .tenant-row.is-selected td {
+            background: rgba(99, 102, 241,0.06);
+        }
+        .bulk-bar {
+            position: fixed; left: 50%; bottom: 1.25rem;
+            transform: translateX(-50%);
+            display: flex; align-items: center; gap: 1rem;
+            background: #0f172a; color: white;
+            padding: 0.6rem 0.85rem 0.6rem 1.1rem;
+            border-radius: 999px;
+            box-shadow: 0 12px 32px rgba(15,23,42,0.35);
+            z-index: 100;
+            animation: bulk-rise 180ms ease-out;
+        }
+        @@keyframes bulk-rise {
+            from { opacity: 0; transform: translate(-50%, 12px); }
+            to   { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .bulk-bar[hidden] { display: none; }
+        .bulk-count { font-size: 0.85rem; font-weight: 600; padding-right: 0.6rem; border-right: 1px solid rgba(255,255,255,0.18); }
+        .bulk-actions { display: flex; gap: 0.35rem; }
+        .bulk-btn {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            background: rgba(255,255,255,0.08); color: white;
+            border: 0; border-radius: 999px;
+            padding: 0.45rem 0.85rem;
+            font-size: 0.8rem; font-weight: 500; cursor: pointer;
+            transition: background 0.15s;
+        }
+        .bulk-btn:hover { background: rgba(255,255,255,0.18); }
+        .bulk-btn:disabled { opacity: 0.5; cursor: wait; }
+        .bulk-btn-danger:hover { background: rgba(239,68,68,0.85); }
+        .bulk-btn-ghost { padding: 0.45rem 0.6rem; }
+        .bulk-btn-ghost:hover { background: rgba(255,255,255,0.18); }
+        @@media (max-width: 768px) {
+            .bulk-bar { left: 0.5rem; right: 0.5rem; transform: none; border-radius: 16px; }
+            .bulk-bar { flex-wrap: wrap; }
+            @@keyframes bulk-rise {
+                from { opacity: 0; transform: translateY(12px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        const totalTenants = @Model.Count;
+
+        function filterTenants() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const propertyFilter = document.getElementById('propertyFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            // Sprint 4 — expiring-lease filter now actually filters; rows
+            // missing data-lease-end-days (KPI batch not yet loaded, or no
+            // active lease) are excluded when a horizon is selected.
+            const expiringFilter = parseInt(document.getElementById('expiringFilter')?.value || '0', 10);
+
+            const tenantRows = document.querySelectorAll('.tenant-row');
+            let visibleCount = 0;
+
+            tenantRows.forEach(row => {
+                const name = row.dataset.name || '';
+                const email = row.dataset.email || '';
+                const phone = row.dataset.phone || '';
+                const paci = row.dataset.paci || '';
+                const propertyId = row.dataset.propertyId || '';
+                const propertyName = row.dataset.propertyName || '';
+                const status = row.dataset.status || '';
+                const leaseDaysRaw = row.dataset.leaseEndDays;
+                const leaseDays = leaseDaysRaw === '' ? null : parseInt(leaseDaysRaw, 10);
+
+                // Check search term matches
+                const matchesSearch = !searchTerm ||
+                    name.includes(searchTerm) ||
+                    email.includes(searchTerm) ||
+                    phone.includes(searchTerm) ||
+                    paci.includes(searchTerm) ||
+                    propertyName.includes(searchTerm);
+
+                // Check property filter matches
+                const matchesProperty = !propertyFilter || propertyId === propertyFilter;
+
+                // Check status filter matches
+                const matchesStatus = !statusFilter || status === statusFilter;
+
+                // Expiring within N days: requires KPI batch to have populated
+                // the row, and the lease end must be in the future ≤ horizon.
+                // Past-due leases (negative days) also count — they're the
+                // most-urgent case for the operator.
+                const matchesExpiring = !expiringFilter ||
+                    (leaseDays !== null && !isNaN(leaseDays) && leaseDays <= expiringFilter);
+
+                if (matchesSearch && matchesProperty && matchesStatus && matchesExpiring) {
+                    row.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+
+            // Update result count
+            updateResultCount(visibleCount, searchTerm || propertyFilter || statusFilter || expiringFilter);
+
+            // Show/hide no results message
+            const noResultsMessage = document.getElementById('noResultsMessage');
+            const tableCard = document.querySelector('.tenants-table-card');
+
+            if (visibleCount === 0 && tableCard) {
+                noResultsMessage.classList.add('show');
+            } else {
+                noResultsMessage.classList.remove('show');
+            }
+        }
+
+        function updateResultCount(count, hasFilters) {
+            const resultCountElement = document.getElementById('resultCount');
+            if (hasFilters) {
+                resultCountElement.innerHTML = `Found <strong>${count}</strong> of ${totalTenants} tenants`;
+            } else {
+                resultCountElement.innerHTML = `Showing all ${totalTenants} tenants`;
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('propertyFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+
+            // Show all tenant rows
+            document.querySelectorAll('.tenant-row').forEach(row => {
+                row.classList.remove('hidden');
+            });
+
+            // Hide no results message
+            document.getElementById('noResultsMessage').classList.remove('show');
+
+            // Reset result count
+            document.getElementById('resultCount').innerHTML = `Showing all ${totalTenants} tenants`;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            let searchTimeout;
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(filterTenants, 150);
+                });
+            }
+        });
+
+        // ─── Sprint 1/2/3 — KPI strip, chips, kebab, status toggle, statement, sort, expiring filter ───
+        (function () {
+            const KWD = (n) => (n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 3 }) + ' KWD';
+            const INT = (n) => Math.round(n ?? 0).toLocaleString();
+            const DAY = 86400000;
+
+            // 1. Portfolio snapshot
+            async function loadPortfolio() {
+                try {
+                    const res = await fetch('/Tenants/Snapshot', { credentials: 'same-origin' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const d = await res.json();
+                    const fmt = {
+                        totalTenants: INT, activeTenants: INT,
+                        withActiveLeases: INT, arrearsTenants: INT,
+                        avgTenureMonths: (v) => (v ?? 0).toFixed(1),
+                    };
+                    document.querySelectorAll('#tenantsStrip [data-k]').forEach(el => {
+                        const k = el.dataset.k;
+                        if (d[k] === undefined) return;
+                        el.classList.remove('skeleton');
+                        el.textContent = (fmt[k] || INT)(d[k]);
+                    });
+                } catch (e) {
+                    document.querySelectorAll('#tenantsStrip .skeleton').forEach(el => {
+                        el.classList.remove('skeleton'); el.textContent = '—';
+                    });
+                }
+            }
+
+            // 2. Per-row KPIs (batched)
+            async function loadRowKpis() {
+                const ids = Array.from(document.querySelectorAll('.tenant-row[data-tenant-id]'))
+                    .map(c => c.dataset.tenantId).filter(Boolean);
+                if (!ids.length) return;
+                try {
+                    const res = await fetch('/Tenants/KpiBatch?ids=' + ids.join(','),
+                        { credentials: 'same-origin' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const rows = await res.json();
+                    const byId = new Map(rows.map(r => [String(r.tenantId), r]));
+                    document.querySelectorAll('.tenant-row[data-tenant-id]').forEach(row => {
+                        const r = byId.get(row.dataset.tenantId);
+                        if (!r) return;
+                        // Outstanding
+                        const osCell = row.querySelector('.outstanding-cell .kpi-cell-value');
+                        osCell.classList.remove('skeleton');
+                        osCell.textContent = r.outstanding ? KWD(r.outstanding) : '—';
+                        osCell.classList.toggle('muted', !r.outstanding);
+                        row.dataset.outstanding = r.outstanding || 0;
+                        // Last payment + active leases (sub)
+                        const lastCell = row.querySelector('.last-cell .kpi-cell-value');
+                        const subCell  = row.querySelector('.last-cell .leases-sub');
+                        lastCell.classList.remove('skeleton');
+                        if (r.lastPaymentDate) {
+                            const d = new Date(r.lastPaymentDate);
+                            lastCell.textContent = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
+                            row.dataset.last = d.getTime();
+                        } else {
+                            lastCell.textContent = 'No payments';
+                            lastCell.classList.add('muted');
+                        }
+                        subCell.textContent = r.activeLeases
+                            ? `${r.activeLeases} active lease${r.activeLeases > 1 ? 's' : ''}`
+                            : 'No active lease';
+                        subCell.classList.toggle('muted', !r.activeLeases);
+                        // Health
+                        const badge = row.querySelector('.health-badge');
+                        badge.className = `health-badge health-${r.health}`;
+                        badge.title = r.health === 'good' ? 'Up to date'
+                                    : r.health === 'amber' ? 'Recently overdue'
+                                    : r.health === 'bad'   ? 'Significantly overdue'
+                                    : 'Pending';
+                        // Sprint 4 — store days-until-expiry so the expiring
+                        // filter can actually narrow rows. Past-due → negative.
+                        if (r.leaseEndDate) {
+                            const days = Math.ceil((new Date(r.leaseEndDate) - new Date()) / DAY);
+                            row.dataset.leaseEndDays = String(days);
+                        } else {
+                            row.dataset.leaseEndDays = '';
+                        }
+                    });
+                    // Re-run the filter so a pre-selected expiring horizon
+                    // takes effect once the data lands.
+                    window.filterTenants?.();
+                } catch (e) {
+                    document.querySelectorAll('.kpi-cell-value.skeleton, .kpi-cell-sub.skeleton').forEach(el => {
+                        el.classList.remove('skeleton'); el.textContent = '—';
+                    });
+                }
+            }
+
+            // 3. Filter chips
+            function refreshChips() {
+                const search = document.getElementById('searchInput')?.value.trim();
+                const propSel = document.getElementById('propertyFilter');
+                const propText = propSel?.selectedIndex > 0 ? propSel.options[propSel.selectedIndex].text : '';
+                const status = document.getElementById('statusFilter')?.value;
+                const expiring = document.getElementById('expiringFilter')?.value;
+
+                const chips = [
+                    { label: search && `“${search}”`, clear: () => { document.getElementById('searchInput').value = ''; window.filterTenants?.(); } },
+                    { label: propText && `Property · ${propText}`, clear: () => { propSel.value = ''; window.filterTenants?.(); } },
+                    { label: status   && `Status · ${status}`, clear: () => { document.getElementById('statusFilter').value = ''; window.filterTenants?.(); } },
+                    { label: expiring && `Lease ≤${expiring}d`,  clear: () => { document.getElementById('expiringFilter').value = ''; window.filterTenants?.(); } },
+                ].filter(c => c.label);
+                const host = document.getElementById('filterChips');
+                if (!host) return;
+                host.innerHTML = '';
+                chips.forEach(c => {
+                    const el = document.createElement('span');
+                    el.className = 'filter-chip';
+                    el.innerHTML = `${c.label} <button type="button" aria-label="Remove filter">Ã—</button>`;
+                    el.querySelector('button').addEventListener('click', c.clear);
+                    host.appendChild(el);
+                });
+                // Export link tracks filters.
+                const exp = document.getElementById('exportExcelLink');
+                if (exp) {
+                    const q = new URLSearchParams();
+                    if (search) q.set('search', search);
+                    if (propSel?.value) q.set('propertyId', propSel.value);
+                    if (status) q.set('status', status);
+                    exp.href = '/Tenants/ExportExcel' + (q.toString() ? '?' + q.toString() : '');
+                }
+            }
+
+            // 4. Hook into existing filterTenants() / clearFilters() so chips refresh.
+            const origFilter = window.filterTenants;
+            if (origFilter) {
+                window.filterTenants = function () {
+                    origFilter.apply(this, arguments);
+                    refreshChips();
+                };
+            }
+            const origClear = window.clearFilters;
+            if (origClear) {
+                window.clearFilters = function () {
+                    origClear.apply(this, arguments);
+                    const exp = document.getElementById('expiringFilter');
+                    if (exp) exp.value = '';
+                    refreshChips();
+                };
+            }
+
+            // 5. Sortable headers
+            document.querySelectorAll('.tenants-table th[data-sort]').forEach(th => {
+                let asc = th.dataset.sort === 'name';
+                th.addEventListener('click', () => {
+                    const key = th.dataset.sort;
+                    const tbody = th.closest('table').querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    const num = (r) => parseFloat(r.dataset[key] || '0');
+                    rows.sort((a, b) => {
+                        if (key === 'name') {
+                            return (asc ? 1 : -1) * (a.dataset.name || '').localeCompare(b.dataset.name || '');
+                        }
+                        return (asc ? 1 : -1) * (num(a) - num(b));
+                    });
+                    rows.forEach(r => tbody.appendChild(r));
+                    asc = !asc;
+                    document.querySelectorAll('.tenants-table th[data-sort]').forEach(t => t.classList.remove('is-sort'));
+                    th.classList.add('is-sort');
+                });
+            });
+
+            // 6. Inline status toggle (POST + antiforgery)
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            document.querySelectorAll('.status-toggle').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!tokenInput) return;
+                    const row = btn.closest('.tenant-row');
+                    btn.disabled = true;
+                    try {
+                        const fd = new FormData();
+                        fd.set('id', row.dataset.tenantId);
+                        fd.set('__RequestVerificationToken', tokenInput.value);
+                        const res = await fetch('/Tenants/ToggleStatus', { method: 'POST', body: fd, credentials: 'same-origin' });
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const json = await res.json();
+                        const next = json.status;
+                        btn.textContent = next;
+                        btn.dataset.status = next;
+                        btn.className = `status-badge status-toggle status-${next.toLowerCase()}`;
+                        row.dataset.status = next;
+                    } catch (e) {
+                        btn.textContent = 'Retry';
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            // 7. Kebab open/close
+            document.querySelectorAll('.kebab-btn').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    const menu = btn.parentElement.querySelector('.kebab-menu');
+                    const wasOpen = !menu.hasAttribute('hidden');
+                    document.querySelectorAll('.kebab-menu').forEach(m => m.setAttribute('hidden', ''));
+                    document.querySelectorAll('.kebab-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+                    if (!wasOpen) {
+                        menu.removeAttribute('hidden');
+                        btn.setAttribute('aria-expanded', 'true');
+                    }
+                });
+            });
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.kebab-menu').forEach(m => m.setAttribute('hidden', ''));
+                document.querySelectorAll('.kebab-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+            });
+
+            // 8. Forget (GDPR) — destructive, confirm + POST.
+            document.querySelectorAll('.forget-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.tenantId;
+                    if (!confirm("This will scrub the tenant's personal data (GDPR forget). Continue?")) return;
+                    if (!tokenInput) return;
+                    const fd = new FormData();
+                    fd.set('id', id);
+                    fd.set('__RequestVerificationToken', tokenInput.value);
+                    const res = await fetch('/Tenants/Forget', { method: 'POST', body: fd, credentials: 'same-origin' });
+                    if (res.ok) {
+                        const row = document.querySelector(`.tenant-row[data-tenant-id="${id}"]`);
+                        row?.remove();
+                    } else {
+                        alert('Forget failed: ' + res.status);
+                    }
+                });
+            });
+
+            // 9. Restore (un-archive) — appears in the kebab only for is-archived
+            // rows when the "Show archived" toggle is on. Reloads the page so
+            // the row drops back into the normal listing without query filters.
+            document.querySelectorAll('.restore-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!tokenInput) return;
+                    const id = btn.dataset.tenantId;
+                    if (!confirm('Restore this tenant?')) return;
+                    btn.disabled = true;
+                    try {
+                        const fd = new FormData();
+                        fd.set('id', id);
+                        fd.set('__RequestVerificationToken', tokenInput.value);
+                        const res = await fetch('/Tenants/Restore', { method: 'POST', body: fd, credentials: 'same-origin' });
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const row = document.querySelector(`.tenant-row[data-tenant-id="${id}"]`);
+                        row?.classList.remove('is-archived');
+                        row?.querySelector('.archived-badge')?.remove();
+                        row?.querySelector('.restore-btn')?.remove();
+                    } catch (e) {
+                        alert('Restore failed: ' + e.message);
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            // Resend login — generates a fresh temp password and emails it.
+            // When email isn't on file, the response includes the password
+            // so the admin can copy it once.
+            document.querySelectorAll('.resend-login-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!tokenInput) return;
+                    const id = btn.dataset.tenantId;
+                    const hasEmail = btn.dataset.hasEmail === '1';
+                    const prompt = hasEmail
+                        ? "Re-issue a temporary password and email it to the tenant?"
+                        : "This tenant has no email on file. A temporary password will be shown for you to copy (once). Continue?";
+                    if (!confirm(prompt)) return;
+                    btn.disabled = true;
+                    try {
+                        const fd = new FormData();
+                        fd.set('id', id);
+                        fd.set('__RequestVerificationToken', tokenInput.value);
+                        const res = await fetch('/Tenants/ResendLogin', { method: 'POST', body: fd, credentials: 'same-origin' });
+                        const json = await res.json();
+                        if (!res.ok || !json.success) {
+                            alert('Resend failed: ' + (json?.message ?? res.status));
+                        } else if (json.emailSent) {
+                            alert(json.message);
+                        } else {
+                            // Password fallback — show once and forget.
+                            window.prompt(
+                                json.message + '\n\nCopy the temporary password (won\'t be shown again):',
+                                json.password);
+                        }
+                    } catch (e) {
+                        alert('Resend failed: ' + e.message);
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            // 10. Bulk selection + action bar (Sprint 5)
+            //
+            // Selection lives entirely on the row checkboxes. Master sets
+            // everything visible (we respect .hidden so filtered-out rows
+            // aren't dragged into bulk actions). Bulk bar shows when count > 0.
+            const bulkBar   = document.getElementById('bulkBar');
+            const bulkCount = document.getElementById('bulkCount');
+            const master    = document.getElementById('masterSelect');
+
+            function selectedIds() {
+                return Array.from(document.querySelectorAll('.row-select:checked'))
+                    .map(cb => cb.value);
+            }
+            function updateBulk() {
+                const ids = selectedIds();
+                bulkCount.textContent = ids.length;
+                if (ids.length === 0) {
+                    bulkBar.setAttribute('hidden', '');
+                } else {
+                    bulkBar.removeAttribute('hidden');
+                }
+                // Sync row highlight + master tri-state
+                document.querySelectorAll('.row-select').forEach(cb => {
+                    cb.closest('.tenant-row').classList.toggle('is-selected', cb.checked);
+                });
+                if (master) {
+                    const visible = Array.from(document.querySelectorAll('.tenant-row:not(.hidden) .row-select'));
+                    const checked = visible.filter(cb => cb.checked).length;
+                    master.checked = visible.length > 0 && checked === visible.length;
+                    master.indeterminate = checked > 0 && checked < visible.length;
+                }
+            }
+            document.querySelectorAll('.row-select').forEach(cb => {
+                cb.addEventListener('change', updateBulk);
+                // Clicking the checkbox shouldn't open the row's tenant-link.
+                cb.addEventListener('click', e => e.stopPropagation());
+            });
+            if (master) {
+                master.addEventListener('change', () => {
+                    const target = master.checked;
+                    document.querySelectorAll('.tenant-row:not(.hidden) .row-select').forEach(cb => {
+                        cb.checked = target;
+                    });
+                    updateBulk();
+                });
+            }
+            // When the live filter hides/shows rows, recompute master state
+            // so it reflects only what's visible.
+            const origFilterForBulk = window.filterTenants;
+            if (origFilterForBulk) {
+                window.filterTenants = function () {
+                    origFilterForBulk.apply(this, arguments);
+                    updateBulk();
+                };
+            }
+
+            async function bulkPost(url, fd) {
+                if (!tokenInput) throw new Error('antiforgery token missing');
+                fd.set('__RequestVerificationToken', tokenInput.value);
+                const res = await fetch(url, { method: 'POST', body: fd, credentials: 'same-origin' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            }
+
+            async function applyStatus(ids, status) {
+                const fd = new FormData();
+                ids.forEach(id => fd.append('ids', id));
+                fd.set('status', status);
+                const res = await bulkPost('/Tenants/BulkUpdateStatus', fd);
+                // Repaint each row's status badge inline (no full reload).
+                ids.forEach(id => {
+                    const row = document.querySelector(`.tenant-row[data-tenant-id="${id}"]`);
+                    if (!row) return;
+                    const btn = row.querySelector('.status-toggle');
+                    btn.textContent = status;
+                    btn.className = `status-badge status-toggle status-${status.toLowerCase()}`;
+                    btn.dataset.status = status;
+                    row.dataset.status = status;
+                });
+                return res.updated ?? ids.length;
+            }
+
+            async function applyArchive(ids) {
+                const fd = new FormData();
+                ids.forEach(id => fd.append('ids', id));
+                await bulkPost('/Tenants/BulkArchive', fd);
+                // Archived rows leave the unfiltered listing — drop them
+                // from the DOM so the operator gets immediate feedback.
+                // (If they want them back they can flip "Show archived".)
+                ids.forEach(id => {
+                    document.querySelector(`.tenant-row[data-tenant-id="${id}"]`)?.remove();
+                });
+            }
+
+            function clearSelection() {
+                document.querySelectorAll('.row-select:checked').forEach(cb => cb.checked = false);
+                updateBulk();
+            }
+
+            document.querySelectorAll('.bulk-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const action = btn.dataset.action;
+                    const ids = selectedIds();
+                    if (action !== 'clear' && ids.length === 0) return;
+
+                    const allBtns = document.querySelectorAll('.bulk-btn');
+                    try {
+                        if (action === 'clear') { clearSelection(); return; }
+                        if (action === 'export') {
+                            // Hand-off to the existing /ExportExcel endpoint
+                            // with ?ids=… — selection wins over filters.
+                            window.location = '/Tenants/ExportExcel?ids=' + ids.join(',');
+                            return;
+                        }
+                        allBtns.forEach(b => b.disabled = true);
+                        if (action === 'activate')   { await applyStatus(ids, 'Active'); }
+                        else if (action === 'deactivate') { await applyStatus(ids, 'Inactive'); }
+                        else if (action === 'archive') {
+                            if (!confirm(`Archive ${ids.length} tenant(s)? They'll be hidden until "Show archived" is on.`)) return;
+                            await applyArchive(ids);
+                        }
+                        clearSelection();
+                    } catch (e) {
+                        alert(action + ' failed: ' + e.message);
+                    } finally {
+                        allBtns.forEach(b => b.disabled = false);
+                    }
+                });
+            });
+
+            // Boot
+            loadPortfolio();
+            loadRowKpis();
+            refreshChips();
+            updateBulk();
+        })();
+    </script>
+}

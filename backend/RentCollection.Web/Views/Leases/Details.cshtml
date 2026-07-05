@@ -1,0 +1,958 @@
+﻿@model RentCollection.Core.Entities.Lease
+@using RentCollection.Core.Entities
+
+@{
+    ViewData["Title"] = "Lease Details";
+    // LEASE_AUDIT Flaw #14 Ã¢â‚¬” date-only math via shared helper.
+    var daysRemaining = RentCollection.Core.Leases.LeaseMath.DaysRemaining(Model.LeaseEndDate);
+    var isExpiring = daysRemaining <= 30 && daysRemaining >= 0;
+    var isExpired = daysRemaining < 0;
+
+    // Which lifecycle actions are legal for this status?
+    var canActivate  = Model.Status == LeaseStatuses.Pending;
+    var canRenew     = Model.Status == LeaseStatuses.Active || Model.Status == LeaseStatuses.Expired;
+    var canTerminate = Model.Status == LeaseStatuses.Active;
+    var canTransfer  = Model.Status == LeaseStatuses.Active;
+    var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
+}
+
+<div class="container-fluid">
+    <div class="page-header">
+        <div>
+            <h1>@L["Lease Details"]</h1>
+            <p class="text-muted">@L["Complete lease agreement information"]</p>
+        </div>
+        <div class="header-actions">
+            <a asp-action="History" asp-route-id="@Model.LeaseId" class="btn btn-secondary">
+                <i class="fas fa-clock-rotate-left"></i> @L["History"]
+            </a>
+            <a asp-action="Edit" asp-route-id="@Model.LeaseId" class="btn btn-primary">
+                <i class="fas fa-edit"></i> @L["Edit"]
+            </a>
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> @L["Back to List"]
+            </a>
+        </div>
+    </div>
+
+    @if (Model.Status == "Active")
+    {
+        @if (isExpired)
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>
+                    <strong>@L["Lease Expired!"]</strong>
+                    <p>@L["This lease expired"] @Math.Abs(daysRemaining) @L["days ago. Consider renewing or terminating the lease."]</p>
+                </div>
+            </div>
+        }
+        else if (isExpiring)
+        {
+            <div class="alert alert-warning">
+                <i class="fas fa-hourglass-half"></i>
+                <div>
+                    <strong>@L["Lease Expiring Soon!"]</strong>
+                    <p>@L["This lease will expire in"] @daysRemaining @L["days. Consider initiating renewal discussions."]</p>
+                </div>
+            </div>
+        }
+    }
+
+    <div class="details-grid">
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-user"></i> @L["Tenant Information"]</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <span class="info-label">@L["Full Name"]</span>
+                    <span class="info-value">@Model.Tenant.FirstName @Model.Tenant.LastName</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Email"]</span>
+                    <span class="info-value"><a href="mailto:@Model.Tenant.Email">@Model.Tenant.Email</a></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Phone"]</span>
+                    <span class="info-value"><a href="tel:@Model.Tenant.Phone">@Model.Tenant.Phone</a></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Status"]</span>
+                    <span class="info-value">
+                        @if (Model.Tenant.Status == "Active")
+                        {
+                            <span class="badge badge-success">@L["Active"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-danger">@L["Inactive"]</span>
+                        }
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-building"></i> @L["Property & Unit"]</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <span class="info-label">@L["Property"]</span>
+                    <span class="info-value">@Model.Unit.Property.PropertyName</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Address"]</span>
+                    <span class="info-value">@Model.Unit.Property.Address</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Unit Number"]</span>
+                    <span class="info-value">@Model.Unit.UnitNumber</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Unit Type"]</span>
+                    <span class="info-value">@Model.Unit.UnitType</span>
+                </div>
+                @if (Model.Unit.Bedrooms.HasValue)
+                {
+                    <div class="info-row">
+                        <span class="info-label">@L["Bedrooms"]</span>
+                        <span class="info-value">@Model.Unit.Bedrooms</span>
+                    </div>
+                }
+                @if (Model.Unit.Bathrooms.HasValue)
+                {
+                    <div class="info-row">
+                        <span class="info-label">@L["Bathrooms"]</span>
+                        <span class="info-value">@Model.Unit.Bathrooms</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-calendar-alt"></i> @L["Lease Period"]</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <span class="info-label">@L["Start Date"]</span>
+                    <span class="info-value">@Model.LeaseStartDate.ToString("MMMM dd, yyyy")</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["End Date"]</span>
+                    <span class="info-value">@Model.LeaseEndDate.ToString("MMMM dd, yyyy")</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Duration"]</span>
+                    <span class="info-value">@((Model.LeaseEndDate - Model.LeaseStartDate).Days) @L["days"]</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Days Remaining"]</span>
+                    <span class="info-value">
+                        @if (daysRemaining >= 0)
+                        {
+                            <span>@daysRemaining @L["days"]</span>
+                        }
+                        else
+                        {
+                            <span class="text-danger">@L["Expired ("]@Math.Abs(daysRemaining)@L[" days ago)"]</span>
+                        }
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Lease Type"]</span>
+                    <span class="info-value">@Model.LeaseType</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Status"]</span>
+                    <span class="info-value">
+                        @if (Model.Status == "Active")
+                        {
+                            <span class="badge badge-success">@L["Active"]</span>
+                        }
+                        else if (Model.Status == "Expired")
+                        {
+                            <span class="badge badge-danger">@L["Expired"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-secondary">@Model.Status</span>
+                        }
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-dollar-sign"></i> @L["Financial Details"]</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <span class="info-label">@L["Monthly Rent"]</span>
+                    <span class="info-value highlight-amount">@("KWD " + Model.MonthlyRent.ToString("N3"))</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Security Deposit"]</span>
+                    <span class="info-value">
+                        @("KWD " + Model.SecurityDeposit.ToString("N3"))
+                        @* Deposit lifecycle pill Ã¢â‚¬” Pending / Invoiced / Refunded *@
+                        @if (Model.SecurityDeposit > 0)
+                        {
+                            if (Model.DepositRefunded)
+                            {
+                                <span class="badge badge-secondary" style="margin-left:0.5rem;">
+                                    <i class="fas fa-rotate-left"></i>
+                                    @L["Refunded"] @(Model.DepositRefundedAmount?.ToString("N3") ?? Model.SecurityDeposit.ToString("N3")) KWD
+                                </span>
+                            }
+                            else if (Model.DepositInvoiced)
+                            {
+                                <span class="badge badge-success" style="margin-left:0.5rem;">
+                                    <i class="fas fa-check-circle"></i> @L["Invoiced"]
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-warning" style="margin-left:0.5rem;">
+                                    <i class="fas fa-clock"></i> @L["Not yet invoiced"]
+                                </span>
+                            }
+                        }
+                    </span>
+                </div>
+                @if (Model.InsuranceAmount > 0 && Model.InsuranceFrequency != "None")
+                {
+                    <div class="info-row">
+                        <span class="info-label">@L["Insurance Premium"]</span>
+                        <span class="info-value">
+                            @("KWD " + Model.InsuranceAmount.ToString("N3"))
+                            <span class="badge badge-info" style="margin-left:0.5rem;">
+                                <i class="fas fa-umbrella"></i> @Model.InsuranceFrequency
+                            </span>
+                        </span>
+                    </div>
+                    @if (Model.InsuranceStartDate.HasValue)
+                    {
+                        <div class="info-row">
+                            <span class="info-label">@L["Insurance Start"]</span>
+                            <span class="info-value">@Model.InsuranceStartDate.Value.ToString("MMMM dd, yyyy")</span>
+                        </div>
+                    }
+                }
+                <div class="info-row">
+                    <span class="info-label">@L["Payment Due Date"]</span>
+                    <span class="info-value">@L["Day"] @Model.PaymentDueDay @L["of each month"]</span>
+                </div>
+                @if (Model.LateFeeAmount.HasValue)
+                {
+                    <div class="info-row">
+                        <span class="info-label">@L["Late Fee Amount"]</span>
+                        <span class="info-value">@("KWD " + Model.LateFeeAmount.Value.ToString("N3"))</span>
+                    </div>
+                }
+                @if (Model.LateFeeGracePeriod.HasValue)
+                {
+                    <div class="info-row">
+                        <span class="info-label">@L["Late Fee Grace Period"]</span>
+                        <span class="info-value">@Model.LateFeeGracePeriod @L["days"]</span>
+                    </div>
+                }
+                <div class="info-row">
+                    <span class="info-label">@L["Created Date"]</span>
+                    <span class="info-value">@Model.CreatedDate.ToString("MMMM dd, yyyy")</span>
+                </div>
+                @if (Model.ModifiedDate.HasValue)
+                {
+                    <div class="info-row">
+                        <span class="info-label">@L["Last Modified"]</span>
+                        <span class="info-value">@Model.ModifiedDate.Value.ToString("MMMM dd, yyyy")</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Payments != null && Model.Payments.Any())
+    {
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-money-bill-wave"></i> @L["Payment History"]</h3>
+            </div>
+            <div class="card-body">
+                <table class="details-table">
+                    <thead>
+                        <tr>
+                            <th>@L["Payment Date"]</th>
+                            <th>@L["Amount"]</th>
+                            <th>@L["Method"]</th>
+                            <th>@L["Status"]</th>
+                            <th>@L["Reference"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var payment in Model.Payments.OrderByDescending(p => p.PaymentDate))
+                        {
+                            <tr>
+                                <td>@payment.PaymentDate.ToString("MMM dd, yyyy")</td>
+                                <td class="amount">@("KWD " + payment.AmountPaid.ToString("N3"))</td>
+                                <td>@payment.PaymentMethod</td>
+                                <td>
+                                    @if (payment.PaymentStatus == "Completed")
+                                    {
+                                        <span class="badge badge-success">@L["Completed"]</span>
+                                    }
+                                    else if (payment.PaymentStatus == "Pending")
+                                    {
+                                        <span class="badge badge-warning">@L["Pending"]</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-danger">@L["Failed"]</span>
+                                    }
+                                </td>
+                                <td>@payment.TransactionReference</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                @if (Model.Payments.Any())
+                {
+                    <div class="payment-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">@L["Total Payments:"]</span>
+                            <span class="summary-value">@Model.Payments.Count()</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">@L["Total Amount Paid:"]</span>
+                            <span class="summary-value highlight-amount">@("KWD " + Model.Payments.Where(p => p.PaymentStatus == "Completed").Sum(p => p.AmountPaid).ToString("N3"))</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (Model.Invoices != null && Model.Invoices.Any())
+    {
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-file-invoice-dollar"></i> @L["Invoice History"]</h3>
+            </div>
+            <div class="card-body">
+                <table class="details-table">
+                    <thead>
+                        <tr>
+                            <th>@L["Invoice ID"]</th>
+                            <th>@L["Issue Date"]</th>
+                            <th>@L["Due Date"]</th>
+                            <th>@L["Amount"]</th>
+                            <th>@L["Status"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var invoice in Model.Invoices.OrderByDescending(i => i.InvoiceDate))
+                        {
+                            <tr>
+                                <td>@invoice.InvoiceId</td>
+                                <td>@invoice.InvoiceDate.ToString("MMM dd, yyyy")</td>
+                                <td>@invoice.DueDate.ToString("MMM dd, yyyy")</td>
+                                <td class="amount">@("KWD " + invoice.TotalAmount.ToString("N3"))</td>
+                                <td>
+                                    @if (invoice.Status == "Paid")
+                                    {
+                                        <span class="badge badge-success">@L["Paid"]</span>
+                                    }
+                                    else if (invoice.Status == "Pending")
+                                    {
+                                        <span class="badge badge-warning">@L["Pending"]</span>
+                                    }
+                                    else if (invoice.Status == "Overdue")
+                                    {
+                                        <span class="badge badge-danger">@L["Overdue"]</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-secondary">@invoice.Status</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @* Recent activity preview (Lease History Phase D). Last 3 events; full
+       timeline is one click away via the History button in the header. *@
+    @{
+        var recent = (ViewBag.RecentEvents as List<RentCollection.Core.Entities.AuditLog>)
+                     ?? new List<RentCollection.Core.Entities.AuditLog>();
+    }
+    @if (recent.Any())
+    {
+        <div class="info-card recent-activity">
+            <div class="info-card-header">
+                <h2 class="info-card-title"><i class="fas fa-clock-rotate-left"></i> @L["Recent activity"]</h2>
+                <a asp-action="History" asp-route-id="@Model.LeaseId" class="info-card-link">
+                    @L["Full history"] <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <ul class="recent-list">
+                @foreach (var ev in recent)
+                {
+                    var icon = ev.Action switch
+                    {
+                        "Created" => "fa-circle-plus",
+                        "Edited" => "fa-pen",
+                        "Renewed" => "fa-arrows-rotate",
+                        "Terminated" => "fa-circle-stop",
+                        "Transferred" => "fa-arrow-right-arrow-left",
+                        "Expired" => "fa-clock",
+                        _ => "fa-circle",
+                    };
+                    <li class="recent-item">
+                        <i class="fas @icon"></i>
+                        <div class="recent-body">
+                            <strong>@ev.Action</strong>
+                            <span class="recent-actor">@L["by"] @ev.ByUser</span>
+                        </div>
+                        <span class="recent-when" title="@ev.At.ToString("u")">@ev.At.ToString("dd MMM yyyy")</span>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    @* LEASE_AUDIT Flaw #10 Ã¢â‚¬” the kebab on /Leases links to #renew / #terminate
+       / #transfer here. Those used to be dead anchors. Three lifecycle
+       cards live below, anchored correctly and visible only when the
+       transition is legal and the caller has AnyAdmin (matches the
+       controller's [Authorize] on the matching POSTs). *@
+    @if (isAdmin && (canActivate || canRenew || canTerminate || canTransfer))
+    {
+        <div class="lifecycle-grid">
+
+            @if (canActivate)
+            {
+                <div class="info-card lifecycle-card" id="activate">
+                    <div class="info-card-header">
+                        <h2 class="info-card-title"><i class="fas fa-circle-play"></i> @L["Activate lease"]</h2>
+                    </div>
+                    <p style="font-size:0.9rem; color:#475569; margin:0.25rem 0 0.75rem;">
+                        @L["Flips this lease from"] <strong>@L["Pending"]</strong> @L["to"] <strong>@L["Active"]</strong>.
+                        @if (Model.SecurityDeposit > 0 && !Model.DepositInvoiced)
+                        {
+                            <text>@L["A"] <strong>@L["Deposit invoice"]</strong> @L["for"] @Model.SecurityDeposit.ToString("0.000") @L["KWD is issued at the same time."]</text>
+                        }
+                        @if (Model.DepositInvoiced)
+                        {
+                            <text>@L["The deposit invoice has already been issued; activation will only flip the status."]</text>
+                        }
+                    </p>
+                    <form asp-action="Activate" method="post" class="lifecycle-form"
+                          onsubmit="return confirm('@(L["Activate this lease and issue the deposit invoice (if not already done)?"].Value)');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.LeaseId" />
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-circle-play"></i> @L["Activate"]</button>
+                    </form>
+                </div>
+            }
+
+            @if (canRenew)
+            {
+                <div class="info-card lifecycle-card" id="renew">
+                    <div class="info-card-header">
+                        <h2 class="info-card-title"><i class="fas fa-arrows-rotate"></i> @L["Renew lease"]</h2>
+                    </div>
+                    <form asp-action="Renew" method="post" class="lifecycle-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.LeaseId" />
+                        <div class="form-row">
+                            <label>@L["New end date"] <span class="req">*</span></label>
+                            <input type="date" name="newEndDate" required
+                                   min="@(Model.LeaseEndDate.AddDays(1).ToString("yyyy-MM-dd"))" />
+                        </div>
+                        <div class="form-row">
+                            <label>@L["New start date"] <small>@L["(optional — default: day after current end, or today if past)"]</small></label>
+                            <input type="date" name="newStartDate" />
+                        </div>
+                        <div class="form-row">
+                            <label>@L["New monthly rent"] <small>@L["(optional — keeps current rent if blank)"]</small></label>
+                            <input type="number" step="0.001" min="0.001" name="newMonthlyRent"
+                                   placeholder="@Model.MonthlyRent.ToString("0.000")" />
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-circle-check"></i> @L["Renew"]</button>
+                    </form>
+                </div>
+            }
+
+            @if (canTerminate)
+            {
+                <div class="info-card lifecycle-card" id="terminate">
+                    <div class="info-card-header">
+                        <h2 class="info-card-title danger"><i class="fas fa-circle-stop"></i> @L["Terminate lease"]</h2>
+                    </div>
+                    <form asp-action="Terminate" method="post" class="lifecycle-form"
+                          onsubmit="return confirm('@(L["Terminate this lease and free its unit? This is irreversible — the lease becomes a closed historical record."].Value)');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.LeaseId" />
+                        <div class="form-row">
+                            <label>@L["Termination date"] <span class="req">*</span></label>
+                            <input type="date" name="terminationDate" required
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-row">
+                            <label>@L["Reason"]</label>
+                            <textarea name="reason" rows="2" placeholder="@(L["e.g. tenant moved out, breach of contract…"].Value)"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <label>@L["Deposit refunded amount"] <small>@L["(0 if no refund)"]</small></label>
+                            <input type="number" step="0.001" min="0" name="depositRefundedAmount"
+                                   placeholder="@Model.SecurityDeposit.ToString("0.000")" />
+                        </div>
+                        <button type="submit" class="btn btn-danger"><i class="fas fa-circle-stop"></i> @L["Terminate"]</button>
+                    </form>
+                </div>
+            }
+
+            @if (canTransfer)
+            {
+                <div class="info-card lifecycle-card" id="transfer">
+                    <div class="info-card-header">
+                        <h2 class="info-card-title"><i class="fas fa-arrow-right-arrow-left"></i> @L["Transfer to another unit"]</h2>
+                    </div>
+                    <form asp-action="Transfer" method="post" class="lifecycle-form"
+                          onsubmit="return confirm('@(L["Transfer this tenant to the new unit? Old lease will be terminated; a new Active lease is opened on the target unit."].Value)');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.LeaseId" />
+                        <div class="form-row">
+                            <label>@L["Target unit"] <span class="req">*</span></label>
+                            @{
+                                dynamic? vacantUnits = ViewBag.VacantUnits;
+                            }
+                            <select name="newUnitId" required>
+                                <option value="">@L["-- Select a vacant unit --"]</option>
+                                @if (vacantUnits != null)
+                                {
+                                    @foreach (var u in vacantUnits)
+                                    {
+                                        <option value="@u.UnitId">@u.Label</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>@L["Effective date"] <span class="req">*</span></label>
+                            <input type="date" name="effectiveDate" required
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-arrow-right-arrow-left"></i> @L["Transfer"]</button>
+                    </form>
+                </div>
+            }
+
+        </div>
+    }
+    else if ((canRenew || canTerminate || canTransfer) && !isAdmin)
+    {
+        <div class="alert alert-info" style="margin-top:1.5rem;">
+            <i class="fas fa-lock"></i>
+            <div>
+                <strong>@L["Admin only."]</strong>
+                @L["Renew / Terminate / Transfer actions require Admin role."]
+                @L["Operational managers can view leases but not run lifecycle transitions."]
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .lifecycle-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.25rem;
+        margin-top: 1.5rem;
+    }
+    .lifecycle-card { padding: 1rem 1.25rem 1.25rem; }
+    .lifecycle-card .info-card-title.danger { color: #b91c1c; }
+    .lifecycle-card .info-card-title.danger i { color: #dc2626; }
+    .lifecycle-form { display: flex; flex-direction: column; gap: 0.75rem; }
+    .lifecycle-form .form-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .lifecycle-form label { font-size: 0.85rem; font-weight: 600; color: #334155; }
+    .lifecycle-form label small { color: #94a3b8; font-weight: 400; }
+    .lifecycle-form .req { color: #dc2626; }
+    .lifecycle-form input, .lifecycle-form select, .lifecycle-form textarea {
+        padding: 0.5rem 0.7rem;
+        border: 1px solid #e2e8f0; border-radius: 6px;
+        background: white; font-size: 0.9rem;
+    }
+    .lifecycle-form input:focus, .lifecycle-form select:focus, .lifecycle-form textarea:focus {
+        outline: none; border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241,0.1);
+    }
+    .lifecycle-form button {
+        align-self: flex-start;
+        display: inline-flex; align-items: center; gap: 0.45rem;
+        padding: 0.55rem 1.1rem; border-radius: 8px;
+        border: 0; cursor: pointer; font-weight: 500;
+    }
+    .lifecycle-form .btn-primary {
+        background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white;
+    }
+    .lifecycle-form .btn-primary:hover { box-shadow: 0 4px 12px rgba(99, 102, 241,0.3); }
+    .lifecycle-form .btn-danger {
+        background: linear-gradient(135deg,#ef4444,#f43f5e); color: white;
+    }
+    .lifecycle-form .btn-danger:hover { box-shadow: 0 4px 12px rgba(239,68,68,0.3); }
+
+    /* Recent activity preview card */
+    .recent-activity { padding: 0.85rem 1.25rem 1rem; margin-top: 1.5rem; }
+    .recent-activity .info-card-link {
+        font-size: 0.82rem; color: #6366f1; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 0.3rem;
+    }
+    .recent-activity .info-card-link:hover { text-decoration: underline; }
+    .recent-list { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+    .recent-item {
+        display: flex; align-items: center; gap: 0.65rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px dashed #f1f5f9;
+        font-size: 0.88rem;
+    }
+    .recent-item:last-child { border-bottom: 0; }
+    .recent-item > i { color: #6366f1; width: 18px; text-align: center; }
+    .recent-body { flex: 1; min-width: 0; }
+    .recent-body strong { color: #0f172a; margin-right: 0.5rem; }
+    .recent-actor { color: #64748b; font-size: 0.78rem; }
+    .recent-when { color: #94a3b8; font-size: 0.76rem; white-space: nowrap; }
+</style>
+
+<style>
+    body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        color: #1e293b;
+        min-height: 100vh;
+    }
+
+    .container-fluid {
+        color: #1e293b;
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-card {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        padding: 1.25rem;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #475569;
+        flex: 0 0 40%;
+    }
+
+    .info-value {
+        color: #1e293b;
+        flex: 1;
+        text-align: right;
+    }
+
+    .info-value a {
+        color: #6366f1;
+        text-decoration: none;
+    }
+
+    .info-value a:hover {
+        text-decoration: underline;
+    }
+
+    .highlight-amount {
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        color: #10b981 !important;
+    }
+
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .badge-success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .badge-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .details-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+    }
+
+    .details-table thead {
+        background: rgba(99, 102, 241, 0.08);
+    }
+
+    .details-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #334155;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .details-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        color: #1e293b;
+    }
+
+    .details-table td.amount {
+        font-weight: 600;
+        color: #10b981;
+    }
+
+    .details-table tbody tr:hover {
+        background: rgba(99, 102, 241, 0.04);
+    }
+
+    .payment-summary {
+        display: flex;
+        gap: 2rem;
+        padding: 1rem;
+        background: rgba(99, 102, 241, 0.08);
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+
+    .summary-item {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .summary-label {
+        font-weight: 600;
+        color: #475569;
+    }
+
+    .summary-value {
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .alert {
+        padding: 1.25rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .alert i {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        margin-top: 0.25rem;
+    }
+
+    .alert strong {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .alert p {
+        margin: 0;
+    }
+
+    .alert-danger {
+        background-color: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+    }
+
+    .alert-warning {
+        background-color: #fef3c7;
+        border: 1px solid #fde68a;
+        color: #92400e;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #334155;
+        margin: 0;
+    }
+
+    .page-header .text-muted {
+        color: #475569;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+
+    .text-danger {
+        color: #ef4444;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    @@media (max-width: 768px) {
+        .details-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+        .info-row {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-label {
+            flex: 1;
+        }
+
+        .info-value {
+            text-align: left;
+        }
+
+        .details-table {
+            font-size: 0.875rem;
+        }
+
+        .payment-summary {
+            flex-direction: column;
+            gap: 1rem;
+        }
+    }
+</style>

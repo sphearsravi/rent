@@ -1,0 +1,4427 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- Navigation / chrome -->
+  <data name="Main Menu" xml:space="preserve">
+    <value>القائمة الرئيسية</value>
+  </data>
+  <data name="Dashboard" xml:space="preserve">
+    <value>لوحة التحكم</value>
+  </data>
+  <data name="Properties" xml:space="preserve">
+    <value>العقارات</value>
+  </data>
+  <data name="Tenants" xml:space="preserve">
+    <value>المستأجرون</value>
+  </data>
+  <data name="Units" xml:space="preserve">
+    <value>الوحدات</value>
+  </data>
+  <data name="Leases" xml:space="preserve">
+    <value>عقود الإيجار</value>
+  </data>
+  <data name="Financial" xml:space="preserve">
+    <value>المالية</value>
+  </data>
+  <data name="Payments" xml:space="preserve">
+    <value>المدفوعات</value>
+  </data>
+  <data name="Invoices" xml:space="preserve">
+    <value>الفواتير</value>
+  </data>
+  <data name="Reports" xml:space="preserve">
+    <value>التقارير</value>
+  </data>
+  <data name="Approvals" xml:space="preserve">
+    <value>الموافقات</value>
+  </data>
+  <data name="System" xml:space="preserve">
+    <value>النظام</value>
+  </data>
+  <data name="Maintenance" xml:space="preserve">
+    <value>الصيانة</value>
+  </data>
+  <data name="Documents" xml:space="preserve">
+    <value>المستندات</value>
+  </data>
+  <data name="Users" xml:space="preserve">
+    <value>المستخدمون</value>
+  </data>
+  <data name="Audit Log" xml:space="preserve">
+    <value>سجل التدقيق</value>
+  </data>
+  <data name="Email Settings" xml:space="preserve">
+    <value>إعدادات البريد الإلكتروني</value>
+  </data>
+  <data name="Search properties, tenants..." xml:space="preserve">
+    <value>ابحث عن العقارات والمستأجرين...</value>
+  </data>
+  <data name="My Profile" xml:space="preserve">
+    <value>ملفي الشخصي</value>
+  </data>
+  <data name="Logout" xml:space="preserve">
+    <value>تسجيل الخروج</value>
+  </data>
+  <data name="Pay - Rent - Easy" xml:space="preserve">
+    <value>ادفع - إيجار - بسهولة</value>
+  </data>
+  <!-- Common actions / labels -->
+  <data name="Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Create" xml:space="preserve">
+    <value>إنشاء</value>
+  </data>
+  <data name="Edit" xml:space="preserve">
+    <value>تعديل</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Back to List" xml:space="preserve">
+    <value>العودة إلى القائمة</value>
+  </data>
+  <data name="Actions" xml:space="preserve">
+    <value>الإجراءات</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="required" xml:space="preserve">
+    <value>مطلوب</value>
+  </data>
+  <data name="optional" xml:space="preserve">
+    <value>اختياري</value>
+  </data>
+  <!-- Login -->
+  <data name="Sign in" xml:space="preserve">
+    <value>تسجيل الدخول</value>
+  </data>
+  <data name="Username or Email" xml:space="preserve">
+    <value>اسم المستخدم أو البريد الإلكتروني</value>
+  </data>
+  <data name="Password" xml:space="preserve">
+    <value>كلمة المرور</value>
+  </data>
+  <data name="Remember me" xml:space="preserve">
+    <value>تذكرني</value>
+  </data>
+  <data name="Forgot password?" xml:space="preserve">
+    <value>هل نسيت كلمة المرور؟</value>
+  </data>
+  <!-- Language switcher -->
+  <data name="Language" xml:space="preserve">
+    <value>اللغة</value>
+  </data>
+  <data name="English" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Arabic" xml:space="preserve">
+    <value>العربية</value>
+  </data>
+  <data name="Print Receipt" xml:space="preserve">
+    <value>طباعة الإيصال</value>
+  </data>
+  <data name="Back to Dashboard" xml:space="preserve">
+    <value>العودة إلى لوحة التحكم</value>
+  </data>
+  <data name="RECEIPT / INVOICE" xml:space="preserve">
+    <value>إيصال / فاتورة</value>
+  </data>
+  <data name="Payment Confirmation" xml:space="preserve">
+    <value>تأكيد الدفع</value>
+  </data>
+  <data name="Receipt No.:" xml:space="preserve">
+    <value>رقم الإيصال:</value>
+  </data>
+  <data name="Date:" xml:space="preserve">
+    <value>التاريخ:</value>
+  </data>
+  <data name="Received From:" xml:space="preserve">
+    <value>استُلم من:</value>
+  </data>
+  <data name="Amount:" xml:space="preserve">
+    <value>المبلغ:</value>
+  </data>
+  <data name="Payment For:" xml:space="preserve">
+    <value>الدفع مقابل:</value>
+  </data>
+  <data name="Rent for" xml:space="preserve">
+    <value>إيجار</value>
+  </data>
+  <data name="Unit No." xml:space="preserve">
+    <value>رقم الوحدة</value>
+  </data>
+  <data name="Payment Method:" xml:space="preserve">
+    <value>طريقة الدفع:</value>
+  </data>
+  <data name="Transaction Reference:" xml:space="preserve">
+    <value>مرجع المعاملة:</value>
+  </data>
+  <data name="Payment Status:" xml:space="preserve">
+    <value>حالة الدفع:</value>
+  </data>
+  <data name="Issued on:" xml:space="preserve">
+    <value>صدر في:</value>
+  </data>
+  <data name="This is a computer-generated receipt and does not require a signature." xml:space="preserve">
+    <value>هذا إيصال صادر آلياً ولا يتطلب توقيعاً.</value>
+  </data>
+  <data name="For any queries, please contact the property management office." xml:space="preserve">
+    <value>لأي استفسارات، يُرجى التواصل مع مكتب إدارة العقارات.</value>
+  </data>
+  <data name="Bank Transfer Test Page" xml:space="preserve">
+    <value>صفحة اختبار التحويل البنكي</value>
+  </data>
+  <data name="Session TenantId:" xml:space="preserve">
+    <value>معرّف المستأجر للجلسة:</value>
+  </data>
+  <data name="Invoice ID:" xml:space="preserve">
+    <value>معرّف الفاتورة:</value>
+  </data>
+  <data name="Tenant ID:" xml:space="preserve">
+    <value>معرّف المستأجر:</value>
+  </data>
+  <data name="Property ID:" xml:space="preserve">
+    <value>معرّف العقار:</value>
+  </data>
+  <data name="Transfer Date:" xml:space="preserve">
+    <value>تاريخ التحويل:</value>
+  </data>
+  <data name="Bank Name:" xml:space="preserve">
+    <value>اسم البنك:</value>
+  </data>
+  <data name="Reference Number:" xml:space="preserve">
+    <value>الرقم المرجعي:</value>
+  </data>
+  <data name="Proof File:" xml:space="preserve">
+    <value>ملف الإثبات:</value>
+  </data>
+  <data name="Notes:" xml:space="preserve">
+    <value>ملاحظات:</value>
+  </data>
+  <data name="Submit Bank Transfer" xml:space="preserve">
+    <value>إرسال التحويل البنكي</value>
+  </data>
+  <data name="Payment Successful!" xml:space="preserve">
+    <value>تم الدفع بنجاح!</value>
+  </data>
+  <data name="Your payment has been processed successfully." xml:space="preserve">
+    <value>تمت معالجة دفعتك بنجاح.</value>
+  </data>
+  <data name="Payment Details" xml:space="preserve">
+    <value>تفاصيل الدفع</value>
+  </data>
+  <data name="Amount Paid:" xml:space="preserve">
+    <value>المبلغ المدفوع:</value>
+  </data>
+  <data name="Payment Date:" xml:space="preserve">
+    <value>تاريخ الدفع:</value>
+  </data>
+  <data name="View Payment History" xml:space="preserve">
+    <value>عرض سجل المدفوعات</value>
+  </data>
+  <data name="Payment Failed" xml:space="preserve">
+    <value>فشل الدفع</value>
+  </data>
+  <data name="Unfortunately, your payment could not be processed." xml:space="preserve">
+    <value>للأسف، تعذّرت معالجة دفعتك.</value>
+  </data>
+  <data name="What you can do:" xml:space="preserve">
+    <value>ما يمكنك فعله:</value>
+  </data>
+  <data name="Check your card details and try again" xml:space="preserve">
+    <value>تحقق من بيانات بطاقتك وحاول مرة أخرى</value>
+  </data>
+  <data name="Ensure you have sufficient funds" xml:space="preserve">
+    <value>تأكد من توفر رصيد كافٍ</value>
+  </data>
+  <data name="Contact your bank if the problem persists" xml:space="preserve">
+    <value>تواصل مع بنكك إذا استمرت المشكلة</value>
+  </data>
+  <data name="Try using a different payment method" xml:space="preserve">
+    <value>جرّب استخدام طريقة دفع مختلفة</value>
+  </data>
+  <data name="Try Again" xml:space="preserve">
+    <value>حاول مرة أخرى</value>
+  </data>
+  <data name="TEST MODE" xml:space="preserve">
+    <value>وضع الاختبار</value>
+  </data>
+  <data name="This is a simulated KNET payment gateway" xml:space="preserve">
+    <value>هذه بوابة دفع KNET محاكاة</value>
+  </data>
+  <data name="KNET Payment" xml:space="preserve">
+    <value>دفع KNET</value>
+  </data>
+  <data name="Invoice Number:" xml:space="preserve">
+    <value>رقم الفاتورة:</value>
+  </data>
+  <data name="Transaction ID:" xml:space="preserve">
+    <value>معرّف المعاملة:</value>
+  </data>
+  <data name="Card Number (Test)" xml:space="preserve">
+    <value>رقم البطاقة (اختبار)</value>
+  </data>
+  <data name="Expiry" xml:space="preserve">
+    <value>تاريخ الانتهاء</value>
+  </data>
+  <data name="CVV" xml:space="preserve">
+    <value>رمز التحقق CVV</value>
+  </data>
+  <data name="Simulate Successful Payment" xml:space="preserve">
+    <value>محاكاة دفعة ناجحة</value>
+  </data>
+  <data name="Simulate Failed Payment" xml:space="preserve">
+    <value>محاكاة دفعة فاشلة</value>
+  </data>
+  <data name="Secure Test Payment Simulation" xml:space="preserve">
+    <value>محاكاة دفع اختباري آمن</value>
+  </data>
+  <data name="Processing..." xml:space="preserve">
+    <value>جارٍ المعالجة...</value>
+  </data>
+  <data name="Processing Payment..." xml:space="preserve">
+    <value>جارٍ معالجة الدفع...</value>
+  </data>
+  <data name="Please wait while we process your test payment." xml:space="preserve">
+    <value>يُرجى الانتظار بينما نعالج دفعتك الاختبارية.</value>
+  </data>
+  <data name="VIIJAR Tenant Portal" xml:space="preserve">
+    <value>بوابة المستأجرين VIIJAR</value>
+  </data>
+  <data name="My Details" xml:space="preserve">
+    <value>بياناتي</value>
+  </data>
+  <data name="Make Payment" xml:space="preserve">
+    <value>إجراء دفعة</value>
+  </data>
+  <data name="Payment History" xml:space="preserve">
+    <value>سجل المدفوعات</value>
+  </data>
+  <data name="Welcome," xml:space="preserve">
+    <value>مرحباً،</value>
+  </data>
+  <data name="Here's your rental dashboard" xml:space="preserve">
+    <value>هذه لوحة تحكم الإيجار الخاصة بك</value>
+  </data>
+  <data name="Active Leases" xml:space="preserve">
+    <value>عقود الإيجار النشطة</value>
+  </data>
+  <data name="Total Payments" xml:space="preserve">
+    <value>إجمالي المدفوعات</value>
+  </data>
+  <data name="Pending Requests" xml:space="preserve">
+    <value>الطلبات المعلّقة</value>
+  </data>
+  <data name="My Properties" xml:space="preserve">
+    <value>عقاراتي</value>
+  </data>
+  <data name="Lease Details" xml:space="preserve">
+    <value>تفاصيل عقد الإيجار</value>
+  </data>
+  <data name="Unit Number:" xml:space="preserve">
+    <value>رقم الوحدة:</value>
+  </data>
+  <data name="Monthly Rent:" xml:space="preserve">
+    <value>الإيجار الشهري:</value>
+  </data>
+  <data name="Security Deposit:" xml:space="preserve">
+    <value>التأمين:</value>
+  </data>
+  <data name="Lease Type:" xml:space="preserve">
+    <value>نوع عقد الإيجار:</value>
+  </data>
+  <data name="Start Date:" xml:space="preserve">
+    <value>تاريخ البداية:</value>
+  </data>
+  <data name="End Date:" xml:space="preserve">
+    <value>تاريخ النهاية:</value>
+  </data>
+  <data name="Days Remaining:" xml:space="preserve">
+    <value>الأيام المتبقية:</value>
+  </data>
+  <data name="days" xml:space="preserve">
+    <value>أيام</value>
+  </data>
+  <data name="Payment Due Day:" xml:space="preserve">
+    <value>يوم استحقاق الدفع:</value>
+  </data>
+  <data name="Day" xml:space="preserve">
+    <value>اليوم</value>
+  </data>
+  <data name="of each month" xml:space="preserve">
+    <value>من كل شهر</value>
+  </data>
+  <data name="Late Fee:" xml:space="preserve">
+    <value>رسوم التأخير:</value>
+  </data>
+  <data name="Grace Period:" xml:space="preserve">
+    <value>فترة السماح:</value>
+  </data>
+  <data name="Lease Documents" xml:space="preserve">
+    <value>مستندات عقد الإيجار</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>تنزيل</value>
+  </data>
+  <data name="No documents available" xml:space="preserve">
+    <value>لا توجد مستندات متاحة</value>
+  </data>
+  <data name="No active leases found" xml:space="preserve">
+    <value>لم يُعثر على عقود إيجار نشطة</value>
+  </data>
+  <data name="Recent Payments" xml:space="preserve">
+    <value>المدفوعات الأخيرة</value>
+  </data>
+  <data name="View All" xml:space="preserve">
+    <value>عرض الكل</value>
+  </data>
+  <data name="Date" xml:space="preserve">
+    <value>التاريخ</value>
+  </data>
+  <data name="Property" xml:space="preserve">
+    <value>العقار</value>
+  </data>
+  <data name="Amount" xml:space="preserve">
+    <value>المبلغ</value>
+  </data>
+  <data name="Method" xml:space="preserve">
+    <value>الطريقة</value>
+  </data>
+  <data name="Action" xml:space="preserve">
+    <value>الإجراء</value>
+  </data>
+  <data name="View Receipt" xml:space="preserve">
+    <value>عرض الإيصال</value>
+  </data>
+  <data name="No payments found" xml:space="preserve">
+    <value>لم يُعثر على مدفوعات</value>
+  </data>
+  <data name="Maintenance Requests" xml:space="preserve">
+    <value>طلبات الصيانة</value>
+  </data>
+  <data name="New Request" xml:space="preserve">
+    <value>طلب جديد</value>
+  </data>
+  <data name="Requested on" xml:space="preserve">
+    <value>تم الطلب في</value>
+  </data>
+  <data name="No pending maintenance requests" xml:space="preserve">
+    <value>لا توجد طلبات صيانة معلّقة</value>
+  </data>
+  <data name="New Maintenance Request" xml:space="preserve">
+    <value>طلب صيانة جديد</value>
+  </data>
+  <data name="Property/Unit" xml:space="preserve">
+    <value>العقار/الوحدة</value>
+  </data>
+  <data name="Select a property..." xml:space="preserve">
+    <value>اختر عقاراً...</value>
+  </data>
+  <data name="Category" xml:space="preserve">
+    <value>الفئة</value>
+  </data>
+  <data name="Select a category..." xml:space="preserve">
+    <value>اختر فئة...</value>
+  </data>
+  <data name="Plumbing" xml:space="preserve">
+    <value>سباكة</value>
+  </data>
+  <data name="Electrical" xml:space="preserve">
+    <value>كهرباء</value>
+  </data>
+  <data name="HVAC" xml:space="preserve">
+    <value>تكييف وتهوية</value>
+  </data>
+  <data name="Appliance" xml:space="preserve">
+    <value>أجهزة</value>
+  </data>
+  <data name="Structural" xml:space="preserve">
+    <value>إنشائي</value>
+  </data>
+  <data name="Other" xml:space="preserve">
+    <value>أخرى</value>
+  </data>
+  <data name="Priority" xml:space="preserve">
+    <value>الأولوية</value>
+  </data>
+  <data name="Select priority..." xml:space="preserve">
+    <value>اختر الأولوية...</value>
+  </data>
+  <data name="Low" xml:space="preserve">
+    <value>منخفضة</value>
+  </data>
+  <data name="Medium" xml:space="preserve">
+    <value>متوسطة</value>
+  </data>
+  <data name="High" xml:space="preserve">
+    <value>عالية</value>
+  </data>
+  <data name="Emergency" xml:space="preserve">
+    <value>طارئة</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Please describe the issue in detail..." xml:space="preserve">
+    <value>يُرجى وصف المشكلة بالتفصيل...</value>
+  </data>
+  <data name="Submit Request" xml:space="preserve">
+    <value>إرسال الطلب</value>
+  </data>
+  <data name="Tenant Portal" xml:space="preserve">
+    <value>بوابة المستأجرين</value>
+  </data>
+  <data name="Sign in with your Civil ID" xml:space="preserve">
+    <value>سجّل الدخول باستخدام البطاقة المدنية</value>
+  </data>
+  <data name="Civil ID" xml:space="preserve">
+    <value>البطاقة المدنية</value>
+  </data>
+  <data name="Enter your Civil ID" xml:space="preserve">
+    <value>أدخل رقم بطاقتك المدنية</value>
+  </data>
+  <data name="Enter your 12-digit Civil ID number" xml:space="preserve">
+    <value>أدخل رقم بطاقتك المدنية المكوّن من 12 خانة</value>
+  </data>
+  <data name="Enter your password" xml:space="preserve">
+    <value>أدخل كلمة المرور</value>
+  </data>
+  <data name="Default password is &quot;Welcome@123&quot; - please change after login" xml:space="preserve">
+    <value>كلمة المرور الافتراضية هي "Welcome@123" - يُرجى تغييرها بعد تسجيل الدخول</value>
+  </data>
+  <data name="Remember me for 30 days" xml:space="preserve">
+    <value>تذكّرني لمدة 30 يوماً</value>
+  </data>
+  <data name="Sign In" xml:space="preserve">
+    <value>تسجيل الدخول</value>
+  </data>
+  <data name="Demo Login" xml:space="preserve">
+    <value>دخول تجريبي</value>
+  </data>
+  <data name="Need help? Contact your property manager" xml:space="preserve">
+    <value>هل تحتاج مساعدة؟ تواصل مع مدير العقار</value>
+  </data>
+  <data name="Back to Main Site" xml:space="preserve">
+    <value>العودة إلى الموقع الرئيسي</value>
+  </data>
+  <data name="View your personal information" xml:space="preserve">
+    <value>عرض معلوماتك الشخصية</value>
+  </data>
+  <data name="Personal Information" xml:space="preserve">
+    <value>المعلومات الشخصية</value>
+  </data>
+  <data name="Full Name" xml:space="preserve">
+    <value>الاسم الكامل</value>
+  </data>
+  <data name="Civil ID (PACI Number)" xml:space="preserve">
+    <value>البطاقة المدنية (رقم PACI)</value>
+  </data>
+  <data name="Date of Birth" xml:space="preserve">
+    <value>تاريخ الميلاد</value>
+  </data>
+  <data name="Employment Status" xml:space="preserve">
+    <value>الحالة الوظيفية</value>
+  </data>
+  <data name="Contact Information" xml:space="preserve">
+    <value>معلومات التواصل</value>
+  </data>
+  <data name="Email" xml:space="preserve">
+    <value>البريد الإلكتروني</value>
+  </data>
+  <data name="Phone" xml:space="preserve">
+    <value>الهاتف</value>
+  </data>
+  <data name="Emergency Contact" xml:space="preserve">
+    <value>جهة اتصال الطوارئ</value>
+  </data>
+  <data name="Emergency Contact Name" xml:space="preserve">
+    <value>اسم جهة اتصال الطوارئ</value>
+  </data>
+  <data name="Emergency Phone" xml:space="preserve">
+    <value>هاتف الطوارئ</value>
+  </data>
+  <data name="Company Information" xml:space="preserve">
+    <value>معلومات الشركة</value>
+  </data>
+  <data name="Company" xml:space="preserve">
+    <value>الشركة</value>
+  </data>
+  <data name="Registered Since" xml:space="preserve">
+    <value>مسجّل منذ</value>
+  </data>
+  <data name="View all your payment transactions" xml:space="preserve">
+    <value>عرض جميع معاملات الدفع الخاصة بك</value>
+  </data>
+  <data name="Make New Payment" xml:space="preserve">
+    <value>إجراء دفعة جديدة</value>
+  </data>
+  <data name="Total Amount Paid" xml:space="preserve">
+    <value>إجمالي المبلغ المدفوع</value>
+  </data>
+  <data name="Completed Payments" xml:space="preserve">
+    <value>المدفوعات المكتملة</value>
+  </data>
+  <data name="Pending Payments" xml:space="preserve">
+    <value>المدفوعات المعلّقة</value>
+  </data>
+  <data name="All Payments" xml:space="preserve">
+    <value>جميع المدفوعات</value>
+  </data>
+  <data name="Search payments..." xml:space="preserve">
+    <value>البحث في المدفوعات...</value>
+  </data>
+  <data name="Unit" xml:space="preserve">
+    <value>الوحدة</value>
+  </data>
+  <data name="Reference" xml:space="preserve">
+    <value>المرجع</value>
+  </data>
+  <data name="No Payment History" xml:space="preserve">
+    <value>لا يوجد سجل مدفوعات</value>
+  </data>
+  <data name="You haven't made any payments yet. Start by making your first payment." xml:space="preserve">
+    <value>لم تُجرِ أي مدفوعات بعد. ابدأ بإجراء دفعتك الأولى.</value>
+  </data>
+  <data name="Make Your First Payment" xml:space="preserve">
+    <value>إجراء دفعتك الأولى</value>
+  </data>
+  <data name="Choose your payment method below" xml:space="preserve">
+    <value>اختر طريقة الدفع أدناه</value>
+  </data>
+  <data name="Select Invoice to Pay" xml:space="preserve">
+    <value>اختر الفاتورة للدفع</value>
+  </data>
+  <data name="Pay oldest first." xml:space="preserve">
+    <value>ادفع الأقدم أولاً.</value>
+  </data>
+  <data name="Invoices must be paid in order. Once invoice" xml:space="preserve">
+    <value>يجب دفع الفواتير بالترتيب. بمجرد أن تُدفع الفاتورة</value>
+  </data>
+  <data name="is fully paid, the next one will unlock automatically." xml:space="preserve">
+    <value>بالكامل، سيتم فتح الفاتورة التالية تلقائياً.</value>
+  </data>
+  <data name="Invoice" xml:space="preserve">
+    <value>فاتورة</value>
+  </data>
+  <data name="Due:" xml:space="preserve">
+    <value>تاريخ الاستحقاق:</value>
+  </data>
+  <data name="Select &amp; Pay" xml:space="preserve">
+    <value>اختر وادفع</value>
+  </data>
+  <data name="Pay invoice #" xml:space="preserve">
+    <value>ادفع الفاتورة رقم</value>
+  </data>
+  <data name="first to unlock this one" xml:space="preserve">
+    <value>أولاً لفتح هذه الفاتورة</value>
+  </data>
+  <data name="Pay #" xml:space="preserve">
+    <value>ادفع رقم</value>
+  </data>
+  <data name="first" xml:space="preserve">
+    <value>أولاً</value>
+  </data>
+  <data name="Download PDF" xml:space="preserve">
+    <value>تنزيل PDF</value>
+  </data>
+  <data name="No Pending Invoices" xml:space="preserve">
+    <value>لا توجد فواتير معلّقة</value>
+  </data>
+  <data name="You don't have any unpaid invoices at the moment." xml:space="preserve">
+    <value>ليس لديك أي فواتير غير مدفوعة في الوقت الحالي.</value>
+  </data>
+  <data name="Choose Payment Method" xml:space="preserve">
+    <value>اختر طريقة الدفع</value>
+  </data>
+  <data name="Selected Invoice:" xml:space="preserve">
+    <value>الفاتورة المختارة:</value>
+  </data>
+  <data name="Pay online instantly using KNET" xml:space="preserve">
+    <value>ادفع عبر الإنترنت فوراً باستخدام KNET</value>
+  </data>
+  <data name="Pay Now" xml:space="preserve">
+    <value>ادفع الآن</value>
+  </data>
+  <data name="Bank Transfer" xml:space="preserve">
+    <value>تحويل بنكي</value>
+  </data>
+  <data name="Upload your transfer receipt" xml:space="preserve">
+    <value>ارفع إيصال التحويل الخاص بك</value>
+  </data>
+  <data name="Upload Receipt" xml:space="preserve">
+    <value>رفع الإيصال</value>
+  </data>
+  <data name="Cash Payment" xml:space="preserve">
+    <value>دفع نقدي</value>
+  </data>
+  <data name="Visit our office to pay" xml:space="preserve">
+    <value>قم بزيارة مكتبنا للدفع</value>
+  </data>
+  <data name="Please visit our office during business hours (9 AM - 5 PM)" xml:space="preserve">
+    <value>يُرجى زيارة مكتبنا خلال ساعات العمل (9 صباحاً - 5 مساءً)</value>
+  </data>
+  <data name="Bank Transfer Instructions:" xml:space="preserve">
+    <value>تعليمات التحويل البنكي:</value>
+  </data>
+  <data name="Make the transfer to our bank account" xml:space="preserve">
+    <value>قم بالتحويل إلى حسابنا البنكي</value>
+  </data>
+  <data name="Take a photo/screenshot of the transfer receipt" xml:space="preserve">
+    <value>التقط صورة/لقطة شاشة لإيصال التحويل</value>
+  </data>
+  <data name="Upload it here along with transfer details" xml:space="preserve">
+    <value>ارفعها هنا مع تفاصيل التحويل</value>
+  </data>
+  <data name="Your payment will be verified by our team" xml:space="preserve">
+    <value>سيتم التحقق من دفعتك من قِبل فريقنا</value>
+  </data>
+  <data name="Amount (KWD)" xml:space="preserve">
+    <value>المبلغ (KWD)</value>
+  </data>
+  <data name="Transfer Date" xml:space="preserve">
+    <value>تاريخ التحويل</value>
+  </data>
+  <data name="Bank Name" xml:space="preserve">
+    <value>اسم البنك</value>
+  </data>
+  <data name="-- Select Bank --" xml:space="preserve">
+    <value>-- اختر البنك --</value>
+  </data>
+  <data name="Reference Number" xml:space="preserve">
+    <value>الرقم المرجعي</value>
+  </data>
+  <data name="Transaction reference (optional)" xml:space="preserve">
+    <value>مرجع المعاملة (اختياري)</value>
+  </data>
+  <data name="Upload Transfer Receipt" xml:space="preserve">
+    <value>رفع إيصال التحويل</value>
+  </data>
+  <data name="(Max 5MB)" xml:space="preserve">
+    <value>(بحد أقصى 5 ميجابايت)</value>
+  </data>
+  <data name="Accepted formats: JPG, PNG, PDF" xml:space="preserve">
+    <value>الصيغ المقبولة: JPG، PNG، PDF</value>
+  </data>
+  <data name="Notes (Optional)" xml:space="preserve">
+    <value>ملاحظات (اختياري)</value>
+  </data>
+  <data name="Any additional information..." xml:space="preserve">
+    <value>أي معلومات إضافية...</value>
+  </data>
+  <data name="Submit Transfer" xml:space="preserve">
+    <value>إرسال التحويل</value>
+  </data>
+  <data name="active" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="With active leases" xml:space="preserve">
+    <value>لديهم عقود إيجار سارية</value>
+  </data>
+  <data name="currently leased" xml:space="preserve">
+    <value>مؤجَّر حالياً</value>
+  </data>
+  <data name="In arrears" xml:space="preserve">
+    <value>متأخرات مستحقة</value>
+  </data>
+  <data name="balance outstanding" xml:space="preserve">
+    <value>رصيد مستحق</value>
+  </data>
+  <data name="Avg tenure" xml:space="preserve">
+    <value>متوسط مدة الإقامة</value>
+  </data>
+  <data name="months on file" xml:space="preserve">
+    <value>شهراً في السجل</value>
+  </data>
+  <data name="Include soft-deleted tenants" xml:space="preserve">
+    <value>تضمين المستأجرين المحذوفين مؤقتاً</value>
+  </data>
+  <data name="Show archived" xml:space="preserve">
+    <value>عرض المؤرشفة</value>
+  </data>
+  <data name="Lease expiring" xml:space="preserve">
+    <value>انتهاء عقد الإيجار</value>
+  </data>
+  <data name="Any" xml:space="preserve">
+    <value>الكل</value>
+  </data>
+  <data name="≤ 30 days" xml:space="preserve">
+    <value>‏≤ 30 يوماً</value>
+  </data>
+  <data name="≤ 60 days" xml:space="preserve">
+    <value>‏≤ 60 يوماً</value>
+  </data>
+  <data name="≤ 90 days" xml:space="preserve">
+    <value>‏≤ 90 يوماً</value>
+  </data>
+  <data name="Bulk import tenants from CSV or XLSX" xml:space="preserve">
+    <value>استيراد جماعي للمستأجرين من ملف CSV أو XLSX</value>
+  </data>
+  <data name="Import" xml:space="preserve">
+    <value>استيراد</value>
+  </data>
+  <data name="Export filtered tenants as Excel" xml:space="preserve">
+    <value>تصدير المستأجرين المُصفّين كملف Excel</value>
+  </data>
+  <data name="Export" xml:space="preserve">
+    <value>تصدير</value>
+  </data>
+  <data name="Search by name, email, phone, or PACI..." xml:space="preserve">
+    <value>البحث بالاسم أو البريد الإلكتروني أو الهاتف أو رقم PACI...</value>
+  </data>
+  <data name="Property:" xml:space="preserve">
+    <value>العقار:</value>
+  </data>
+  <data name="All Properties" xml:space="preserve">
+    <value>جميع العقارات</value>
+  </data>
+  <data name="Status:" xml:space="preserve">
+    <value>الحالة:</value>
+  </data>
+  <data name="All Status" xml:space="preserve">
+    <value>جميع الحالات</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="Inactive" xml:space="preserve">
+    <value>غير نشط</value>
+  </data>
+  <data name="Clear" xml:space="preserve">
+    <value>مسح</value>
+  </data>
+  <data name="Select all tenants on page" xml:space="preserve">
+    <value>تحديد جميع المستأجرين في الصفحة</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Contact" xml:space="preserve">
+    <value>جهة الاتصال</value>
+  </data>
+  <data name="PACI" xml:space="preserve">
+    <value>PACI</value>
+  </data>
+  <data name="Outstanding" xml:space="preserve">
+    <value>المستحق</value>
+  </data>
+  <data name="Last payment" xml:space="preserve">
+    <value>آخر دفعة</value>
+  </data>
+  <data name="Health" xml:space="preserve">
+    <value>الحالة المالية</value>
+  </data>
+  <data name="Archived" xml:space="preserve">
+    <value>مؤرشف</value>
+  </data>
+  <data name="No property assigned" xml:space="preserve">
+    <value>لا يوجد عقار مُخصَّص</value>
+  </data>
+  <data name="View invoices" xml:space="preserve">
+    <value>عرض الفواتير</value>
+  </data>
+  <data name="Payment health" xml:space="preserve">
+    <value>الحالة المالية للدفع</value>
+  </data>
+  <data name="Toggle tenant status" xml:space="preserve">
+    <value>تبديل حالة المستأجر</value>
+  </data>
+  <data name="More actions" xml:space="preserve">
+    <value>إجراءات إضافية</value>
+  </data>
+  <data name="View" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="Statement PDF" xml:space="preserve">
+    <value>كشف حساب PDF</value>
+  </data>
+  <data name="Create Lease" xml:space="preserve">
+    <value>إنشاء عقد إيجار</value>
+  </data>
+  <data name="Record Payment" xml:space="preserve">
+    <value>تسجيل دفعة</value>
+  </data>
+  <data name="Resend login" xml:space="preserve">
+    <value>إعادة إرسال بيانات الدخول</value>
+  </data>
+  <data name="Restore" xml:space="preserve">
+    <value>استعادة</value>
+  </data>
+  <data name="Forget (GDPR)" xml:space="preserve">
+    <value>حذف البيانات (GDPR)</value>
+  </data>
+  <data name="Bulk actions for selected tenants" xml:space="preserve">
+    <value>إجراءات جماعية للمستأجرين المحددين</value>
+  </data>
+  <data name="selected" xml:space="preserve">
+    <value>محدد</value>
+  </data>
+  <data name="Activate" xml:space="preserve">
+    <value>تفعيل</value>
+  </data>
+  <data name="Deactivate" xml:space="preserve">
+    <value>إلغاء التفعيل</value>
+  </data>
+  <data name="Archive" xml:space="preserve">
+    <value>أرشفة</value>
+  </data>
+  <data name="Clear selection" xml:space="preserve">
+    <value>مسح التحديد</value>
+  </data>
+  <data name="No matching tenants found" xml:space="preserve">
+    <value>لا يوجد مستأجرون مطابقون</value>
+  </data>
+  <data name="Try adjusting your search or filter criteria" xml:space="preserve">
+    <value>حاول تعديل معايير البحث أو التصفية</value>
+  </data>
+  <data name="Clear filters" xml:space="preserve">
+    <value>مسح عوامل التصفية</value>
+  </data>
+  <data name="No Tenants Found" xml:space="preserve">
+    <value>لا يوجد مستأجرون</value>
+  </data>
+  <data name="Start by adding your first tenant" xml:space="preserve">
+    <value>ابدأ بإضافة أول مستأجر</value>
+  </data>
+  <data name="Add Tenant" xml:space="preserve">
+    <value>إضافة مستأجر</value>
+  </data>
+  <data name="Create New Tenant" xml:space="preserve">
+    <value>إنشاء مستأجر جديد</value>
+  </data>
+  <data name="Add a new tenant. Only Essentials are required to save." xml:space="preserve">
+    <value>أضف مستأجراً جديداً. الحقول الأساسية فقط مطلوبة للحفظ.</value>
+  </data>
+  <data name="Please fix the following before saving:" xml:space="preserve">
+    <value>يرجى تصحيح ما يلي قبل الحفظ:</value>
+  </data>
+  <data name="Essentials" xml:space="preserve">
+    <value>الأساسيات</value>
+  </data>
+  <data name="Required to save. A valid Civil ID number auto-fills the date of birth." xml:space="preserve">
+    <value>مطلوب للحفظ. رقم البطاقة المدنية الصحيح يملأ تاريخ الميلاد تلقائياً.</value>
+  </data>
+  <data name="First Name" xml:space="preserve">
+    <value>الاسم الأول</value>
+  </data>
+  <data name="As shown on Civil ID" xml:space="preserve">
+    <value>كما هو مبيّن في البطاقة المدنية</value>
+  </data>
+  <data name="Last Name" xml:space="preserve">
+    <value>اسم العائلة</value>
+  </data>
+  <data name="Optional. If set, the login is emailed; if not, it's shown to you on save." xml:space="preserve">
+    <value>اختياري. إذا حُدِّد، تُرسَل بيانات الدخول عبر البريد الإلكتروني؛ وإن لم يُحدَّد، تُعرَض لك عند الحفظ.</value>
+  </data>
+  <data name="Kuwait mobile format preferred (+965…)" xml:space="preserve">
+    <value>يُفضَّل تنسيق الجوال الكويتي (‎+965…)</value>
+  </data>
+  <data name="Set password" xml:space="preserve">
+    <value>تعيين كلمة المرور</value>
+  </data>
+  <data name="Leave blank to auto-generate" xml:space="preserve">
+    <value>اتركه فارغاً للتوليد التلقائي</value>
+  </data>
+  <data name="You give this to the tenant. They can change it later in the app." xml:space="preserve">
+    <value>تُسلِّم هذه للمستأجر. يمكنه تغييرها لاحقاً في التطبيق.</value>
+  </data>
+  <data name="Client Civil ID (PACI)" xml:space="preserve">
+    <value>البطاقة المدنية للعميل (PACI)</value>
+  </data>
+  <data name="12-digit PACI number" xml:space="preserve">
+    <value>رقم PACI مكوَّن من 12 خانة</value>
+  </data>
+  <data name="Building PACI" xml:space="preserve">
+    <value>PACI المبنى</value>
+  </data>
+  <data name="Property's PACI number" xml:space="preserve">
+    <value>رقم PACI الخاص بالعقار</value>
+  </data>
+  <data name="Tenant auto-linked to this building" xml:space="preserve">
+    <value>يُربَط المستأجر تلقائياً بهذا المبنى</value>
+  </data>
+  <data name="More details (DOB, employment, emergency contact, property assignment)" xml:space="preserve">
+    <value>تفاصيل إضافية (تاريخ الميلاد، الوظيفة، جهة اتصال الطوارئ، تخصيص العقار)</value>
+  </data>
+  <data name="Personal" xml:space="preserve">
+    <value>البيانات الشخصية</value>
+  </data>
+  <data name="Pre-filled by Civil ID parser" xml:space="preserve">
+    <value>يُملأ مسبقاً بواسطة محلِّل البطاقة المدنية</value>
+  </data>
+  <data name="Government ID" xml:space="preserve">
+    <value>الهوية الحكومية</value>
+  </data>
+  <data name="Passport / Iqama number" xml:space="preserve">
+    <value>رقم جواز السفر / الإقامة</value>
+  </data>
+  <data name="-- Select Status --" xml:space="preserve">
+    <value>-- اختر الحالة --</value>
+  </data>
+  <data name="Employed" xml:space="preserve">
+    <value>موظَّف</value>
+  </data>
+  <data name="Self-Employed" xml:space="preserve">
+    <value>يعمل لحسابه الخاص</value>
+  </data>
+  <data name="Unemployed" xml:space="preserve">
+    <value>عاطل عن العمل</value>
+  </data>
+  <data name="Retired" xml:space="preserve">
+    <value>متقاعد</value>
+  </data>
+  <data name="Student" xml:space="preserve">
+    <value>طالب</value>
+  </data>
+  <data name="Contact Name" xml:space="preserve">
+    <value>اسم جهة الاتصال</value>
+  </data>
+  <data name="Contact Phone" xml:space="preserve">
+    <value>هاتف جهة الاتصال</value>
+  </data>
+  <data name="Property &amp; Unit (optional — can be set later via Lease)" xml:space="preserve">
+    <value>العقار والوحدة (اختياري — يمكن تحديده لاحقاً عبر عقد الإيجار)</value>
+  </data>
+  <data name="-- Select Property --" xml:space="preserve">
+    <value>-- اختر العقار --</value>
+  </data>
+  <data name="-- Select Property First --" xml:space="preserve">
+    <value>-- اختر العقار أولاً --</value>
+  </data>
+  <data name="Civil ID, passport, insurance, etc. Each row = one file. Max 10MB." xml:space="preserve">
+    <value>البطاقة المدنية، جواز السفر، التأمين، إلخ. كل صف = ملف واحد. الحد الأقصى 10 ميغابايت.</value>
+  </data>
+  <data name="Document Type" xml:space="preserve">
+    <value>نوع المستند</value>
+  </data>
+  <data name="-- Select Type --" xml:space="preserve">
+    <value>-- اختر النوع --</value>
+  </data>
+  <data name="Civil ID (PACI)" xml:space="preserve">
+    <value>البطاقة المدنية (PACI)</value>
+  </data>
+  <data name="Passport" xml:space="preserve">
+    <value>جواز السفر</value>
+  </data>
+  <data name="Visa" xml:space="preserve">
+    <value>التأشيرة</value>
+  </data>
+  <data name="Insurance" xml:space="preserve">
+    <value>التأمين</value>
+  </data>
+  <data name="Employment Letter" xml:space="preserve">
+    <value>خطاب العمل</value>
+  </data>
+  <data name="Salary Certificate" xml:space="preserve">
+    <value>شهادة الراتب</value>
+  </data>
+  <data name="Bank Statement" xml:space="preserve">
+    <value>كشف حساب بنكي</value>
+  </data>
+  <data name="Reference Letter" xml:space="preserve">
+    <value>خطاب توصية</value>
+  </data>
+  <data name="File" xml:space="preserve">
+    <value>الملف</value>
+  </data>
+  <data name="PDF, JPG, PNG, DOC, DOCX — max 10MB" xml:space="preserve">
+    <value>PDF، JPG، PNG، DOC، DOCX — الحد الأقصى 10 ميغابايت</value>
+  </data>
+  <data name="Remove" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Add another document" xml:space="preserve">
+    <value>إضافة مستند آخر</value>
+  </data>
+  <data name="Clear All" xml:space="preserve">
+    <value>مسح الكل</value>
+  </data>
+  <data name="Save &amp; add another" xml:space="preserve">
+    <value>حفظ وإضافة آخر</value>
+  </data>
+  <data name="Create Tenant" xml:space="preserve">
+    <value>إنشاء المستأجر</value>
+  </data>
+  <data name="Unit:" xml:space="preserve">
+    <value>الوحدة:</value>
+  </data>
+  <data name="Edit Tenant" xml:space="preserve">
+    <value>تعديل المستأجر</value>
+  </data>
+  <data name="Update tenant information" xml:space="preserve">
+    <value>تحديث بيانات المستأجر</value>
+  </data>
+  <data name="PACI Number" xml:space="preserve">
+    <value>رقم PACI</value>
+  </data>
+  <data name="-- Select Employment Status --" xml:space="preserve">
+    <value>-- اختر الحالة الوظيفية --</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>الإعدادات</value>
+  </data>
+  <data name="Save Changes" xml:space="preserve">
+    <value>حفظ التغييرات</value>
+  </data>
+  <data name="View Details" xml:space="preserve">
+    <value>عرض التفاصيل</value>
+  </data>
+  <data name="Tenant Details" xml:space="preserve">
+    <value>تفاصيل المستأجر</value>
+  </data>
+  <data name="Complete tenant information" xml:space="preserve">
+    <value>معلومات المستأجر الكاملة</value>
+  </data>
+  <data name="Phone Number" xml:space="preserve">
+    <value>رقم الهاتف</value>
+  </data>
+  <data name="Current Lease" xml:space="preserve">
+    <value>عقد الإيجار الحالي</value>
+  </data>
+  <data name="Monthly Rent" xml:space="preserve">
+    <value>الإيجار الشهري</value>
+  </data>
+  <data name="Lease Period" xml:space="preserve">
+    <value>مدة عقد الإيجار</value>
+  </data>
+  <data name="Payment Due Day" xml:space="preserve">
+    <value>يوم استحقاق الدفع</value>
+  </data>
+  <data name="Company Name" xml:space="preserve">
+    <value>اسم الشركة</value>
+  </data>
+  <data name="Company Email" xml:space="preserve">
+    <value>البريد الإلكتروني للشركة</value>
+  </data>
+  <data name="Lease History" xml:space="preserve">
+    <value>سجل عقود الإيجار</value>
+  </data>
+  <data name="Start Date" xml:space="preserve">
+    <value>تاريخ البدء</value>
+  </data>
+  <data name="End Date" xml:space="preserve">
+    <value>تاريخ الانتهاء</value>
+  </data>
+  <data name="Expired" xml:space="preserve">
+    <value>منتهٍ</value>
+  </data>
+  <data name="Payment Date" xml:space="preserve">
+    <value>تاريخ الدفع</value>
+  </data>
+  <data name="Completed" xml:space="preserve">
+    <value>مكتمل</value>
+  </data>
+  <data name="Pending" xml:space="preserve">
+    <value>قيد الانتظار</value>
+  </data>
+  <data name="Failed" xml:space="preserve">
+    <value>فاشل</value>
+  </data>
+  <data name="Lease Agreements" xml:space="preserve">
+    <value>اتفاقيات الإيجار</value>
+  </data>
+  <data name="New Lease" xml:space="preserve">
+    <value>عقد إيجار جديد</value>
+  </data>
+  <data name="Expiring Soon" xml:space="preserve">
+    <value>ينتهي قريباً</value>
+  </data>
+  <data name="Period" xml:space="preserve">
+    <value>المدة</value>
+  </data>
+  <data name="Security Deposit" xml:space="preserve">
+    <value>مبلغ التأمين</value>
+  </data>
+  <data name="Payment Due" xml:space="preserve">
+    <value>استحقاق الدفع</value>
+  </data>
+  <data name="Days Remaining" xml:space="preserve">
+    <value>الأيام المتبقية</value>
+  </data>
+  <data name="Pay" xml:space="preserve">
+    <value>دفع</value>
+  </data>
+  <data name="Tenant Documents" xml:space="preserve">
+    <value>مستندات المستأجر</value>
+  </data>
+  <data name="Upload Document" xml:space="preserve">
+    <value>رفع مستند</value>
+  </data>
+  <data name="No documents uploaded for this tenant" xml:space="preserve">
+    <value>لم يتم رفع أي مستندات لهذا المستأجر</value>
+  </data>
+  <data name="Upload First Document" xml:space="preserve">
+    <value>رفع أول مستند</value>
+  </data>
+  <data name="Delete Tenant" xml:space="preserve">
+    <value>حذف المستأجر</value>
+  </data>
+  <data name="Are you sure you want to delete this tenant?" xml:space="preserve">
+    <value>هل أنت متأكد أنك تريد حذف هذا المستأجر؟</value>
+  </data>
+  <data name="Warning" xml:space="preserve">
+    <value>تحذير</value>
+  </data>
+  <data name="This action cannot be undone. Deleting this tenant will remove all associated data." xml:space="preserve">
+    <value>لا يمكن التراجع عن هذا الإجراء. حذف هذا المستأجر سيزيل جميع البيانات المرتبطة به.</value>
+  </data>
+  <data name="Tenant Information" xml:space="preserve">
+    <value>معلومات المستأجر</value>
+  </data>
+  <data name="Total Leases" xml:space="preserve">
+    <value>إجمالي عقود الإيجار</value>
+  </data>
+  <data name="Active Leases Detected!" xml:space="preserve">
+    <value>تم اكتشاف عقود إيجار سارية!</value>
+  </data>
+  <data name="This tenant has active leases. Consider terminating or transferring leases before deletion." xml:space="preserve">
+    <value>لدى هذا المستأجر عقود إيجار سارية. يُنصَح بإنهاء أو نقل عقود الإيجار قبل الحذف.</value>
+  </data>
+  <data name="Confirm Delete" xml:space="preserve">
+    <value>تأكيد الحذف</value>
+  </data>
+  <data name="Import Tenants" xml:space="preserve">
+    <value>استيراد المستأجرين</value>
+  </data>
+  <data name="Upload file" xml:space="preserve">
+    <value>رفع ملف</value>
+  </data>
+  <data name="Drop a file here, or click to browse" xml:space="preserve">
+    <value>أفلِت الملف هنا، أو انقر للتصفح</value>
+  </data>
+  <data name="Accepted:" xml:space="preserve">
+    <value>المقبول:</value>
+  </data>
+  <data name="max 10 MB" xml:space="preserve">
+    <value>الحد الأقصى 10 ميغابايت</value>
+  </data>
+  <data name="Validate &amp; import" xml:space="preserve">
+    <value>التحقق والاستيراد</value>
+  </data>
+  <data name="How it works" xml:space="preserve">
+    <value>كيف يعمل</value>
+  </data>
+  <data name="Download the template" xml:space="preserve">
+    <value>تنزيل القالب</value>
+  </data>
+  <data name="Row" xml:space="preserve">
+    <value>الصف</value>
+  </data>
+  <data name="Result" xml:space="preserve">
+    <value>النتيجة</value>
+  </data>
+  <data name="Notes" xml:space="preserve">
+    <value>ملاحظات</value>
+  </data>
+  <data name="Imported" xml:space="preserve">
+    <value>تم الاستيراد</value>
+  </data>
+  <data name="Skipped" xml:space="preserve">
+    <value>تم التخطي</value>
+  </data>
+  <data name="Back to Tenants" xml:space="preserve">
+    <value>العودة إلى المستأجرين</value>
+  </data>
+  <data name="Import another file" xml:space="preserve">
+    <value>استيراد ملف آخر</value>
+  </data>
+  <data name="New tenant login" xml:space="preserve">
+    <value>بيانات دخول مستأجر جديد</value>
+  </data>
+  <data name="give these to the tenant. Shown once only." xml:space="preserve">
+    <value>سلِّم هذه للمستأجر. تُعرَض مرة واحدة فقط.</value>
+  </data>
+  <data name="Civil ID:" xml:space="preserve">
+    <value>البطاقة المدنية:</value>
+  </data>
+  <data name="Temp password:" xml:space="preserve">
+    <value>كلمة المرور المؤقتة:</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>نسخ</value>
+  </data>
+  <data name="The tenant enters the Civil ID + this password in the app, then sets their own password." xml:space="preserve">
+    <value>يُدخِل المستأجر البطاقة المدنية + كلمة المرور هذه في التطبيق، ثم يعيّن كلمة المرور الخاصة به.</value>
+  </data>
+  <data name="Select Report Period" xml:space="preserve">
+    <value>اختر فترة التقرير</value>
+  </data>
+  <data name="From Date" xml:space="preserve">
+    <value>من تاريخ</value>
+  </data>
+  <data name="To Date" xml:space="preserve">
+    <value>إلى تاريخ</value>
+  </data>
+  <data name="This Month" xml:space="preserve">
+    <value>هذا الشهر</value>
+  </data>
+  <data name="Last Month" xml:space="preserve">
+    <value>الشهر الماضي</value>
+  </data>
+  <data name="This Quarter" xml:space="preserve">
+    <value>هذا الربع</value>
+  </data>
+  <data name="This Year" xml:space="preserve">
+    <value>هذا العام</value>
+  </data>
+  <data name="Loading snapshot…" xml:space="preserve">
+    <value>جارٍ تحميل اللقطة…</value>
+  </data>
+  <data name="Refresh snapshot" xml:space="preserve">
+    <value>تحديث اللقطة</value>
+  </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Revenue — last 12 months" xml:space="preserve">
+    <value>الإيرادات — آخر 12 شهرًا</value>
+  </data>
+  <data name="Revenue trend over the last 12 months" xml:space="preserve">
+    <value>اتجاه الإيرادات خلال آخر 12 شهرًا</value>
+  </data>
+  <data name="Invoices by status" xml:space="preserve">
+    <value>الفواتير حسب الحالة</value>
+  </data>
+  <data name="Breakdown of invoices by status" xml:space="preserve">
+    <value>توزيع الفواتير حسب الحالة</value>
+  </data>
+  <data name="Top 5 properties" xml:space="preserve">
+    <value>أفضل 5 عقارات</value>
+  </data>
+  <data name="Top 5 properties by collected revenue" xml:space="preserve">
+    <value>أفضل 5 عقارات حسب الإيرادات المحصّلة</value>
+  </data>
+  <data name="Month-end close" xml:space="preserve">
+    <value>إقفال نهاية الشهر</value>
+  </data>
+  <data name="Guided 9-step checklist for the 1st-of-the-month sign-off" xml:space="preserve">
+    <value>قائمة تحقق موجّهة من 9 خطوات لاعتماد اليوم الأول من الشهر</value>
+  </data>
+  <data name="Invoice + lease + reconciliation status at a glance" xml:space="preserve">
+    <value>حالة الفواتير وعقود الإيجار والتسويات في لمحة</value>
+  </data>
+  <data name="One-click &quot;Trigger now&quot; for any missed job" xml:space="preserve">
+    <value>تشغيل فوري بنقرة واحدة لأي مهمة فائتة</value>
+  </data>
+  <data name="Snapshot saved when the period is closed" xml:space="preserve">
+    <value>يتم حفظ لقطة عند إقفال الفترة</value>
+  </data>
+  <data name="Open checklist" xml:space="preserve">
+    <value>فتح قائمة التحقق</value>
+  </data>
+  <data name="Executive Dashboard" xml:space="preserve">
+    <value>لوحة المعلومات التنفيذية</value>
+  </data>
+  <data name="High-level portfolio overview with key business metrics" xml:space="preserve">
+    <value>نظرة عامة عالية المستوى على المحفظة مع مؤشرات الأعمال الرئيسية</value>
+  </data>
+  <data name="Portfolio occupancy &amp; financial summary" xml:space="preserve">
+    <value>نسبة إشغال المحفظة والملخص المالي</value>
+  </data>
+  <data name="YTD revenue &amp; maintenance costs" xml:space="preserve">
+    <value>الإيرادات وتكاليف الصيانة منذ بداية العام</value>
+  </data>
+  <data name="Month-over-month comparison" xml:space="preserve">
+    <value>مقارنة شهرية</value>
+  </data>
+  <data name="Download Executive Dashboard as PDF" xml:space="preserve">
+    <value>تنزيل لوحة المعلومات التنفيذية بصيغة PDF</value>
+  </data>
+  <data name="PDF" xml:space="preserve">
+    <value>PDF</value>
+  </data>
+  <data name="Property Performance" xml:space="preserve">
+    <value>أداء العقارات</value>
+  </data>
+  <data name="Property-by-property analysis and comparison" xml:space="preserve">
+    <value>تحليل ومقارنة لكل عقار على حدة</value>
+  </data>
+  <data name="Occupancy &amp; rent collection by property" xml:space="preserve">
+    <value>الإشغال وتحصيل الإيجار حسب العقار</value>
+  </data>
+  <data name="Maintenance costs &amp; net revenue" xml:space="preserve">
+    <value>تكاليف الصيانة وصافي الإيرادات</value>
+  </data>
+  <data name="Revenue per square foot analysis" xml:space="preserve">
+    <value>تحليل الإيراد لكل قدم مربع</value>
+  </data>
+  <data name="Tenant Payment Analysis" xml:space="preserve">
+    <value>تحليل مدفوعات المستأجرين</value>
+  </data>
+  <data name="Monitor tenant payment behavior and identify issues" xml:space="preserve">
+    <value>مراقبة سلوك دفع المستأجرين وتحديد المشكلات</value>
+  </data>
+  <data name="Payment rate &amp; outstanding amounts" xml:space="preserve">
+    <value>معدل الدفع والمبالغ المستحقة</value>
+  </data>
+  <data name="Average days to pay &amp; late payments" xml:space="preserve">
+    <value>متوسط أيام السداد والمدفوعات المتأخرة</value>
+  </data>
+  <data name="Payment score (Excellent/Good/Fair/Poor)" xml:space="preserve">
+    <value>تقييم الدفع (ممتاز/جيد/مقبول/ضعيف)</value>
+  </data>
+  <data name="Invoice Status &amp; Aging" xml:space="preserve">
+    <value>حالة الفواتير وأعمارها</value>
+  </data>
+  <data name="Track billing, collection rates, and aging analysis" xml:space="preserve">
+    <value>تتبّع الفوترة ومعدلات التحصيل وتحليل الأعمار</value>
+  </data>
+  <data name="Invoice status summary (Paid/Pending/Overdue)" xml:space="preserve">
+    <value>ملخص حالة الفواتير (مدفوعة/معلّقة/متأخرة)</value>
+  </data>
+  <data name="Aging analysis (0-30, 31-60, 61-90, 90+ days)" xml:space="preserve">
+    <value>تحليل الأعمار (0-30، 31-60، 61-90، 90+ يومًا)</value>
+  </data>
+  <data name="Collection rate tracking" xml:space="preserve">
+    <value>تتبّع معدل التحصيل</value>
+  </data>
+  <data name="Payment Report (Grid View)" xml:space="preserve">
+    <value>تقرير المدفوعات (عرض الجدول)</value>
+  </data>
+  <data name="Detailed payment data with advanced filters and grid display" xml:space="preserve">
+    <value>بيانات مدفوعات تفصيلية مع عوامل تصفية متقدمة وعرض جدولي</value>
+  </data>
+  <data name="Filter by property, tenant, type, status" xml:space="preserve">
+    <value>التصفية حسب العقار والمستأجر والنوع والحالة</value>
+  </data>
+  <data name="Interactive data grid with all payments" xml:space="preserve">
+    <value>جدول بيانات تفاعلي بجميع المدفوعات</value>
+  </data>
+  <data name="KNET, Cash &amp; Bank Transfer breakdown" xml:space="preserve">
+    <value>توزيع KNET والنقد والتحويل البنكي</value>
+  </data>
+  <data name="About These Reports" xml:space="preserve">
+    <value>حول هذه التقارير</value>
+  </data>
+  <data name="All reports display amounts in Kuwaiti Dinar (KWD) with 3 decimal places for accuracy. Excel exports include formatted cells, professional styling, and multiple sheets where applicable. Select a date range above to customize the reporting period for all reports." xml:space="preserve">
+    <value>تعرض جميع التقارير المبالغ بالدينار الكويتي (KWD) بثلاث خانات عشرية لدقة أعلى. تتضمن ملفات Excel المصدّرة خلايا منسّقة وتنسيقًا احترافيًا وأوراق عمل متعددة عند الحاجة. اختر نطاقًا زمنيًا أعلاه لتخصيص فترة التقرير لجميع التقارير.</value>
+  </data>
+  <data name="Export Excel" xml:space="preserve">
+    <value>تصدير إلى Excel</value>
+  </data>
+  <data name="Back" xml:space="preserve">
+    <value>رجوع</value>
+  </data>
+  <data name="Date Range Filter" xml:space="preserve">
+    <value>تصفية النطاق الزمني</value>
+  </data>
+  <data name="Apply Filter" xml:space="preserve">
+    <value>تطبيق التصفية</value>
+  </data>
+  <data name="Total Properties" xml:space="preserve">
+    <value>إجمالي العقارات</value>
+  </data>
+  <data name="Total Units:" xml:space="preserve">
+    <value>إجمالي الوحدات:</value>
+  </data>
+  <data name="Occupancy Rate" xml:space="preserve">
+    <value>معدل الإشغال</value>
+  </data>
+  <data name="units" xml:space="preserve">
+    <value>وحدة</value>
+  </data>
+  <data name="Collection Rate" xml:space="preserve">
+    <value>معدل التحصيل</value>
+  </data>
+  <data name="Of expected rent" xml:space="preserve">
+    <value>من الإيجار المتوقع</value>
+  </data>
+  <data name="Outstanding Amount" xml:space="preserve">
+    <value>المبلغ المستحق</value>
+  </data>
+  <data name="KWD - Unpaid invoices" xml:space="preserve">
+    <value>دينار كويتي - فواتير غير مدفوعة</value>
+  </data>
+  <data name="Financial Summary" xml:space="preserve">
+    <value>الملخص المالي</value>
+  </data>
+  <data name="Metric" xml:space="preserve">
+    <value>المؤشر</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>التفاصيل</value>
+  </data>
+  <data name="Potential Monthly Rent" xml:space="preserve">
+    <value>الإيجار الشهري المحتمل</value>
+  </data>
+  <data name="If all units were occupied" xml:space="preserve">
+    <value>إذا كانت جميع الوحدات مشغولة</value>
+  </data>
+  <data name="Actual Monthly Rent" xml:space="preserve">
+    <value>الإيجار الشهري الفعلي</value>
+  </data>
+  <data name="Current occupied units" xml:space="preserve">
+    <value>الوحدات المشغولة حاليًا</value>
+  </data>
+  <data name="YTD Revenue" xml:space="preserve">
+    <value>الإيرادات منذ بداية العام</value>
+  </data>
+  <data name="Year-to-date collected payments" xml:space="preserve">
+    <value>المدفوعات المحصّلة منذ بداية العام</value>
+  </data>
+  <data name="YTD Maintenance Costs" xml:space="preserve">
+    <value>تكاليف الصيانة منذ بداية العام</value>
+  </data>
+  <data name="completed requests" xml:space="preserve">
+    <value>طلبات مكتملة</value>
+  </data>
+  <data name="Net Revenue (YTD)" xml:space="preserve">
+    <value>صافي الإيرادات (منذ بداية العام)</value>
+  </data>
+  <data name="Revenue minus maintenance costs" xml:space="preserve">
+    <value>الإيرادات مطروحًا منها تكاليف الصيانة</value>
+  </data>
+  <data name="Tenant Summary" xml:space="preserve">
+    <value>ملخص المستأجرين</value>
+  </data>
+  <data name="Total Active Tenants" xml:space="preserve">
+    <value>إجمالي المستأجرين النشطين</value>
+  </data>
+  <data name="Total Active Leases" xml:space="preserve">
+    <value>إجمالي عقود الإيجار النشطة</value>
+  </data>
+  <data name="Average Rent per Tenant" xml:space="preserve">
+    <value>متوسط الإيجار لكل مستأجر</value>
+  </data>
+  <data name="Maintenance Summary" xml:space="preserve">
+    <value>ملخص الصيانة</value>
+  </data>
+  <data name="Total Requests (Period)" xml:space="preserve">
+    <value>إجمالي الطلبات (للفترة)</value>
+  </data>
+  <data name="Total Cost (Period)" xml:space="preserve">
+    <value>إجمالي التكلفة (للفترة)</value>
+  </data>
+  <data name="Average Cost per Request" xml:space="preserve">
+    <value>متوسط التكلفة لكل طلب</value>
+  </data>
+  <data name="Total Invoices" xml:space="preserve">
+    <value>إجمالي الفواتير</value>
+  </data>
+  <data name="In selected period" xml:space="preserve">
+    <value>في الفترة المحددة</value>
+  </data>
+  <data name="Paid Invoices" xml:space="preserve">
+    <value>الفواتير المدفوعة</value>
+  </data>
+  <data name="Partial Invoices" xml:space="preserve">
+    <value>الفواتير المدفوعة جزئيًا</value>
+  </data>
+  <data name="outstanding" xml:space="preserve">
+    <value>مستحقة</value>
+  </data>
+  <data name="Unpaid Invoices" xml:space="preserve">
+    <value>الفواتير غير المدفوعة</value>
+  </data>
+  <data name="Aging Summary" xml:space="preserve">
+    <value>ملخص الأعمار</value>
+  </data>
+  <data name="Current (0-30 days)" xml:space="preserve">
+    <value>حالية (0-30 يومًا)</value>
+  </data>
+  <data name="invoices" xml:space="preserve">
+    <value>فاتورة</value>
+  </data>
+  <data name="31-60 days" xml:space="preserve">
+    <value>31-60 يومًا</value>
+  </data>
+  <data name="61-90 days" xml:space="preserve">
+    <value>61-90 يومًا</value>
+  </data>
+  <data name="Over 90 days" xml:space="preserve">
+    <value>أكثر من 90 يومًا</value>
+  </data>
+  <data name="Invoice Details" xml:space="preserve">
+    <value>تفاصيل الفواتير</value>
+  </data>
+  <data name="Invoice Number" xml:space="preserve">
+    <value>رقم الفاتورة</value>
+  </data>
+  <data name="Tenant Name" xml:space="preserve">
+    <value>اسم المستأجر</value>
+  </data>
+  <data name="Invoice Date" xml:space="preserve">
+    <value>تاريخ الفاتورة</value>
+  </data>
+  <data name="Due Date" xml:space="preserve">
+    <value>تاريخ الاستحقاق</value>
+  </data>
+  <data name="Total Amount (KWD)" xml:space="preserve">
+    <value>المبلغ الإجمالي (دينار كويتي)</value>
+  </data>
+  <data name="Paid Amount (KWD)" xml:space="preserve">
+    <value>المبلغ المدفوع (دينار كويتي)</value>
+  </data>
+  <data name="Outstanding (KWD)" xml:space="preserve">
+    <value>المستحق (دينار كويتي)</value>
+  </data>
+  <data name="Days Overdue" xml:space="preserve">
+    <value>أيام التأخير</value>
+  </data>
+  <data name="Aging Bucket" xml:space="preserve">
+    <value>شريحة العمر</value>
+  </data>
+  <data name="Paid" xml:space="preserve">
+    <value>مدفوعة</value>
+  </data>
+  <data name="Partial" xml:space="preserve">
+    <value>جزئية</value>
+  </data>
+  <data name="Overdue" xml:space="preserve">
+    <value>متأخرة</value>
+  </data>
+  <data name="Current" xml:space="preserve">
+    <value>حالية</value>
+  </data>
+  <data name="TOTALS" xml:space="preserve">
+    <value>الإجماليات</value>
+  </data>
+  <data name="No invoice data available for the selected date range." xml:space="preserve">
+    <value>لا توجد بيانات فواتير متاحة للنطاق الزمني المحدد.</value>
+  </data>
+  <data name="Property-by-Property Performance Analysis" xml:space="preserve">
+    <value>تحليل الأداء لكل عقار على حدة</value>
+  </data>
+  <data name="properties" xml:space="preserve">
+    <value>عقار</value>
+  </data>
+  <data name="Property Name" xml:space="preserve">
+    <value>اسم العقار</value>
+  </data>
+  <data name="Location" xml:space="preserve">
+    <value>الموقع</value>
+  </data>
+  <data name="Total Units" xml:space="preserve">
+    <value>إجمالي الوحدات</value>
+  </data>
+  <data name="Occupied" xml:space="preserve">
+    <value>مشغولة</value>
+  </data>
+  <data name="Vacant" xml:space="preserve">
+    <value>شاغرة</value>
+  </data>
+  <data name="Occupancy %" xml:space="preserve">
+    <value>نسبة الإشغال %</value>
+  </data>
+  <data name="Potential Rent (KWD)" xml:space="preserve">
+    <value>الإيجار المحتمل (دينار كويتي)</value>
+  </data>
+  <data name="Actual Rent (KWD)" xml:space="preserve">
+    <value>الإيجار الفعلي (دينار كويتي)</value>
+  </data>
+  <data name="Collection %" xml:space="preserve">
+    <value>نسبة التحصيل %</value>
+  </data>
+  <data name="Maintenance Cost (KWD)" xml:space="preserve">
+    <value>تكلفة الصيانة (دينار كويتي)</value>
+  </data>
+  <data name="Maintenance Count" xml:space="preserve">
+    <value>عدد طلبات الصيانة</value>
+  </data>
+  <data name="Net Revenue (KWD)" xml:space="preserve">
+    <value>صافي الإيرادات (دينار كويتي)</value>
+  </data>
+  <data name="Revenue/SqFt (KWD)" xml:space="preserve">
+    <value>الإيراد/القدم المربع (دينار كويتي)</value>
+  </data>
+  <data name="No property data available for the selected date range." xml:space="preserve">
+    <value>لا توجد بيانات عقارات متاحة للنطاق الزمني المحدد.</value>
+  </data>
+  <data name="Payment Analytics" xml:space="preserve">
+    <value>تحليلات المدفوعات</value>
+  </data>
+  <data name="Real-time payment tracking with advanced filtering" xml:space="preserve">
+    <value>تتبّع المدفوعات في الوقت الفعلي مع تصفية متقدمة</value>
+  </data>
+  <data name="Filters" xml:space="preserve">
+    <value>عوامل التصفية</value>
+  </data>
+  <data name="Payment Type" xml:space="preserve">
+    <value>نوع الدفع</value>
+  </data>
+  <data name="All Types" xml:space="preserve">
+    <value>جميع الأنواع</value>
+  </data>
+  <data name="Cash" xml:space="preserve">
+    <value>نقدًا</value>
+  </data>
+  <data name="All Statuses" xml:space="preserve">
+    <value>جميع الحالات</value>
+  </data>
+  <data name="Pending Verification" xml:space="preserve">
+    <value>بانتظار التحقق</value>
+  </data>
+  <data name="Tenant" xml:space="preserve">
+    <value>المستأجر</value>
+  </data>
+  <data name="All Tenants" xml:space="preserve">
+    <value>جميع المستأجرين</value>
+  </data>
+  <data name="Apply Filters" xml:space="preserve">
+    <value>تطبيق عوامل التصفية</value>
+  </data>
+  <data name="Reset" xml:space="preserve">
+    <value>إعادة تعيين</value>
+  </data>
+  <data name="payments" xml:space="preserve">
+    <value>دفعة</value>
+  </data>
+  <data name="Payment Records" xml:space="preserve">
+    <value>سجلات المدفوعات</value>
+  </data>
+  <data name="records" xml:space="preserve">
+    <value>سجل</value>
+  </data>
+  <data name="ID" xml:space="preserve">
+    <value>المعرّف</value>
+  </data>
+  <data name="No payments found matching the selected filters" xml:space="preserve">
+    <value>لم يتم العثور على مدفوعات مطابقة لعوامل التصفية المحددة</value>
+  </data>
+  <data name="Payment Score Legend:" xml:space="preserve">
+    <value>مفتاح تقييم الدفع:</value>
+  </data>
+  <data name="Excellent (95-100%)" xml:space="preserve">
+    <value>ممتاز (95-100%)</value>
+  </data>
+  <data name="Good (85-94%)" xml:space="preserve">
+    <value>جيد (85-94%)</value>
+  </data>
+  <data name="Fair (70-84%)" xml:space="preserve">
+    <value>مقبول (70-84%)</value>
+  </data>
+  <data name="Tenant Payment Behavior Analysis" xml:space="preserve">
+    <value>تحليل سلوك دفع المستأجرين</value>
+  </data>
+  <data name="tenants" xml:space="preserve">
+    <value>مستأجر</value>
+  </data>
+  <data name="Total Billed (KWD)" xml:space="preserve">
+    <value>إجمالي المفوتر (دينار كويتي)</value>
+  </data>
+  <data name="Total Paid (KWD)" xml:space="preserve">
+    <value>إجمالي المدفوع (دينار كويتي)</value>
+  </data>
+  <data name="Payment Rate %" xml:space="preserve">
+    <value>معدل الدفع %</value>
+  </data>
+  <data name="Payment Score" xml:space="preserve">
+    <value>تقييم الدفع</value>
+  </data>
+  <data name="Avg Days to Pay" xml:space="preserve">
+    <value>متوسط أيام السداد</value>
+  </data>
+  <data name="Last Payment Date" xml:space="preserve">
+    <value>تاريخ آخر دفعة</value>
+  </data>
+  <data name="Last Payment Amount" xml:space="preserve">
+    <value>مبلغ آخر دفعة</value>
+  </data>
+  <data name="No payments" xml:space="preserve">
+    <value>لا توجد مدفوعات</value>
+  </data>
+  <data name="Excellent Payers" xml:space="preserve">
+    <value>المسددون الممتازون</value>
+  </data>
+  <data name="Good Payers" xml:space="preserve">
+    <value>المسددون الجيدون</value>
+  </data>
+  <data name="Fair Payers" xml:space="preserve">
+    <value>المسددون المقبولون</value>
+  </data>
+  <data name="Poor Payers" xml:space="preserve">
+    <value>المسددون الضعفاء</value>
+  </data>
+  <data name="No tenant payment data available for the selected date range." xml:space="preserve">
+    <value>لا توجد بيانات مدفوعات مستأجرين متاحة للنطاق الزمني المحدد.</value>
+  </data>
+  <data name="Previous period" xml:space="preserve">
+    <value>الفترة السابقة</value>
+  </data>
+  <data name="Prev" xml:space="preserve">
+    <value>السابق</value>
+  </data>
+  <data name="Next period" xml:space="preserve">
+    <value>الفترة التالية</value>
+  </data>
+  <data name="Next" xml:space="preserve">
+    <value>التالي</value>
+  </data>
+  <data name="green" xml:space="preserve">
+    <value>أخضر</value>
+  </data>
+  <data name="amber" xml:space="preserve">
+    <value>كهرماني</value>
+  </data>
+  <data name="red" xml:space="preserve">
+    <value>أحمر</value>
+  </data>
+  <data name="not yet" xml:space="preserve">
+    <value>لم يتم بعد</value>
+  </data>
+  <data name="Period closed." xml:space="preserve">
+    <value>تم إقفال الفترة.</value>
+  </data>
+  <data name="Close this period" xml:space="preserve">
+    <value>إقفال هذه الفترة</value>
+  </data>
+  <data name="Closes the books for the current period. The close action is irreversible. Snapshot of the current checklist state is saved for audit. Re-running the monthly invoice job for a closed period will be blocked." xml:space="preserve">
+    <value>يقفل السجلات للفترة الحالية. إجراء الإقفال لا يمكن التراجع عنه. يتم حفظ لقطة لحالة قائمة التحقق الحالية لأغراض التدقيق. سيتم حظر إعادة تشغيل مهمة الفوترة الشهرية لفترة مُقفلة.</value>
+  </data>
+  <data name="Optional close-out note (e.g. 'all items addressed, ready for end-of-month sign-off')…" xml:space="preserve">
+    <value>ملاحظة إقفال اختيارية (مثل 'تمت معالجة جميع البنود، جاهز لاعتماد نهاية الشهر')…</value>
+  </data>
+  <data name="Mark period closed" xml:space="preserve">
+    <value>وضع علامة على الفترة كمُقفلة</value>
+  </data>
+  <data name="Advanced Reports Dashboard" xml:space="preserve">
+    <value>لوحة التقارير المتقدمة</value>
+  </data>
+  <data name="Generate customized reports with date ranges and export to Excel" xml:space="preserve">
+    <value>إنشاء تقارير مخصصة بنطاقات زمنية وتصديرها إلى Excel</value>
+  </data>
+  <data name="Report Configuration" xml:space="preserve">
+    <value>إعداد التقرير</value>
+  </data>
+  <data name="Report Type" xml:space="preserve">
+    <value>نوع التقرير</value>
+  </data>
+  <data name="-- Select Report Type --" xml:space="preserve">
+    <value>-- اختر نوع التقرير --</value>
+  </data>
+  <data name="Tenant Report" xml:space="preserve">
+    <value>تقرير المستأجرين</value>
+  </data>
+  <data name="Property Report" xml:space="preserve">
+    <value>تقرير العقارات</value>
+  </data>
+  <data name="Lease Report" xml:space="preserve">
+    <value>تقرير عقود الإيجار</value>
+  </data>
+  <data name="Payment Report" xml:space="preserve">
+    <value>تقرير المدفوعات</value>
+  </data>
+  <data name="Maintenance Report" xml:space="preserve">
+    <value>تقرير الصيانة</value>
+  </data>
+  <data name="Invoice Report" xml:space="preserve">
+    <value>تقرير الفواتير</value>
+  </data>
+  <data name="Revenue Summary" xml:space="preserve">
+    <value>ملخص الإيرادات</value>
+  </data>
+  <data name="Date Range" xml:space="preserve">
+    <value>النطاق الزمني</value>
+  </data>
+  <data name="Generate Report" xml:space="preserve">
+    <value>إنشاء التقرير</value>
+  </data>
+  <data name="Export to Excel" xml:space="preserve">
+    <value>تصدير إلى Excel</value>
+  </data>
+  <data name="Report Results" xml:space="preserve">
+    <value>نتائج التقرير</value>
+  </data>
+  <data name="No data available for the selected criteria." xml:space="preserve">
+    <value>لا توجد بيانات متاحة للمعايير المحددة.</value>
+  </data>
+  <data name="Quick Exports" xml:space="preserve">
+    <value>تصدير سريع</value>
+  </data>
+  <data name="Tenants Report" xml:space="preserve">
+    <value>تقرير المستأجرين</value>
+  </data>
+  <data name="Complete tenant information with contact details" xml:space="preserve">
+    <value>معلومات المستأجرين الكاملة مع بيانات الاتصال</value>
+  </data>
+  <data name="Properties Report" xml:space="preserve">
+    <value>تقرير العقارات</value>
+  </data>
+  <data name="Property listings with location and values" xml:space="preserve">
+    <value>قوائم العقارات مع المواقع والقيم</value>
+  </data>
+  <data name="Leases Report" xml:space="preserve">
+    <value>تقرير عقود الإيجار</value>
+  </data>
+  <data name="All lease agreements with terms and amounts" xml:space="preserve">
+    <value>جميع عقود الإيجار مع الشروط والمبالغ</value>
+  </data>
+  <data name="Payments Report" xml:space="preserve">
+    <value>تقرير المدفوعات</value>
+  </data>
+  <data name="Complete payment history with amounts in KWD" xml:space="preserve">
+    <value>سجل المدفوعات الكامل بالمبالغ بالدينار الكويتي</value>
+  </data>
+  <data name="Maintenance requests with status and costs" xml:space="preserve">
+    <value>طلبات الصيانة مع الحالة والتكاليف</value>
+  </data>
+  <data name="Invoices Report" xml:space="preserve">
+    <value>تقرير الفواتير</value>
+  </data>
+  <data name="All invoices with payment status and amounts" xml:space="preserve">
+    <value>جميع الفواتير مع حالة الدفع والمبالغ</value>
+  </data>
+  <data name="Financial overview with income and outstanding" xml:space="preserve">
+    <value>نظرة مالية عامة مع الدخل والمستحقات</value>
+  </data>
+  <data name="About Reports" xml:space="preserve">
+    <value>حول التقارير</value>
+  </data>
+  <data name="All reports are generated in Microsoft Excel format (.xlsx) with proper formatting. Currency amounts are shown in Kuwaiti Dinar (KWD) with 3 decimal places for accuracy." xml:space="preserve">
+    <value>يتم إنشاء جميع التقارير بتنسيق Microsoft Excel (‎.xlsx) بتنسيق مناسب. تُعرض المبالغ بالدينار الكويتي (KWD) بثلاث خانات عشرية لدقة أعلى.</value>
+  </data>
+  <data name="Access Denied" xml:space="preserve">
+    <value>تم رفض الوصول</value>
+  </data>
+  <data name="You don't have permission to access this page." xml:space="preserve">
+    <value>ليس لديك إذن للوصول إلى هذه الصفحة.</value>
+  </data>
+  <data name="Go to Home" xml:space="preserve">
+    <value>الذهاب إلى الرئيسية</value>
+  </data>
+  <data name="Go Back" xml:space="preserve">
+    <value>رجوع</value>
+  </data>
+  <data name="Create Account" xml:space="preserve">
+    <value>إنشاء حساب</value>
+  </data>
+  <data name="Join the Rent Collection System" xml:space="preserve">
+    <value>انضم إلى نظام تحصيل الإيجارات</value>
+  </data>
+  <data name="John" xml:space="preserve">
+    <value>محمد</value>
+  </data>
+  <data name="Doe" xml:space="preserve">
+    <value>الأحمد</value>
+  </data>
+  <data name="-- Select Company (Optional) --" xml:space="preserve">
+    <value>-- اختر الشركة (اختياري) --</value>
+  </data>
+  <data name="Enter strong password" xml:space="preserve">
+    <value>أدخل كلمة مرور قوية</value>
+  </data>
+  <data name="Must contain: 8+ characters, uppercase, lowercase, number, special character" xml:space="preserve">
+    <value>يجب أن تحتوي على: 8 أحرف أو أكثر، حرف كبير، حرف صغير، رقم، رمز خاص</value>
+  </data>
+  <data name="Confirm Password" xml:space="preserve">
+    <value>تأكيد كلمة المرور</value>
+  </data>
+  <data name="Confirm your password" xml:space="preserve">
+    <value>أكد كلمة المرور</value>
+  </data>
+  <data name="Already have an account?" xml:space="preserve">
+    <value>لديك حساب بالفعل؟</value>
+  </data>
+  <data name="Check Your Email" xml:space="preserve">
+    <value>تحقق من بريدك الإلكتروني</value>
+  </data>
+  <data name="If an account with that email exists, we've sent you a password reset code. Please check your email and use the code to reset your password." xml:space="preserve">
+    <value>إذا كان هناك حساب مرتبط بهذا البريد الإلكتروني، فقد أرسلنا إليك رمز إعادة تعيين كلمة المرور. يرجى التحقق من بريدك الإلكتروني واستخدام الرمز لإعادة تعيين كلمة المرور.</value>
+  </data>
+  <data name="The reset code expires in 24 hours. If you don't see the email, check your spam folder." xml:space="preserve">
+    <value>تنتهي صلاحية رمز إعادة التعيين خلال 24 ساعة. إذا لم تجد البريد الإلكتروني، فتحقق من مجلد الرسائل غير المرغوب فيها.</value>
+  </data>
+  <data name="Back to Login" xml:space="preserve">
+    <value>العودة إلى تسجيل الدخول</value>
+  </data>
+  <data name="Password Reset Successful" xml:space="preserve">
+    <value>تمت إعادة تعيين كلمة المرور بنجاح</value>
+  </data>
+  <data name="Your password has been successfully reset. You can now use your new password to log in to your account." xml:space="preserve">
+    <value>تمت إعادة تعيين كلمة المرور بنجاح. يمكنك الآن استخدام كلمة المرور الجديدة لتسجيل الدخول إلى حسابك.</value>
+  </data>
+  <data name="Go to Login" xml:space="preserve">
+    <value>الذهاب إلى تسجيل الدخول</value>
+  </data>
+  <data name="Reset Password" xml:space="preserve">
+    <value>إعادة تعيين كلمة المرور</value>
+  </data>
+  <data name="Enter your email to receive a reset code" xml:space="preserve">
+    <value>أدخل بريدك الإلكتروني لتلقي رمز إعادة التعيين</value>
+  </data>
+  <data name="Email Address" xml:space="preserve">
+    <value>عنوان البريد الإلكتروني</value>
+  </data>
+  <data name="Enter your registered email" xml:space="preserve">
+    <value>أدخل بريدك الإلكتروني المسجل</value>
+  </data>
+  <data name="Send Reset Code" xml:space="preserve">
+    <value>إرسال رمز إعادة التعيين</value>
+  </data>
+  <data name="Reset Your Password" xml:space="preserve">
+    <value>إعادة تعيين كلمة المرور</value>
+  </data>
+  <data name="Enter your new password" xml:space="preserve">
+    <value>أدخل كلمة المرور الجديدة</value>
+  </data>
+  <data name="Enter your email" xml:space="preserve">
+    <value>أدخل بريدك الإلكتروني</value>
+  </data>
+  <data name="New Password" xml:space="preserve">
+    <value>كلمة المرور الجديدة</value>
+  </data>
+  <data name="Enter new password" xml:space="preserve">
+    <value>أدخل كلمة المرور الجديدة</value>
+  </data>
+  <data name="Confirm new password" xml:space="preserve">
+    <value>أكد كلمة المرور الجديدة</value>
+  </data>
+  <data name="Your account details and password" xml:space="preserve">
+    <value>تفاصيل حسابك وكلمة المرور</value>
+  </data>
+  <data name="Admin" xml:space="preserve">
+    <value>المشرف</value>
+  </data>
+  <data name="My profile" xml:space="preserve">
+    <value>ملفي الشخصي</value>
+  </data>
+  <data name="Account details" xml:space="preserve">
+    <value>تفاصيل الحساب</value>
+  </data>
+  <data name="(login)" xml:space="preserve">
+    <value>(تسجيل الدخول)</value>
+  </data>
+  <data name="Email change requires admin re-verification" xml:space="preserve">
+    <value>يتطلب تغيير البريد الإلكتروني إعادة التحقق من قبل المشرف</value>
+  </data>
+  <data name="read-only" xml:space="preserve">
+    <value>للقراءة فقط</value>
+  </data>
+  <data name="Role" xml:space="preserve">
+    <value>الدور</value>
+  </data>
+  <data name="Only an Admin can change your role" xml:space="preserve">
+    <value>يمكن للمشرف فقط تغيير دورك</value>
+  </data>
+  <data name="admin-only" xml:space="preserve">
+    <value>للمشرف فقط</value>
+  </data>
+  <data name="Account created" xml:space="preserve">
+    <value>تاريخ إنشاء الحساب</value>
+  </data>
+  <data name="Last login" xml:space="preserve">
+    <value>آخر تسجيل دخول</value>
+  </data>
+  <data name="Never" xml:space="preserve">
+    <value>مطلقاً</value>
+  </data>
+  <data name="Editable info" xml:space="preserve">
+    <value>المعلومات القابلة للتعديل</value>
+  </data>
+  <data name="First name" xml:space="preserve">
+    <value>الاسم الأول</value>
+  </data>
+  <data name="Last name" xml:space="preserve">
+    <value>اسم العائلة</value>
+  </data>
+  <data name="Phone number" xml:space="preserve">
+    <value>رقم الهاتف</value>
+  </data>
+  <data name="Optional" xml:space="preserve">
+    <value>اختياري</value>
+  </data>
+  <data name="Save changes" xml:space="preserve">
+    <value>حفظ التغييرات</value>
+  </data>
+  <data name="Change password" xml:space="preserve">
+    <value>تغيير كلمة المرور</value>
+  </data>
+  <data name="Current password" xml:space="preserve">
+    <value>كلمة المرور الحالية</value>
+  </data>
+  <data name="New password" xml:space="preserve">
+    <value>كلمة المرور الجديدة</value>
+  </data>
+  <data name="(min 8)" xml:space="preserve">
+    <value>(8 أحرف على الأقل)</value>
+  </data>
+  <data name="Update password" xml:space="preserve">
+    <value>تحديث كلمة المرور</value>
+  </data>
+  <data name="Staff sign-in" xml:space="preserve">
+    <value>تسجيل دخول الموظفين</value>
+  </data>
+  <data name="Enter your username or email" xml:space="preserve">
+    <value>أدخل اسم المستخدم أو البريد الإلكتروني</value>
+  </data>
+  <data name="Show password" xml:space="preserve">
+    <value>إظهار كلمة المرور</value>
+  </data>
+  <data name="Remember me on this device" xml:space="preserve">
+    <value>تذكرني على هذا الجهاز</value>
+  </data>
+  <data name="Fill demo credentials" xml:space="preserve">
+    <value>تعبئة بيانات الدخول التجريبية</value>
+  </data>
+  <data name="or" xml:space="preserve">
+    <value>أو</value>
+  </data>
+  <data name="Are you a tenant?" xml:space="preserve">
+    <value>هل أنت مستأجر؟</value>
+  </data>
+  <data name="Tenant portal login" xml:space="preserve">
+    <value>تسجيل دخول بوابة المستأجر</value>
+  </data>
+  <data name="Manage tenant lease agreements by property" xml:space="preserve">
+    <value>إدارة عقود إيجار المستأجرين حسب العقار</value>
+  </data>
+  <data name="Total leases" xml:space="preserve">
+    <value>إجمالي العقود</value>
+  </data>
+  <data name="all statuses" xml:space="preserve">
+    <value>جميع الحالات</value>
+  </data>
+  <data name="in force" xml:space="preserve">
+    <value>ساري المفعول</value>
+  </data>
+  <data name="Expiring ≤ 30d" xml:space="preserve">
+    <value>تنتهي خلال 30 يوماً</value>
+  </data>
+  <data name="renew or terminate" xml:space="preserve">
+    <value>تجديد أو إنهاء</value>
+  </data>
+  <data name="Past end date" xml:space="preserve">
+    <value>تجاوزت تاريخ الانتهاء</value>
+  </data>
+  <data name="still Active" xml:space="preserve">
+    <value>ما زالت نشطة</value>
+  </data>
+  <data name="Monthly rent roll" xml:space="preserve">
+    <value>إجمالي الإيجار الشهري</value>
+  </data>
+  <data name="from Active leases" xml:space="preserve">
+    <value>من العقود النشطة</value>
+  </data>
+  <data name="Expiring" xml:space="preserve">
+    <value>قرب الانتهاء</value>
+  </data>
+  <data name="Export filtered leases as Excel" xml:space="preserve">
+    <value>تصدير العقود المفلترة كملف إكسل</value>
+  </data>
+  <data name="Active filters" xml:space="preserve">
+    <value>عوامل التصفية النشطة</value>
+  </data>
+  <data name="Search by tenant name, email, or PACI..." xml:space="preserve">
+    <value>البحث بالاسم أو البريد الإلكتروني أو الرقم المدني...</value>
+  </data>
+  <data name="Building:" xml:space="preserve">
+    <value>المبنى:</value>
+  </data>
+  <data name="All Buildings" xml:space="preserve">
+    <value>جميع المباني</value>
+  </data>
+  <data name="Terminated" xml:space="preserve">
+    <value>منتهٍ</value>
+  </data>
+  <data name="Showing all leases" xml:space="preserve">
+    <value>عرض جميع العقود</value>
+  </data>
+  <data name="Active Tenants" xml:space="preserve">
+    <value>مستأجرون نشطون</value>
+  </data>
+  <data name="Monthly Income" xml:space="preserve">
+    <value>الدخل الشهري</value>
+  </data>
+  <data name="View Property" xml:space="preserve">
+    <value>عرض العقار</value>
+  </data>
+  <data name="Collection" xml:space="preserve">
+    <value>التحصيل</value>
+  </data>
+  <data name="to" xml:space="preserve">
+    <value>إلى</value>
+  </data>
+  <data name="Past end" xml:space="preserve">
+    <value>تجاوز الانتهاء</value>
+  </data>
+  <data name="d ago" xml:space="preserve">
+    <value>يوماً</value>
+  </data>
+  <data name="days left" xml:space="preserve">
+    <value>يوماً متبقياً</value>
+  </data>
+  <data name="View invoices for this lease" xml:space="preserve">
+    <value>عرض فواتير هذا العقد</value>
+  </data>
+  <data name="History" xml:space="preserve">
+    <value>السجل</value>
+  </data>
+  <data name="View tenant" xml:space="preserve">
+    <value>عرض المستأجر</value>
+  </data>
+  <data name="Record payment" xml:space="preserve">
+    <value>تسجيل دفعة</value>
+  </data>
+  <data name="Renew" xml:space="preserve">
+    <value>تجديد</value>
+  </data>
+  <data name="Terminate" xml:space="preserve">
+    <value>إنهاء</value>
+  </data>
+  <data name="No matching results found" xml:space="preserve">
+    <value>لا توجد نتائج مطابقة</value>
+  </data>
+  <data name="No Leases Found" xml:space="preserve">
+    <value>لا توجد عقود إيجار</value>
+  </data>
+  <data name="Start by creating a lease agreement for your tenants" xml:space="preserve">
+    <value>ابدأ بإنشاء عقد إيجار لمستأجريك</value>
+  </data>
+  <data name="Create New Lease" xml:space="preserve">
+    <value>إنشاء عقد إيجار جديد</value>
+  </data>
+  <data name="Pick a unit + tenant, set dates + rent. Everything else is optional." xml:space="preserve">
+    <value>اختر الوحدة والمستأجر، وحدد التواريخ والإيجار. كل ما عدا ذلك اختياري.</value>
+  </data>
+  <data name="Lease" xml:space="preserve">
+    <value>عقد</value>
+  </data>
+  <data name="saved. Add another below." xml:space="preserve">
+    <value>تم الحفظ. أضف عقداً آخر أدناه.</value>
+  </data>
+  <data name="Required to save. Picking a Building filters Units." xml:space="preserve">
+    <value>مطلوبة للحفظ. اختيار المبنى يصفّي الوحدات.</value>
+  </data>
+  <data name="Building" xml:space="preserve">
+    <value>المبنى</value>
+  </data>
+  <data name="-- Select Building --" xml:space="preserve">
+    <value>-- اختر المبنى --</value>
+  </data>
+  <data name="Pick this first to narrow the Unit list" xml:space="preserve">
+    <value>اخترها أولاً لتضييق قائمة الوحدات</value>
+  </data>
+  <data name="-- Select Unit --" xml:space="preserve">
+    <value>-- اختر الوحدة --</value>
+  </data>
+  <data name="-- Select Tenant --" xml:space="preserve">
+    <value>-- اختر المستأجر --</value>
+  </data>
+  <data name="&gt; 0 ⇒ lease starts Pending until deposit invoice is collected" xml:space="preserve">
+    <value>أكبر من 0 ⇒ يبدأ العقد كمعلق حتى يتم تحصيل فاتورة التأمين</value>
+  </data>
+  <data name="More details (late fees, lease type, insurance)" xml:space="preserve">
+    <value>تفاصيل إضافية (رسوم التأخير، نوع العقد، التأمين)</value>
+  </data>
+  <data name="Payment &amp; Late Fees" xml:space="preserve">
+    <value>الدفع ورسوم التأخير</value>
+  </data>
+  <data name="Due Day" xml:space="preserve">
+    <value>يوم الاستحقاق</value>
+  </data>
+  <data name="Day of month" xml:space="preserve">
+    <value>يوم من الشهر</value>
+  </data>
+  <data name="Late Fee" xml:space="preserve">
+    <value>رسوم التأخير</value>
+  </data>
+  <data name="Grace Period" xml:space="preserve">
+    <value>فترة السماح</value>
+  </data>
+  <data name="Lease Settings" xml:space="preserve">
+    <value>إعدادات العقد</value>
+  </data>
+  <data name="Lease Type" xml:space="preserve">
+    <value>نوع العقد</value>
+  </data>
+  <data name="Fixed Term" xml:space="preserve">
+    <value>مدة ثابتة</value>
+  </data>
+  <data name="Month-to-Month" xml:space="preserve">
+    <value>شهرياً</value>
+  </data>
+  <data name="Annual" xml:space="preserve">
+    <value>سنوي</value>
+  </data>
+  <data name="Set Frequency = None if this lease doesn't include insurance. Insurance invoices bill separately from rent." xml:space="preserve">
+    <value>اضبط التكرار على «بلا» إذا كان هذا العقد لا يشمل التأمين. تُصدَر فواتير التأمين بشكل منفصل عن الإيجار.</value>
+  </data>
+  <data name="Frequency" xml:space="preserve">
+    <value>التكرار</value>
+  </data>
+  <data name="None" xml:space="preserve">
+    <value>بلا</value>
+  </data>
+  <data name="Monthly" xml:space="preserve">
+    <value>شهري</value>
+  </data>
+  <data name="One-time (at lease start)" xml:space="preserve">
+    <value>مرة واحدة (عند بدء العقد)</value>
+  </data>
+  <data name="Start" xml:space="preserve">
+    <value>البداية</value>
+  </data>
+  <data name="Defaults to lease start" xml:space="preserve">
+    <value>يُضبط افتراضياً على بداية العقد</value>
+  </data>
+  <data name="Signed lease, deposit receipt, insurance certificate, etc. Max 5MB per file." xml:space="preserve">
+    <value>عقد موقّع، إيصال تأمين، شهادة تأمين، إلخ. الحد الأقصى 5 ميغابايت لكل ملف.</value>
+  </data>
+  <data name="Signed Lease Agreement" xml:space="preserve">
+    <value>عقد إيجار موقّع</value>
+  </data>
+  <data name="Security Deposit Receipt" xml:space="preserve">
+    <value>إيصال مبلغ التأمين</value>
+  </data>
+  <data name="Insurance Document" xml:space="preserve">
+    <value>مستند التأمين</value>
+  </data>
+  <data name="Lease Addendum" xml:space="preserve">
+    <value>ملحق العقد</value>
+  </data>
+  <data name="Termination Notice" xml:space="preserve">
+    <value>إشعار الإنهاء</value>
+  </data>
+  <data name="Unit Handover Form" xml:space="preserve">
+    <value>نموذج تسليم الوحدة</value>
+  </data>
+  <data name="Inspection Report" xml:space="preserve">
+    <value>تقرير المعاينة</value>
+  </data>
+  <data name="PDF, JPG, PNG, DOC, DOCX — max 5MB" xml:space="preserve">
+    <value>PDF، JPG، PNG، DOC، DOCX — بحد أقصى 5 ميغابايت</value>
+  </data>
+  <data name="Edit Lease" xml:space="preserve">
+    <value>تعديل العقد</value>
+  </data>
+  <data name="Update lease agreement details" xml:space="preserve">
+    <value>تحديث تفاصيل عقد الإيجار</value>
+  </data>
+  <data name="This lease is" xml:space="preserve">
+    <value>هذا العقد</value>
+  </data>
+  <data name="Closed leases preserve financial history and cannot be edited." xml:space="preserve">
+    <value>تحتفظ العقود المغلقة بالسجل المالي ولا يمكن تعديلها.</value>
+  </data>
+  <data name="Open the lease detail page" xml:space="preserve">
+    <value>افتح صفحة تفاصيل العقد</value>
+  </data>
+  <data name="to renew or view the audit trail." xml:space="preserve">
+    <value>للتجديد أو عرض سجل التدقيق.</value>
+  </data>
+  <data name="Building, Unit &amp; Tenant" xml:space="preserve">
+    <value>المبنى والوحدة والمستأجر</value>
+  </data>
+  <data name="Picking a building filters the Unit list below." xml:space="preserve">
+    <value>اختيار المبنى يصفّي قائمة الوحدات أدناه.</value>
+  </data>
+  <data name="Lease Duration" xml:space="preserve">
+    <value>مدة العقد</value>
+  </data>
+  <data name="Financial Details" xml:space="preserve">
+    <value>التفاصيل المالية</value>
+  </data>
+  <data name="(optional)" xml:space="preserve">
+    <value>(اختياري)</value>
+  </data>
+  <data name="Payment Due Date" xml:space="preserve">
+    <value>تاريخ استحقاق الدفع</value>
+  </data>
+  <data name="Day of month (1-31)" xml:space="preserve">
+    <value>يوم من الشهر (1-31)</value>
+  </data>
+  <data name="Late Fee Amount (Optional)" xml:space="preserve">
+    <value>مبلغ رسوم التأخير (اختياري)</value>
+  </data>
+  <data name="Late Fee Grace Period (Days)" xml:space="preserve">
+    <value>فترة سماح رسوم التأخير (أيام)</value>
+  </data>
+  <data name="Grace period in days" xml:space="preserve">
+    <value>فترة السماح بالأيام</value>
+  </data>
+  <data name="Lease Status" xml:space="preserve">
+    <value>حالة العقد</value>
+  </data>
+  <data name="Use the Details page to renew, terminate, or transfer." xml:space="preserve">
+    <value>استخدم صفحة التفاصيل للتجديد أو الإنهاء أو النقل.</value>
+  </data>
+  <data name="Insurance (optional)" xml:space="preserve">
+    <value>التأمين (اختياري)</value>
+  </data>
+  <data name="Insurance Amount" xml:space="preserve">
+    <value>مبلغ التأمين</value>
+  </data>
+  <data name="One-time" xml:space="preserve">
+    <value>مرة واحدة</value>
+  </data>
+  <data name="Start Date (optional)" xml:space="preserve">
+    <value>تاريخ البدء (اختياري)</value>
+  </data>
+  <data name="Complete lease agreement information" xml:space="preserve">
+    <value>معلومات عقد الإيجار الكاملة</value>
+  </data>
+  <data name="Lease Expired!" xml:space="preserve">
+    <value>انتهى العقد!</value>
+  </data>
+  <data name="This lease expired" xml:space="preserve">
+    <value>انتهى هذا العقد منذ</value>
+  </data>
+  <data name="days ago. Consider renewing or terminating the lease." xml:space="preserve">
+    <value>يوماً. يُنصح بتجديد العقد أو إنهائه.</value>
+  </data>
+  <data name="Lease Expiring Soon!" xml:space="preserve">
+    <value>العقد على وشك الانتهاء!</value>
+  </data>
+  <data name="This lease will expire in" xml:space="preserve">
+    <value>سينتهي هذا العقد خلال</value>
+  </data>
+  <data name="days. Consider initiating renewal discussions." xml:space="preserve">
+    <value>يوماً. يُنصح ببدء مناقشات التجديد.</value>
+  </data>
+  <data name="Property &amp; Unit" xml:space="preserve">
+    <value>العقار والوحدة</value>
+  </data>
+  <data name="Address" xml:space="preserve">
+    <value>العنوان</value>
+  </data>
+  <data name="Unit Number" xml:space="preserve">
+    <value>رقم الوحدة</value>
+  </data>
+  <data name="Unit Type" xml:space="preserve">
+    <value>نوع الوحدة</value>
+  </data>
+  <data name="Bedrooms" xml:space="preserve">
+    <value>غرف النوم</value>
+  </data>
+  <data name="Bathrooms" xml:space="preserve">
+    <value>دورات المياه</value>
+  </data>
+  <data name="Duration" xml:space="preserve">
+    <value>المدة</value>
+  </data>
+  <data name="Expired (" xml:space="preserve">
+    <value>منتهٍ (</value>
+  </data>
+  <data name="days ago)" xml:space="preserve">
+    <value>يوماً مضت)</value>
+  </data>
+  <data name="Refunded" xml:space="preserve">
+    <value>مُسترد</value>
+  </data>
+  <data name="Invoiced" xml:space="preserve">
+    <value>تمت الفوترة</value>
+  </data>
+  <data name="Not yet invoiced" xml:space="preserve">
+    <value>لم تتم الفوترة بعد</value>
+  </data>
+  <data name="Insurance Premium" xml:space="preserve">
+    <value>قسط التأمين</value>
+  </data>
+  <data name="Insurance Start" xml:space="preserve">
+    <value>بداية التأمين</value>
+  </data>
+  <data name="Late Fee Amount" xml:space="preserve">
+    <value>مبلغ رسوم التأخير</value>
+  </data>
+  <data name="Late Fee Grace Period" xml:space="preserve">
+    <value>فترة سماح رسوم التأخير</value>
+  </data>
+  <data name="Created Date" xml:space="preserve">
+    <value>تاريخ الإنشاء</value>
+  </data>
+  <data name="Last Modified" xml:space="preserve">
+    <value>آخر تعديل</value>
+  </data>
+  <data name="Total Payments:" xml:space="preserve">
+    <value>إجمالي الدفعات:</value>
+  </data>
+  <data name="Total Amount Paid:" xml:space="preserve">
+    <value>إجمالي المبلغ المدفوع:</value>
+  </data>
+  <data name="Invoice History" xml:space="preserve">
+    <value>سجل الفواتير</value>
+  </data>
+  <data name="Invoice ID" xml:space="preserve">
+    <value>رقم الفاتورة</value>
+  </data>
+  <data name="Issue Date" xml:space="preserve">
+    <value>تاريخ الإصدار</value>
+  </data>
+  <data name="Recent activity" xml:space="preserve">
+    <value>النشاط الأخير</value>
+  </data>
+  <data name="Full history" xml:space="preserve">
+    <value>السجل الكامل</value>
+  </data>
+  <data name="by" xml:space="preserve">
+    <value>بواسطة</value>
+  </data>
+  <data name="Activate lease" xml:space="preserve">
+    <value>تفعيل العقد</value>
+  </data>
+  <data name="Flips this lease from" xml:space="preserve">
+    <value>يحوّل هذا العقد من</value>
+  </data>
+  <data name="A" xml:space="preserve">
+    <value>يتم إصدار</value>
+  </data>
+  <data name="Deposit invoice" xml:space="preserve">
+    <value>فاتورة التأمين</value>
+  </data>
+  <data name="for" xml:space="preserve">
+    <value>بقيمة</value>
+  </data>
+  <data name="KWD is issued at the same time." xml:space="preserve">
+    <value>KWD في الوقت نفسه.</value>
+  </data>
+  <data name="The deposit invoice has already been issued; activation will only flip the status." xml:space="preserve">
+    <value>تم إصدار فاتورة التأمين مسبقاً؛ سيقتصر التفعيل على تغيير الحالة فقط.</value>
+  </data>
+  <data name="Activate this lease and issue the deposit invoice (if not already done)?" xml:space="preserve">
+    <value>هل تريد تفعيل هذا العقد وإصدار فاتورة التأمين (إن لم تُصدَر بعد)؟</value>
+  </data>
+  <data name="Renew lease" xml:space="preserve">
+    <value>تجديد العقد</value>
+  </data>
+  <data name="New end date" xml:space="preserve">
+    <value>تاريخ الانتهاء الجديد</value>
+  </data>
+  <data name="New start date" xml:space="preserve">
+    <value>تاريخ البدء الجديد</value>
+  </data>
+  <data name="(optional — default: day after current end, or today if past)" xml:space="preserve">
+    <value>(اختياري — الافتراضي: اليوم التالي للانتهاء الحالي، أو اليوم إن كان قد مضى)</value>
+  </data>
+  <data name="New monthly rent" xml:space="preserve">
+    <value>الإيجار الشهري الجديد</value>
+  </data>
+  <data name="(optional — keeps current rent if blank)" xml:space="preserve">
+    <value>(اختياري — يُبقي الإيجار الحالي إذا تُرك فارغاً)</value>
+  </data>
+  <data name="Terminate lease" xml:space="preserve">
+    <value>إنهاء العقد</value>
+  </data>
+  <data name="Terminate this lease and free its unit? This is irreversible — the lease becomes a closed historical record." xml:space="preserve">
+    <value>هل تريد إنهاء هذا العقد وتحرير وحدته؟ هذا الإجراء لا يمكن التراجع عنه — يصبح العقد سجلاً تاريخياً مغلقاً.</value>
+  </data>
+  <data name="Termination date" xml:space="preserve">
+    <value>تاريخ الإنهاء</value>
+  </data>
+  <data name="Reason" xml:space="preserve">
+    <value>السبب</value>
+  </data>
+  <data name="e.g. tenant moved out, breach of contract…" xml:space="preserve">
+    <value>مثال: انتقل المستأجر، إخلال بالعقد…</value>
+  </data>
+  <data name="Deposit refunded amount" xml:space="preserve">
+    <value>مبلغ التأمين المُسترد</value>
+  </data>
+  <data name="(0 if no refund)" xml:space="preserve">
+    <value>(0 إذا لم يكن هناك استرداد)</value>
+  </data>
+  <data name="Transfer to another unit" xml:space="preserve">
+    <value>النقل إلى وحدة أخرى</value>
+  </data>
+  <data name="Transfer this tenant to the new unit? Old lease will be terminated; a new Active lease is opened on the target unit." xml:space="preserve">
+    <value>هل تريد نقل هذا المستأجر إلى الوحدة الجديدة؟ سيتم إنهاء العقد القديم، وفتح عقد نشط جديد على الوحدة المستهدفة.</value>
+  </data>
+  <data name="Target unit" xml:space="preserve">
+    <value>الوحدة المستهدفة</value>
+  </data>
+  <data name="-- Select a vacant unit --" xml:space="preserve">
+    <value>-- اختر وحدة شاغرة --</value>
+  </data>
+  <data name="Effective date" xml:space="preserve">
+    <value>تاريخ السريان</value>
+  </data>
+  <data name="Transfer" xml:space="preserve">
+    <value>نقل</value>
+  </data>
+  <data name="Admin only." xml:space="preserve">
+    <value>للمشرفين فقط.</value>
+  </data>
+  <data name="Renew / Terminate / Transfer actions require Admin role." xml:space="preserve">
+    <value>إجراءات التجديد / الإنهاء / النقل تتطلب صلاحية مشرف.</value>
+  </data>
+  <data name="Operational managers can view leases but not run lifecycle transitions." xml:space="preserve">
+    <value>يمكن للمديرين التشغيليين عرض العقود دون تنفيذ تحولات دورة الحياة.</value>
+  </data>
+  <data name="Delete Lease" xml:space="preserve">
+    <value>حذف العقد</value>
+  </data>
+  <data name="Are you sure you want to delete this lease?" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف هذا العقد؟</value>
+  </data>
+  <data name="This action cannot be undone. Deleting this lease will remove all associated data including payment history and invoices." xml:space="preserve">
+    <value>لا يمكن التراجع عن هذا الإجراء. سيؤدي حذف هذا العقد إلى إزالة جميع البيانات المرتبطة به بما في ذلك سجل الدفعات والفواتير.</value>
+  </data>
+  <data name="Lease Information" xml:space="preserve">
+    <value>معلومات العقد</value>
+  </data>
+  <data name="Tenant Email" xml:space="preserve">
+    <value>البريد الإلكتروني للمستأجر</value>
+  </data>
+  <data name="payment(s)" xml:space="preserve">
+    <value>دفعة/دفعات</value>
+  </data>
+  <data name="invoice(s)" xml:space="preserve">
+    <value>فاتورة/فواتير</value>
+  </data>
+  <data name="Active Lease Detected!" xml:space="preserve">
+    <value>تم رصد عقد نشط!</value>
+  </data>
+  <data name="This is an active lease. Consider terminating the lease and updating the unit status before deletion." xml:space="preserve">
+    <value>هذا عقد نشط. يُنصح بإنهاء العقد وتحديث حالة الوحدة قبل الحذف.</value>
+  </data>
+  <data name="Renewal chain link!" xml:space="preserve">
+    <value>رابط سلسلة التجديد!</value>
+  </data>
+  <data name="This lease was renewed as lease" xml:space="preserve">
+    <value>تم تجديد هذا العقد كعقد</value>
+  </data>
+  <data name="Deleting it will orphan the successor's" xml:space="preserve">
+    <value>سيؤدي حذفه إلى فقدان الرابط الخلفي</value>
+  </data>
+  <data name="back-link." xml:space="preserve">
+    <value>في العقد اللاحق.</value>
+  </data>
+  <data name="Deletion will fail." xml:space="preserve">
+    <value>سيفشل الحذف.</value>
+  </data>
+  <data name="This lease has" xml:space="preserve">
+    <value>يحتوي هذا العقد على</value>
+  </data>
+  <data name="invoice(s). Terminate it instead — financial history must be preserved." xml:space="preserve">
+    <value>فاتورة/فواتير. قم بإنهائه بدلاً من ذلك — يجب الحفاظ على السجل المالي.</value>
+  </data>
+  <data name="Payment History Will Be Lost!" xml:space="preserve">
+    <value>سيتم فقدان سجل الدفعات!</value>
+  </data>
+  <data name="payment record(s) that will be permanently deleted." xml:space="preserve">
+    <value>سجل/سجلات دفع سيتم حذفها نهائياً.</value>
+  </data>
+  <data name="Back to lease detail" xml:space="preserve">
+    <value>العودة إلى تفاصيل العقد</value>
+  </data>
+  <data name="Renewal chain" xml:space="preserve">
+    <value>سلسلة التجديد</value>
+  </data>
+  <data name="All events" xml:space="preserve">
+    <value>جميع الأحداث</value>
+  </data>
+  <data name="Lifecycle only" xml:space="preserve">
+    <value>دورة الحياة فقط</value>
+  </data>
+  <data name="Edits only" xml:space="preserve">
+    <value>التعديلات فقط</value>
+  </data>
+  <data name="event" xml:space="preserve">
+    <value>حدث</value>
+  </data>
+  <data name="events" xml:space="preserve">
+    <value>أحداث</value>
+  </data>
+  <data name="on lease #" xml:space="preserve">
+    <value>على العقد رقم</value>
+  </data>
+  <data name="Reconstructed from row stamps during backfill" xml:space="preserve">
+    <value>أُعيد بناؤه من طوابع الصفوف أثناء التعبئة الرجعية</value>
+  </data>
+  <data name="synthesised" xml:space="preserve">
+    <value>مُركّب</value>
+  </data>
+  <data name="Payload" xml:space="preserve">
+    <value>الحمولة</value>
+  </data>
+  <data name="No history yet" xml:space="preserve">
+    <value>لا يوجد سجل بعد</value>
+  </data>
+  <data name="Once this lease is renewed, terminated, transferred, or edited, the events will appear here." xml:space="preserve">
+    <value>بمجرد تجديد هذا العقد أو إنهائه أو نقله أو تعديله، ستظهر الأحداث هنا.</value>
+  </data>
+  <data name="Add Unit" xml:space="preserve">
+    <value>إضافة وحدة</value>
+  </data>
+  <data name="Total units" xml:space="preserve">
+    <value>إجمالي الوحدات</value>
+  </data>
+  <data name="Avg rent" xml:space="preserve">
+    <value>متوسط الإيجار</value>
+  </data>
+  <data name="Unit # or property name…" xml:space="preserve">
+    <value>رقم الوحدة أو اسم العقار…</value>
+  </data>
+  <data name="All properties" xml:space="preserve">
+    <value>جميع العقارات</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>تطبيق</value>
+  </data>
+  <data name="All" xml:space="preserve">
+    <value>الكل</value>
+  </data>
+  <data name="Reserved" xml:space="preserve">
+    <value>محجوزة</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="Studio" xml:space="preserve">
+    <value>استوديو</value>
+  </data>
+  <data name="Commercial" xml:space="preserve">
+    <value>تجاري</value>
+  </data>
+  <data name="Type" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="Floor" xml:space="preserve">
+    <value>الطابق</value>
+  </data>
+  <data name="/month" xml:space="preserve">
+    <value>/شهرياً</value>
+  </data>
+  <data name="Available from" xml:space="preserve">
+    <value>متاحة اعتباراً من</value>
+  </data>
+  <data name="No units match these filters" xml:space="preserve">
+    <value>لا توجد وحدات مطابقة لهذه المعايير</value>
+  </data>
+  <data name="to see the whole portfolio." xml:space="preserve">
+    <value>لعرض المحفظة بالكامل.</value>
+  </data>
+  <data name="Create a new physical unit on a property" xml:space="preserve">
+    <value>إنشاء وحدة فعلية جديدة في عقار</value>
+  </data>
+  <data name="-- Pick a property --" xml:space="preserve">
+    <value>-- اختر عقاراً --</value>
+  </data>
+  <data name="Unit number" xml:space="preserve">
+    <value>رقم الوحدة</value>
+  </data>
+  <data name="e.g. A101" xml:space="preserve">
+    <value>مثال: A101</value>
+  </data>
+  <data name="-- Type --" xml:space="preserve">
+    <value>-- النوع --</value>
+  </data>
+  <data name="Floor (optional)" xml:space="preserve">
+    <value>الطابق (اختياري)</value>
+  </data>
+  <data name="Square feet" xml:space="preserve">
+    <value>القدم المربع</value>
+  </data>
+  <data name="Monthly rent (KWD)" xml:space="preserve">
+    <value>الإيجار الشهري (KWD)</value>
+  </data>
+  <data name="Leave 0 if the unit's rent will be set later on the lease." xml:space="preserve">
+    <value>اترك القيمة 0 إذا كان سيتم تحديد إيجار الوحدة لاحقاً في العقد.</value>
+  </data>
+  <data name="Create unit" xml:space="preserve">
+    <value>إنشاء الوحدة</value>
+  </data>
+  <data name="Specs only — status changes go through the Details page" xml:space="preserve">
+    <value>المواصفات فقط — تُجرى تغييرات الحالة عبر صفحة التفاصيل</value>
+  </data>
+  <data name="Edit unit" xml:space="preserve">
+    <value>تعديل الوحدة</value>
+  </data>
+  <data name="Hold:" xml:space="preserve">
+    <value>تعليق:</value>
+  </data>
+  <data name="Lifetime tenants" xml:space="preserve">
+    <value>إجمالي المستأجرين</value>
+  </data>
+  <data name="Months occupied" xml:space="preserve">
+    <value>أشهر الإشغال</value>
+  </data>
+  <data name="Current rent" xml:space="preserve">
+    <value>الإيجار الحالي</value>
+  </data>
+  <data name="Specs" xml:space="preserve">
+    <value>المواصفات</value>
+  </data>
+  <data name="Size band" xml:space="preserve">
+    <value>فئة الحجم</value>
+  </data>
+  <data name="Current tenant" xml:space="preserve">
+    <value>المستأجر الحالي</value>
+  </data>
+  <data name="Lease #" xml:space="preserve">
+    <value>عقد رقم</value>
+  </data>
+  <data name="KWD/mo" xml:space="preserve">
+    <value>KWD/شهرياً</value>
+  </data>
+  <data name="No active lease. The unit is currently" xml:space="preserve">
+    <value>لا يوجد عقد نشط. الوحدة حالياً</value>
+  </data>
+  <data name="Open new lease" xml:space="preserve">
+    <value>فتح عقد جديد</value>
+  </data>
+  <data name="Recent past tenants" xml:space="preserve">
+    <value>المستأجرون السابقون الأخيرون</value>
+  </data>
+  <data name="Rent" xml:space="preserve">
+    <value>الإيجار</value>
+  </data>
+  <data name="Open" xml:space="preserve">
+    <value>فتح</value>
+  </data>
+  <data name="Recent maintenance" xml:space="preserve">
+    <value>الصيانة الأخيرة</value>
+  </data>
+  <data name="Distinct tenants" xml:space="preserve">
+    <value>مستأجرون مختلفون</value>
+  </data>
+  <data name="Tenancies" xml:space="preserve">
+    <value>الإيجارات</value>
+  </data>
+  <data name="Occupied days" xml:space="preserve">
+    <value>أيام الإشغال</value>
+  </data>
+  <data name="Vacant days" xml:space="preserve">
+    <value>أيام الشغور</value>
+  </data>
+  <data name="This unit has never been leased." xml:space="preserve">
+    <value>لم يتم تأجير هذه الوحدة قط.</value>
+  </data>
+  <data name="day" xml:space="preserve">
+    <value>يوم</value>
+  </data>
+  <data name="KWD / month" xml:space="preserve">
+    <value>KWD / شهرياً</value>
+  </data>
+  <data name="Welcome back! Here's an overview of your rental properties." xml:space="preserve">
+    <value>مرحبًا بعودتك! إليك نظرة عامة على عقاراتك الإيجارية.</value>
+  </data>
+  <data name="Needs your attention today" xml:space="preserve">
+    <value>يتطلب انتباهك اليوم</value>
+  </data>
+  <data name="Overdue invoices" xml:space="preserve">
+    <value>فواتير متأخرة</value>
+  </data>
+  <data name="KWD outstanding" xml:space="preserve">
+    <value>دينار كويتي مستحقة</value>
+  </data>
+  <data name="Leases to activate" xml:space="preserve">
+    <value>عقود إيجار بانتظار التفعيل</value>
+  </data>
+  <data name="Deposit invoice will be issued" xml:space="preserve">
+    <value>سيتم إصدار فاتورة التأمين</value>
+  </data>
+  <data name="Bank transfers to approve" xml:space="preserve">
+    <value>تحويلات بنكية بانتظار الموافقة</value>
+  </data>
+  <data name="Awaiting your review" xml:space="preserve">
+    <value>بانتظار مراجعتك</value>
+  </data>
+  <data name="Leases expiring ≤30d" xml:space="preserve">
+    <value>عقود إيجار تنتهي خلال 30 يومًا</value>
+  </data>
+  <data name="Renew or terminate soon" xml:space="preserve">
+    <value>جدد أو أنهِ قريبًا</value>
+  </data>
+  <data name="Deposits unpaid" xml:space="preserve">
+    <value>تأمينات غير مدفوعة</value>
+  </data>
+  <data name="Issued, awaiting receipt" xml:space="preserve">
+    <value>صدرت، بانتظار السداد</value>
+  </data>
+  <data name="Vacant units" xml:space="preserve">
+    <value>وحدات شاغرة</value>
+  </data>
+  <data name="Available now or within 30d" xml:space="preserve">
+    <value>متاحة الآن أو خلال 30 يومًا</value>
+  </data>
+  <data name="Recent system activity" xml:space="preserve">
+    <value>نشاط النظام الأخير</value>
+  </data>
+  <data name="View all →" xml:space="preserve">
+    <value>عرض الكل ←</value>
+  </data>
+  <data name="Occupied Units" xml:space="preserve">
+    <value>الوحدات المشغولة</value>
+  </data>
+  <data name="Occupancy" xml:space="preserve">
+    <value>نسبة الإشغال</value>
+  </data>
+  <data name="Revenue (This Month)" xml:space="preserve">
+    <value>الإيرادات (هذا الشهر)</value>
+  </data>
+  <data name="Open Maintenance" xml:space="preserve">
+    <value>طلبات الصيانة المفتوحة</value>
+  </data>
+  <data name="No recent payments" xml:space="preserve">
+    <value>لا توجد مدفوعات حديثة</value>
+  </data>
+  <data name="Upcoming Lease Expirations" xml:space="preserve">
+    <value>عقود الإيجار المنتهية قريبًا</value>
+  </data>
+  <data name="No expiring leases in the next 30 days" xml:space="preserve">
+    <value>لا توجد عقود إيجار تنتهي خلال الثلاثين يومًا القادمة</value>
+  </data>
+  <data name="Quick Actions" xml:space="preserve">
+    <value>إجراءات سريعة</value>
+  </data>
+  <data name="Add Property" xml:space="preserve">
+    <value>إضافة عقار</value>
+  </data>
+  <data name="New Maintenance" xml:space="preserve">
+    <value>صيانة جديدة</value>
+  </data>
+  <data name="View Reports" xml:space="preserve">
+    <value>عرض التقارير</value>
+  </data>
+  <data name="Welcome" xml:space="preserve">
+    <value>مرحبًا</value>
+  </data>
+  <data name="Learn about" xml:space="preserve">
+    <value>تعرف على</value>
+  </data>
+  <data name="building Web apps with ASP.NET Core" xml:space="preserve">
+    <value>إنشاء تطبيقات الويب باستخدام ASP.NET Core</value>
+  </data>
+  <data name="Use this page to detail your site's privacy policy." xml:space="preserve">
+    <value>استخدم هذه الصفحة لتوضيح سياسة الخصوصية الخاصة بموقعك.</value>
+  </data>
+  <data name="Create New Property" xml:space="preserve">
+    <value>إنشاء عقار جديد</value>
+  </data>
+  <data name="Required fields are in Essentials. Address &amp; management can be filled later." xml:space="preserve">
+    <value>الحقول المطلوبة موجودة في القسم الأساسي. يمكن إدخال العنوان والإدارة لاحقًا.</value>
+  </data>
+  <data name="Required to save. PACI is the building's unique PACI ID." xml:space="preserve">
+    <value>مطلوبة للحفظ. رقم PACI هو المعرّف الفريد للمبنى.</value>
+  </data>
+  <data name="Building PACI number" xml:space="preserve">
+    <value>رقم PACI للمبنى</value>
+  </data>
+  <data name="Unique PACI identifier for the building" xml:space="preserve">
+    <value>معرّف PACI الفريد للمبنى</value>
+  </data>
+  <data name="Property Type" xml:space="preserve">
+    <value>نوع العقار</value>
+  </data>
+  <data name="Apartment" xml:space="preserve">
+    <value>شقة</value>
+  </data>
+  <data name="House" xml:space="preserve">
+    <value>منزل</value>
+  </data>
+  <data name="Condo" xml:space="preserve">
+    <value>شقة تمليك</value>
+  </data>
+  <data name="Governorate" xml:space="preserve">
+    <value>المحافظة</value>
+  </data>
+  <data name="-- Select Governorate --" xml:space="preserve">
+    <value>-- اختر المحافظة --</value>
+  </data>
+  <data name="Al Asimah" xml:space="preserve">
+    <value>العاصمة</value>
+  </data>
+  <data name="Hawalli" xml:space="preserve">
+    <value>حولي</value>
+  </data>
+  <data name="Farwaniya" xml:space="preserve">
+    <value>الفروانية</value>
+  </data>
+  <data name="Ahmadi" xml:space="preserve">
+    <value>الأحمدي</value>
+  </data>
+  <data name="Jahra" xml:space="preserve">
+    <value>الجهراء</value>
+  </data>
+  <data name="Mubarak Al Kabeer" xml:space="preserve">
+    <value>مبارك الكبير</value>
+  </data>
+  <data name="Number of Units" xml:space="preserve">
+    <value>عدد الوحدات</value>
+  </data>
+  <data name="-- Select Company --" xml:space="preserve">
+    <value>-- اختر الشركة --</value>
+  </data>
+  <data name="More details (address, valuation, manager)" xml:space="preserve">
+    <value>مزيد من التفاصيل (العنوان، التقييم، المدير)</value>
+  </data>
+  <data name="Full Address" xml:space="preserve">
+    <value>العنوان الكامل</value>
+  </data>
+  <data name="Street address" xml:space="preserve">
+    <value>عنوان الشارع</value>
+  </data>
+  <data name="Area" xml:space="preserve">
+    <value>المنطقة</value>
+  </data>
+  <data name="Block" xml:space="preserve">
+    <value>القطعة</value>
+  </data>
+  <data name="Street" xml:space="preserve">
+    <value>الشارع</value>
+  </data>
+  <data name="Building Number" xml:space="preserve">
+    <value>رقم المبنى</value>
+  </data>
+  <data name="Valuation &amp; Acquisition" xml:space="preserve">
+    <value>التقييم والاقتناء</value>
+  </data>
+  <data name="Purchase Date" xml:space="preserve">
+    <value>تاريخ الشراء</value>
+  </data>
+  <data name="Property Value" xml:space="preserve">
+    <value>قيمة العقار</value>
+  </data>
+  <data name="Management" xml:space="preserve">
+    <value>الإدارة</value>
+  </data>
+  <data name="Property Manager" xml:space="preserve">
+    <value>مدير العقار</value>
+  </data>
+  <data name="-- Select Manager --" xml:space="preserve">
+    <value>-- اختر المدير --</value>
+  </data>
+  <data name="Can be assigned later" xml:space="preserve">
+    <value>يمكن تعيينه لاحقًا</value>
+  </data>
+  <data name="Deed, permits, certificates, insurance, floor plans. Max 10MB per file." xml:space="preserve">
+    <value>صك الملكية، التصاريح، الشهادات، التأمين، المخططات. الحد الأقصى 10 ميجابايت لكل ملف.</value>
+  </data>
+  <data name="Property Deed" xml:space="preserve">
+    <value>صك ملكية العقار</value>
+  </data>
+  <data name="Title Document" xml:space="preserve">
+    <value>وثيقة الملكية</value>
+  </data>
+  <data name="Building Permit" xml:space="preserve">
+    <value>رخصة البناء</value>
+  </data>
+  <data name="Occupancy Certificate" xml:space="preserve">
+    <value>شهادة الإشغال</value>
+  </data>
+  <data name="Insurance Policy" xml:space="preserve">
+    <value>وثيقة التأمين</value>
+  </data>
+  <data name="Fire Safety Certificate" xml:space="preserve">
+    <value>شهادة السلامة من الحرائق</value>
+  </data>
+  <data name="Electrical Certificate" xml:space="preserve">
+    <value>شهادة الكهرباء</value>
+  </data>
+  <data name="Plumbing Certificate" xml:space="preserve">
+    <value>شهادة السباكة</value>
+  </data>
+  <data name="Municipality License" xml:space="preserve">
+    <value>رخصة البلدية</value>
+  </data>
+  <data name="Property Survey" xml:space="preserve">
+    <value>مساحة العقار</value>
+  </data>
+  <data name="Floor Plan" xml:space="preserve">
+    <value>مخطط الطابق</value>
+  </data>
+  <data name="PDF, JPG, PNG, DOC, DOCX, DWG — max 10MB" xml:space="preserve">
+    <value>PDF، JPG، PNG، DOC، DOCX، DWG — الحد الأقصى 10 ميجابايت</value>
+  </data>
+  <data name="Create Property" xml:space="preserve">
+    <value>إنشاء العقار</value>
+  </data>
+  <data name="Delete Property" xml:space="preserve">
+    <value>حذف العقار</value>
+  </data>
+  <data name="Are you sure you want to delete this property?" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف هذا العقار؟</value>
+  </data>
+  <data name="This action cannot be undone. Deleting this property will remove all associated units, leases, and data." xml:space="preserve">
+    <value>لا يمكن التراجع عن هذا الإجراء. سيؤدي حذف هذا العقار إلى إزالة جميع الوحدات وعقود الإيجار والبيانات المرتبطة به.</value>
+  </data>
+  <data name="Property Information" xml:space="preserve">
+    <value>معلومات العقار</value>
+  </data>
+  <data name="Manager" xml:space="preserve">
+    <value>المدير</value>
+  </data>
+  <data name="Active Tenants Detected!" xml:space="preserve">
+    <value>تم اكتشاف مستأجرين نشطين!</value>
+  </data>
+  <data name="This property has" xml:space="preserve">
+    <value>يحتوي هذا العقار على</value>
+  </data>
+  <data name="occupied unit(s). You should terminate or transfer leases before deleting this property." xml:space="preserve">
+    <value>وحدة (وحدات) مشغولة. يجب إنهاء عقود الإيجار أو نقلها قبل حذف هذا العقار.</value>
+  </data>
+  <data name="Units Will Be Deleted" xml:space="preserve">
+    <value>سيتم حذف الوحدات</value>
+  </data>
+  <data name="This property contains" xml:space="preserve">
+    <value>يحتوي هذا العقار على</value>
+  </data>
+  <data name="unit(s). All units and their associated data will be permanently deleted." xml:space="preserve">
+    <value>وحدة (وحدات). سيتم حذف جميع الوحدات والبيانات المرتبطة بها نهائيًا.</value>
+  </data>
+  <data name="Property Details" xml:space="preserve">
+    <value>تفاصيل العقار</value>
+  </data>
+  <data name="Complete property information" xml:space="preserve">
+    <value>معلومات العقار الكاملة</value>
+  </data>
+  <data name="Number Of Units" xml:space="preserve">
+    <value>عدد الوحدات</value>
+  </data>
+  <data name="Address Information" xml:space="preserve">
+    <value>معلومات العنوان</value>
+  </data>
+  <data name="Manager Name" xml:space="preserve">
+    <value>اسم المدير</value>
+  </data>
+  <data name="All units" xml:space="preserve">
+    <value>جميع الوحدات</value>
+  </data>
+  <data name="Add unit" xml:space="preserve">
+    <value>إضافة وحدة</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>الإجمالي</value>
+  </data>
+  <data name="Current Tenants" xml:space="preserve">
+    <value>المستأجرون الحاليون</value>
+  </data>
+  <data name="Lease Start" xml:space="preserve">
+    <value>بداية العقد</value>
+  </data>
+  <data name="Lease End" xml:space="preserve">
+    <value>نهاية العقد</value>
+  </data>
+  <data name="Upload" xml:space="preserve">
+    <value>رفع</value>
+  </data>
+  <data name="Type (e.g. Contract, ID)" xml:space="preserve">
+    <value>النوع (مثل: عقد، هوية)</value>
+  </data>
+  <data name="Description (optional)" xml:space="preserve">
+    <value>الوصف (اختياري)</value>
+  </data>
+  <data name="Upload &amp; link" xml:space="preserve">
+    <value>رفع وربط</value>
+  </data>
+  <data name="No documents linked to this property yet." xml:space="preserve">
+    <value>لا توجد مستندات مرتبطة بهذا العقار حتى الآن.</value>
+  </data>
+  <data name="Edit Property" xml:space="preserve">
+    <value>تعديل العقار</value>
+  </data>
+  <data name="Update property information" xml:space="preserve">
+    <value>تحديث معلومات العقار</value>
+  </data>
+  <data name="Basic Information" xml:space="preserve">
+    <value>المعلومات الأساسية</value>
+  </data>
+  <data name="Property PACI Number" xml:space="preserve">
+    <value>رقم PACI للعقار</value>
+  </data>
+  <data name="-- Select Manager (Optional) --" xml:space="preserve">
+    <value>-- اختر المدير (اختياري) --</value>
+  </data>
+  <data name="Payment Gateway Configuration" xml:space="preserve">
+    <value>إعدادات بوابة الدفع</value>
+  </data>
+  <data name="Accept KNET Payments" xml:space="preserve">
+    <value>قبول مدفوعات KNET</value>
+  </data>
+  <data name="Accept Bank Transfer" xml:space="preserve">
+    <value>قبول التحويل البنكي</value>
+  </data>
+  <data name="Accept Cash" xml:space="preserve">
+    <value>قبول النقد</value>
+  </data>
+  <data name="KNET Gateway Settings" xml:space="preserve">
+    <value>إعدادات بوابة KNET</value>
+  </data>
+  <data name="KNET Account ID" xml:space="preserve">
+    <value>معرّف حساب KNET</value>
+  </data>
+  <data name="e.g., KNET_ACC_001" xml:space="preserve">
+    <value>مثال: KNET_ACC_001</value>
+  </data>
+  <data name="Unique identifier for this property's KNET account" xml:space="preserve">
+    <value>المعرّف الفريد لحساب KNET الخاص بهذا العقار</value>
+  </data>
+  <data name="KNET Merchant ID (MID)" xml:space="preserve">
+    <value>معرّف التاجر KNET (MID)</value>
+  </data>
+  <data name="e.g., MID_BUILDING_001" xml:space="preserve">
+    <value>مثال: MID_BUILDING_001</value>
+  </data>
+  <data name="Merchant ID assigned by KNET for this property" xml:space="preserve">
+    <value>معرّف التاجر الممنوح من KNET لهذا العقار</value>
+  </data>
+  <data name="KNET Tranportal ID" xml:space="preserve">
+    <value>معرّف Tranportal الخاص بـ KNET</value>
+  </data>
+  <data name="Merchant Tranportal ID" xml:space="preserve">
+    <value>معرّف Tranportal للتاجر</value>
+  </data>
+  <data name="KNET Tranportal Password" xml:space="preserve">
+    <value>كلمة مرور Tranportal الخاصة بـ KNET</value>
+  </data>
+  <data name="Tranportal password" xml:space="preserve">
+    <value>كلمة مرور Tranportal</value>
+  </data>
+  <data name="KNET Terminal Resource Key" xml:space="preserve">
+    <value>مفتاح موارد جهاز KNET</value>
+  </data>
+  <data name="AES encryption key" xml:space="preserve">
+    <value>مفتاح تشفير AES</value>
+  </data>
+  <data name="Bank Settlement Details" xml:space="preserve">
+    <value>تفاصيل التسوية البنكية</value>
+  </data>
+  <data name="Bank Account Number (IBAN)" xml:space="preserve">
+    <value>رقم الحساب البنكي (IBAN)</value>
+  </data>
+  <data name="IBAN for receiving KNET settlements" xml:space="preserve">
+    <value>رقم IBAN لاستلام تسويات KNET</value>
+  </data>
+  <data name="occupied" xml:space="preserve">
+    <value>مشغولة</value>
+  </data>
+  <data name="portfolio-wide" xml:space="preserve">
+    <value>على مستوى المحفظة</value>
+  </data>
+  <data name="Potential rent" xml:space="preserve">
+    <value>الإيجار المحتمل</value>
+  </data>
+  <data name="per month, all units" xml:space="preserve">
+    <value>شهريًا، لجميع الوحدات</value>
+  </data>
+  <data name="available now" xml:space="preserve">
+    <value>متاحة الآن</value>
+  </data>
+  <data name="Sort" xml:space="preserve">
+    <value>ترتيب</value>
+  </data>
+  <data name="Newest first" xml:space="preserve">
+    <value>الأحدث أولًا</value>
+  </data>
+  <data name="Name A → Z" xml:space="preserve">
+    <value>الاسم أ ← ي</value>
+  </data>
+  <data name="Name Z → A" xml:space="preserve">
+    <value>الاسم ي ← أ</value>
+  </data>
+  <data name="Value (high → low)" xml:space="preserve">
+    <value>القيمة (من الأعلى إلى الأدنى)</value>
+  </data>
+  <data name="Units (most first)" xml:space="preserve">
+    <value>الوحدات (الأكثر أولًا)</value>
+  </data>
+  <data name="Occupancy (high → low)" xml:space="preserve">
+    <value>الإشغال (من الأعلى إلى الأدنى)</value>
+  </data>
+  <data name="View mode" xml:space="preserve">
+    <value>وضع العرض</value>
+  </data>
+  <data name="Grid view" xml:space="preserve">
+    <value>عرض شبكي</value>
+  </data>
+  <data name="Table view" xml:space="preserve">
+    <value>عرض جدولي</value>
+  </data>
+  <data name="Export filtered list as Excel" xml:space="preserve">
+    <value>تصدير القائمة المُصفّاة إلى Excel</value>
+  </data>
+  <data name="Search by property name, PACI number, address, or area..." xml:space="preserve">
+    <value>ابحث باسم العقار أو رقم PACI أو العنوان أو المنطقة...</value>
+  </data>
+  <data name="Type:" xml:space="preserve">
+    <value>النوع:</value>
+  </data>
+  <data name="Governorate:" xml:space="preserve">
+    <value>المحافظة:</value>
+  </data>
+  <data name="All Governorates" xml:space="preserve">
+    <value>جميع المحافظات</value>
+  </data>
+  <data name="Showing all" xml:space="preserve">
+    <value>عرض جميع</value>
+  </data>
+  <data name="PACI:" xml:space="preserve">
+    <value>PACI:</value>
+  </data>
+  <data name="Toggle property status" xml:space="preserve">
+    <value>تبديل حالة العقار</value>
+  </data>
+  <data name="View Units" xml:space="preserve">
+    <value>عرض الوحدات</value>
+  </data>
+  <data name="View Tenants" xml:space="preserve">
+    <value>عرض المستأجرين</value>
+  </data>
+  <data name="View Invoices" xml:space="preserve">
+    <value>عرض الفواتير</value>
+  </data>
+  <data name="Performance" xml:space="preserve">
+    <value>الأداء</value>
+  </data>
+  <data name="MTD" xml:space="preserve">
+    <value>منذ بداية الشهر</value>
+  </data>
+  <data name="Open units" xml:space="preserve">
+    <value>فتح الوحدات</value>
+  </data>
+  <data name="Value" xml:space="preserve">
+    <value>القيمة</value>
+  </data>
+  <data name="vacant" xml:space="preserve">
+    <value>شاغرة</value>
+  </data>
+  <data name="Governorate · Area" xml:space="preserve">
+    <value>المحافظة · المنطقة</value>
+  </data>
+  <data name="Value (KWD)" xml:space="preserve">
+    <value>القيمة (دينار كويتي)</value>
+  </data>
+  <data name="No matching properties found" xml:space="preserve">
+    <value>لم يتم العثور على عقارات مطابقة</value>
+  </data>
+  <data name="No Properties Found" xml:space="preserve">
+    <value>لم يتم العثور على عقارات</value>
+  </data>
+  <data name="Start by adding your first property" xml:space="preserve">
+    <value>ابدأ بإضافة عقارك الأول</value>
+  </data>
+  <data name="Record Cash Payment" xml:space="preserve">
+    <value>تسجيل دفعة نقدية</value>
+  </data>
+  <data name="Log cash collected at the office. It will require verification by an approver before the invoice is settled." xml:space="preserve">
+    <value>سجّل المبالغ النقدية المحصّلة في المكتب. ستتطلب التحقق من قِبَل المعتمِد قبل تسوية الفاتورة.</value>
+  </data>
+  <data name="Back to Approvals" xml:space="preserve">
+    <value>العودة إلى الموافقات</value>
+  </data>
+  <data name="-- Select an outstanding invoice --" xml:space="preserve">
+    <value>-- اختر فاتورة مستحقة --</value>
+  </data>
+  <data name="Tenant &amp; property are taken from the invoice automatically." xml:space="preserve">
+    <value>يتم أخذ المستأجر والعقار من الفاتورة تلقائيًا.</value>
+  </data>
+  <data name="Partial payments are allowed." xml:space="preserve">
+    <value>يُسمح بالدفعات الجزئية.</value>
+  </data>
+  <data name="Payment date" xml:space="preserve">
+    <value>تاريخ الدفع</value>
+  </data>
+  <data name="Notes (optional)" xml:space="preserve">
+    <value>ملاحظات (اختياري)</value>
+  </data>
+  <data name="Denominations, payer name at counter, etc." xml:space="preserve">
+    <value>الفئات النقدية، اسم الدافع عند الكاونتر، إلخ.</value>
+  </data>
+  <data name="Delete Invoice" xml:space="preserve">
+    <value>حذف الفاتورة</value>
+  </data>
+  <data name="Confirm deletion of invoice" xml:space="preserve">
+    <value>تأكيد حذف الفاتورة</value>
+  </data>
+  <data name="Warning: This action cannot be undone!" xml:space="preserve">
+    <value>تحذير: لا يمكن التراجع عن هذا الإجراء!</value>
+  </data>
+  <data name="You are about to permanently delete this invoice. All invoice data will be removed from the system." xml:space="preserve">
+    <value>أنت على وشك حذف هذه الفاتورة نهائيًا. ستتم إزالة جميع بيانات الفاتورة من النظام.</value>
+  </data>
+  <data name="Invoice Summary" xml:space="preserve">
+    <value>ملخص الفاتورة</value>
+  </data>
+  <data name="Invoice Date:" xml:space="preserve">
+    <value>تاريخ الفاتورة:</value>
+  </data>
+  <data name="Due Date:" xml:space="preserve">
+    <value>تاريخ الاستحقاق:</value>
+  </data>
+  <data name="Cancelled" xml:space="preserve">
+    <value>ملغاة</value>
+  </data>
+  <data name="Invoice Type:" xml:space="preserve">
+    <value>نوع الفاتورة:</value>
+  </data>
+  <data name="Total Amount:" xml:space="preserve">
+    <value>المبلغ الإجمالي:</value>
+  </data>
+  <data name="Paid Amount:" xml:space="preserve">
+    <value>المبلغ المدفوع:</value>
+  </data>
+  <data name="Balance:" xml:space="preserve">
+    <value>الرصيد:</value>
+  </data>
+  <data name="Name:" xml:space="preserve">
+    <value>الاسم:</value>
+  </data>
+  <data name="Email:" xml:space="preserve">
+    <value>البريد الإلكتروني:</value>
+  </data>
+  <data name="Phone:" xml:space="preserve">
+    <value>الهاتف:</value>
+  </data>
+  <data name="Address:" xml:space="preserve">
+    <value>العنوان:</value>
+  </data>
+  <data name="Print" xml:space="preserve">
+    <value>طباعة</value>
+  </data>
+  <data name="Mark as Paid" xml:space="preserve">
+    <value>تحديد كمدفوعة</value>
+  </data>
+  <data name="INVOICE" xml:space="preserve">
+    <value>فاتورة</value>
+  </data>
+  <data name="Property &amp; Unit Information" xml:space="preserve">
+    <value>معلومات العقار والوحدة</value>
+  </data>
+  <data name="PACI Number:" xml:space="preserve">
+    <value>رقم الهيئة العامة للمعلومات المدنية (PACI):</value>
+  </data>
+  <data name="Invoice Items" xml:space="preserve">
+    <value>بنود الفاتورة</value>
+  </data>
+  <data name="Monthly rent payment" xml:space="preserve">
+    <value>دفعة الإيجار الشهري</value>
+  </data>
+  <data name="Subtotal:" xml:space="preserve">
+    <value>المجموع الفرعي:</value>
+  </data>
+  <data name="Tax:" xml:space="preserve">
+    <value>الضريبة:</value>
+  </data>
+  <data name="Balance Due:" xml:space="preserve">
+    <value>الرصيد المستحق:</value>
+  </data>
+  <data name="Pending Amount" xml:space="preserve">
+    <value>المبلغ المعلق</value>
+  </data>
+  <data name="Paid Amount" xml:space="preserve">
+    <value>المبلغ المدفوع</value>
+  </data>
+  <data name="Overdue Count" xml:space="preserve">
+    <value>عدد المتأخرة</value>
+  </data>
+  <data name="Search by invoice #, tenant name, email, or property..." xml:space="preserve">
+    <value>ابحث برقم الفاتورة أو اسم المستأجر أو البريد الإلكتروني أو العقار...</value>
+  </data>
+  <data name="All Invoices" xml:space="preserve">
+    <value>جميع الفواتير</value>
+  </data>
+  <data name="Deposit" xml:space="preserve">
+    <value>تأمين</value>
+  </data>
+  <data name="Invoice #" xml:space="preserve">
+    <value>رقم الفاتورة</value>
+  </data>
+  <data name="Mark as Overdue" xml:space="preserve">
+    <value>تحديد كمتأخرة</value>
+  </data>
+  <data name="No invoices found" xml:space="preserve">
+    <value>لم يتم العثور على فواتير</value>
+  </data>
+  <data name="Try adjusting your search criteria or filters" xml:space="preserve">
+    <value>حاول تعديل معايير البحث أو عوامل التصفية</value>
+  </data>
+  <data name="Reset Filters" xml:space="preserve">
+    <value>إعادة تعيين عوامل التصفية</value>
+  </data>
+  <data name="Total Received" xml:space="preserve">
+    <value>إجمالي المستلم</value>
+  </data>
+  <data name="Total Transactions" xml:space="preserve">
+    <value>إجمالي المعاملات</value>
+  </data>
+  <data name="Mismatches Detected" xml:space="preserve">
+    <value>حالات عدم تطابق مكتشفة</value>
+  </data>
+  <data name="Search by Civil ID..." xml:space="preserve">
+    <value>ابحث بالرقم المدني...</value>
+  </data>
+  <data name="Mismatch:" xml:space="preserve">
+    <value>عدم التطابق:</value>
+  </data>
+  <data name="Has Mismatch" xml:space="preserve">
+    <value>يوجد عدم تطابق</value>
+  </data>
+  <data name="No Mismatch" xml:space="preserve">
+    <value>لا يوجد عدم تطابق</value>
+  </data>
+  <data name="Filter" xml:space="preserve">
+    <value>تصفية</value>
+  </data>
+  <data name="Showing" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="Tenant / Civil ID" xml:space="preserve">
+    <value>المستأجر / الرقم المدني</value>
+  </data>
+  <data name="Property / Unit" xml:space="preserve">
+    <value>العقار / الوحدة</value>
+  </data>
+  <data name="KNET Info" xml:space="preserve">
+    <value>معلومات KNET</value>
+  </data>
+  <data name="Civil ID Mismatch" xml:space="preserve">
+    <value>عدم تطابق الرقم المدني</value>
+  </data>
+  <data name="Building Mismatch" xml:space="preserve">
+    <value>عدم تطابق المبنى</value>
+  </data>
+  <data name="Wrong MID" xml:space="preserve">
+    <value>رقم MID غير صحيح</value>
+  </data>
+  <data name="No Payments Found" xml:space="preserve">
+    <value>لم يتم العثور على دفعات</value>
+  </data>
+  <data name="Start recording payments when tenants pay rent" xml:space="preserve">
+    <value>ابدأ بتسجيل الدفعات عند سداد المستأجرين للإيجار</value>
+  </data>
+  <data name="Payment Review" xml:space="preserve">
+    <value>مراجعة الدفعة</value>
+  </data>
+  <data name="Review payment details before approval" xml:space="preserve">
+    <value>راجع تفاصيل الدفعة قبل الموافقة</value>
+  </data>
+  <data name="Payment Information" xml:space="preserve">
+    <value>معلومات الدفعة</value>
+  </data>
+  <data name="Payment ID" xml:space="preserve">
+    <value>معرّف الدفعة</value>
+  </data>
+  <data name="Transaction Reference" xml:space="preserve">
+    <value>مرجع المعاملة</value>
+  </data>
+  <data name="Receipt Number" xml:space="preserve">
+    <value>رقم الإيصال</value>
+  </data>
+  <data name="Not available" xml:space="preserve">
+    <value>غير متوفر</value>
+  </data>
+  <data name="Bank Transfer Details" xml:space="preserve">
+    <value>تفاصيل الحوالة البنكية</value>
+  </data>
+  <data name="Transfer Proof" xml:space="preserve">
+    <value>إثبات التحويل</value>
+  </data>
+  <data name="View Document" xml:space="preserve">
+    <value>عرض المستند</value>
+  </data>
+  <data name="Cash Payment Details" xml:space="preserve">
+    <value>تفاصيل الدفعة النقدية</value>
+  </data>
+  <data name="Collected By" xml:space="preserve">
+    <value>محصّلة بواسطة</value>
+  </data>
+  <data name="Invoice Information" xml:space="preserve">
+    <value>معلومات الفاتورة</value>
+  </data>
+  <data name="Total Amount" xml:space="preserve">
+    <value>المبلغ الإجمالي</value>
+  </data>
+  <data name="Approval Actions" xml:space="preserve">
+    <value>إجراءات الموافقة</value>
+  </data>
+  <data name="Approve Payment" xml:space="preserve">
+    <value>الموافقة على الدفعة</value>
+  </data>
+  <data name="Reject Payment" xml:space="preserve">
+    <value>رفض الدفعة</value>
+  </data>
+  <data name="Confirm Approval" xml:space="preserve">
+    <value>تأكيد الموافقة</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="Are you sure you want to approve this payment?" xml:space="preserve">
+    <value>هل أنت متأكد أنك تريد الموافقة على هذه الدفعة؟</value>
+  </data>
+  <data name="Payment ID:" xml:space="preserve">
+    <value>معرّف الدفعة:</value>
+  </data>
+  <data name="Tenant:" xml:space="preserve">
+    <value>المستأجر:</value>
+  </data>
+  <data name="Please provide a reason for rejecting this payment:" xml:space="preserve">
+    <value>يرجى تقديم سبب رفض هذه الدفعة:</value>
+  </data>
+  <data name="Rejection Reason" xml:space="preserve">
+    <value>سبب الرفض</value>
+  </data>
+  <data name="Enter the reason for rejection..." xml:space="preserve">
+    <value>أدخل سبب الرفض...</value>
+  </data>
+  <data name="Approval History" xml:space="preserve">
+    <value>سجل الموافقات</value>
+  </data>
+  <data name="Back to Pending Approvals" xml:space="preserve">
+    <value>العودة إلى الموافقات المعلقة</value>
+  </data>
+  <data name="Filter History" xml:space="preserve">
+    <value>تصفية السجل</value>
+  </data>
+  <data name="Approved" xml:space="preserve">
+    <value>موافق عليها</value>
+  </data>
+  <data name="Rejected" xml:space="preserve">
+    <value>مرفوضة</value>
+  </data>
+  <data name="Approved/Rejected By" xml:space="preserve">
+    <value>تمت الموافقة/الرفض بواسطة</value>
+  </data>
+  <data name="Approval/Rejection Date" xml:space="preserve">
+    <value>تاريخ الموافقة/الرفض</value>
+  </data>
+  <data name="record(s)" xml:space="preserve">
+    <value>سجل</value>
+  </data>
+  <data name="No History Found" xml:space="preserve">
+    <value>لم يتم العثور على سجل</value>
+  </data>
+  <data name="There are no approved or rejected payments matching your criteria." xml:space="preserve">
+    <value>لا توجد دفعات موافق عليها أو مرفوضة تطابق معاييرك.</value>
+  </data>
+  <data name="Pending Approvals" xml:space="preserve">
+    <value>الموافقات المعلقة</value>
+  </data>
+  <data name="Approved Today" xml:space="preserve">
+    <value>تمت الموافقة اليوم</value>
+  </data>
+  <data name="Rejected Today" xml:space="preserve">
+    <value>تم الرفض اليوم</value>
+  </data>
+  <data name="Submitted Date" xml:space="preserve">
+    <value>تاريخ التقديم</value>
+  </data>
+  <data name="Approve" xml:space="preserve">
+    <value>موافقة</value>
+  </data>
+  <data name="Reject" xml:space="preserve">
+    <value>رفض</value>
+  </data>
+  <data name="No Pending Approvals" xml:space="preserve">
+    <value>لا توجد موافقات معلقة</value>
+  </data>
+  <data name="All payments have been reviewed. Check back later for new submissions." xml:space="preserve">
+    <value>تمت مراجعة جميع الدفعات. تحقق لاحقًا من وجود طلبات جديدة.</value>
+  </data>
+  <data name="View Approval History" xml:space="preserve">
+    <value>عرض سجل الموافقات</value>
+  </data>
+  <data name="Create New User" xml:space="preserve">
+    <value>إنشاء مستخدم جديد</value>
+  </data>
+  <data name="Add a new user to the system" xml:space="preserve">
+    <value>إضافة مستخدم جديد إلى النظام</value>
+  </data>
+  <data name="Username" xml:space="preserve">
+    <value>اسم المستخدم</value>
+  </data>
+  <data name="Enter username" xml:space="preserve">
+    <value>أدخل اسم المستخدم</value>
+  </data>
+  <data name="Enter first name" xml:space="preserve">
+    <value>أدخل الاسم الأول</value>
+  </data>
+  <data name="Enter last name" xml:space="preserve">
+    <value>أدخل اسم العائلة</value>
+  </data>
+  <data name="Phone Number (Optional)" xml:space="preserve">
+    <value>رقم الهاتف (اختياري)</value>
+  </data>
+  <data name="Security" xml:space="preserve">
+    <value>الأمان</value>
+  </data>
+  <data name="Enter password" xml:space="preserve">
+    <value>أدخل كلمة المرور</value>
+  </data>
+  <data name="Password will be securely hashed before storage" xml:space="preserve">
+    <value>سيتم تشفير كلمة المرور بشكل آمن قبل تخزينها</value>
+  </data>
+  <data name="Role &amp; Permissions" xml:space="preserve">
+    <value>الدور والصلاحيات</value>
+  </data>
+  <data name="Select Role" xml:space="preserve">
+    <value>اختر الدور</value>
+  </data>
+  <data name="User - Basic access" xml:space="preserve">
+    <value>مستخدم - وصول أساسي</value>
+  </data>
+  <data name="Accountant - Financial operations" xml:space="preserve">
+    <value>محاسب - العمليات المالية</value>
+  </data>
+  <data name="Manager - Manage properties and tenants" xml:space="preserve">
+    <value>مدير - إدارة العقارات والمستأجرين</value>
+  </data>
+  <data name="Admin - Full system access" xml:space="preserve">
+    <value>مسؤول - وصول كامل للنظام</value>
+  </data>
+  <data name="Account Settings" xml:space="preserve">
+    <value>إعدادات الحساب</value>
+  </data>
+  <data name="Is Active" xml:space="preserve">
+    <value>نشط</value>
+  </data>
+  <data name="Email Verified" xml:space="preserve">
+    <value>البريد الإلكتروني مُوثَّق</value>
+  </data>
+  <data name="Create User" xml:space="preserve">
+    <value>إنشاء مستخدم</value>
+  </data>
+  <data name="Information" xml:space="preserve">
+    <value>معلومات</value>
+  </data>
+  <data name="Required Fields:" xml:space="preserve">
+    <value>الحقول المطلوبة:</value>
+  </data>
+  <data name="Password Security:" xml:space="preserve">
+    <value>أمان كلمة المرور:</value>
+  </data>
+  <data name="Passwords are hashed using PBKDF2" xml:space="preserve">
+    <value>يتم تشفير كلمات المرور باستخدام PBKDF2</value>
+  </data>
+  <data name="SHA256 with 10,000 iterations" xml:space="preserve">
+    <value>SHA256 مع 10,000 تكرار</value>
+  </data>
+  <data name="16-byte salt for each password" xml:space="preserve">
+    <value>قيمة تمليح بحجم 16 بايت لكل كلمة مرور</value>
+  </data>
+  <data name="Default Settings:" xml:space="preserve">
+    <value>الإعدادات الافتراضية:</value>
+  </data>
+  <data name="Account will be active by default" xml:space="preserve">
+    <value>سيكون الحساب نشطًا بشكل افتراضي</value>
+  </data>
+  <data name="Email verification is optional" xml:space="preserve">
+    <value>توثيق البريد الإلكتروني اختياري</value>
+  </data>
+  <data name="Created date is set automatically" xml:space="preserve">
+    <value>يتم تعيين تاريخ الإنشاء تلقائيًا</value>
+  </data>
+  <data name="Delete User" xml:space="preserve">
+    <value>حذف المستخدم</value>
+  </data>
+  <data name="Are you sure you want to delete this user?" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف هذا المستخدم؟</value>
+  </data>
+  <data name="Warning: This action cannot be undone" xml:space="preserve">
+    <value>تحذير: لا يمكن التراجع عن هذا الإجراء</value>
+  </data>
+  <data name="Important:" xml:space="preserve">
+    <value>هام:</value>
+  </data>
+  <data name="Deleting this user will permanently remove all their data from the system. This action cannot be reversed." xml:space="preserve">
+    <value>سيؤدي حذف هذا المستخدم إلى إزالة جميع بياناته من النظام بشكل دائم. لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="User Information" xml:space="preserve">
+    <value>معلومات المستخدم</value>
+  </data>
+  <data name="Last Login" xml:space="preserve">
+    <value>آخر تسجيل دخول</value>
+  </data>
+  <data name="Yes, Delete This User" xml:space="preserve">
+    <value>نعم، احذف هذا المستخدم</value>
+  </data>
+  <data name="Edit User" xml:space="preserve">
+    <value>تعديل المستخدم</value>
+  </data>
+  <data name="Update user information and roles" xml:space="preserve">
+    <value>تحديث معلومات المستخدم وأدواره</value>
+  </data>
+  <data name="New Password (Optional)" xml:space="preserve">
+    <value>كلمة مرور جديدة (اختياري)</value>
+  </data>
+  <data name="Leave blank to keep current password" xml:space="preserve">
+    <value>اتركه فارغًا للاحتفاظ بكلمة المرور الحالية</value>
+  </data>
+  <data name="Only enter a value if you want to change the password" xml:space="preserve">
+    <value>أدخل قيمة فقط إذا كنت ترغب في تغيير كلمة المرور</value>
+  </data>
+  <data name="Password Update:" xml:space="preserve">
+    <value>تحديث كلمة المرور:</value>
+  </data>
+  <data name="Password field is optional" xml:space="preserve">
+    <value>حقل كلمة المرور اختياري</value>
+  </data>
+  <data name="New passwords are hashed securely" xml:space="preserve">
+    <value>يتم تشفير كلمات المرور الجديدة بشكل آمن</value>
+  </data>
+  <data name="Current Status:" xml:space="preserve">
+    <value>الحالة الحالية:</value>
+  </data>
+  <data name="Verified" xml:space="preserve">
+    <value>مُوثَّق</value>
+  </data>
+  <data name="Not Verified" xml:space="preserve">
+    <value>غير مُوثَّق</value>
+  </data>
+  <data name="User Details" xml:space="preserve">
+    <value>تفاصيل المستخدم</value>
+  </data>
+  <data name="View user information and activity" xml:space="preserve">
+    <value>عرض معلومات المستخدم ونشاطه</value>
+  </data>
+  <data name="Activity Information" xml:space="preserve">
+    <value>معلومات النشاط</value>
+  </data>
+  <data name="Never logged in" xml:space="preserve">
+    <value>لم يسجّل الدخول مطلقًا</value>
+  </data>
+  <data name="Account Status" xml:space="preserve">
+    <value>حالة الحساب</value>
+  </data>
+  <data name="Account Status:" xml:space="preserve">
+    <value>حالة الحساب:</value>
+  </data>
+  <data name="Email Status:" xml:space="preserve">
+    <value>حالة البريد الإلكتروني:</value>
+  </data>
+  <data name="User Management" xml:space="preserve">
+    <value>إدارة المستخدمين</value>
+  </data>
+  <data name="Manage system users and their roles" xml:space="preserve">
+    <value>إدارة مستخدمي النظام وأدوارهم</value>
+  </data>
+  <data name="Add New User" xml:space="preserve">
+    <value>إضافة مستخدم جديد</value>
+  </data>
+  <data name="View role permissions" xml:space="preserve">
+    <value>عرض صلاحيات الأدوار</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="Name or email..." xml:space="preserve">
+    <value>الاسم أو البريد الإلكتروني...</value>
+  </data>
+  <data name="All Roles" xml:space="preserve">
+    <value>جميع الأدوار</value>
+  </data>
+  <data name="Change role" xml:space="preserve">
+    <value>تغيير الدور</value>
+  </data>
+  <data name="No users found matching your criteria." xml:space="preserve">
+    <value>لم يتم العثور على مستخدمين مطابقين لمعاييرك.</value>
+  </data>
+  <data name="Role Permissions" xml:space="preserve">
+    <value>صلاحيات الأدوار</value>
+  </data>
+  <data name="What each role can do across the system" xml:space="preserve">
+    <value>ما يمكن لكل دور القيام به عبر النظام</value>
+  </data>
+  <data name="Permissions" xml:space="preserve">
+    <value>الصلاحيات</value>
+  </data>
+  <data name="= full access" xml:space="preserve">
+    <value>= وصول كامل</value>
+  </data>
+  <data name="= read-only" xml:space="preserve">
+    <value>= قراءة فقط</value>
+  </data>
+  <data name="= no access" xml:space="preserve">
+    <value>= لا يوجد وصول</value>
+  </data>
+  <data name="Capability" xml:space="preserve">
+    <value>الإمكانية</value>
+  </data>
+  <data name="SMTP credentials used for all outbound email — invoices, receipts, tenant credentials." xml:space="preserve">
+    <value>بيانات اعتماد SMTP المستخدمة لجميع رسائل البريد الصادرة — الفواتير والإيصالات وبيانات دخول المستأجرين.</value>
+  </data>
+  <data name="Last test:" xml:space="preserve">
+    <value>آخر اختبار:</value>
+  </data>
+  <data name="SMTP Server" xml:space="preserve">
+    <value>خادم SMTP</value>
+  </data>
+  <data name="Get these from your email provider. For Gmail use an" xml:space="preserve">
+    <value>احصل عليها من مزوّد بريدك الإلكتروني. لحساب Gmail استخدم</value>
+  </data>
+  <data name="App Password" xml:space="preserve">
+    <value>كلمة مرور التطبيق</value>
+  </data>
+  <data name="regular Google passwords are rejected by SMTP." xml:space="preserve">
+    <value>كلمات مرور Google العادية يرفضها خادم SMTP.</value>
+  </data>
+  <data name="Host" xml:space="preserve">
+    <value>المضيف</value>
+  </data>
+  <data name="Server hostname" xml:space="preserve">
+    <value>اسم مضيف الخادم</value>
+  </data>
+  <data name="Port" xml:space="preserve">
+    <value>المنفذ</value>
+  </data>
+  <data name="587 (STARTTLS) or 465 (SMTPS)" xml:space="preserve">
+    <value>587 (STARTTLS) أو 465 (SMTPS)</value>
+  </data>
+  <data name="Usually your full email address" xml:space="preserve">
+    <value>عادةً عنوان بريدك الإلكتروني الكامل</value>
+  </data>
+  <data name="(leave blank to keep stored value)" xml:space="preserve">
+    <value>(اتركه فارغًا للاحتفاظ بالقيمة المخزّنة)</value>
+  </data>
+  <data name="App Password recommended for Gmail / Outlook 2FA accounts" xml:space="preserve">
+    <value>يُنصح باستخدام كلمة مرور التطبيق لحسابات Gmail / Outlook المفعّل بها المصادقة الثنائية</value>
+  </data>
+  <data name="Enable TLS / SSL" xml:space="preserve">
+    <value>تفعيل TLS / SSL</value>
+  </data>
+  <data name="Required by almost every modern SMTP provider" xml:space="preserve">
+    <value>مطلوب من قِبل معظم مزوّدي SMTP الحديثين</value>
+  </data>
+  <data name="From Address" xml:space="preserve">
+    <value>عنوان المُرسِل</value>
+  </data>
+  <data name="From Email" xml:space="preserve">
+    <value>البريد الإلكتروني للمُرسِل</value>
+  </data>
+  <data name="Many SMTP servers reject if this doesn't match Username" xml:space="preserve">
+    <value>ترفض العديد من خوادم SMTP إذا لم يتطابق هذا مع اسم المستخدم</value>
+  </data>
+  <data name="Display Name" xml:space="preserve">
+    <value>الاسم الظاهر</value>
+  </data>
+  <data name="ALRTAM Company" xml:space="preserve">
+    <value>شركة ALRTAM</value>
+  </data>
+  <data name="Shown in the recipient's inbox" xml:space="preserve">
+    <value>يظهر في صندوق وارد المستلم</value>
+  </data>
+  <data name="Mode" xml:space="preserve">
+    <value>الوضع</value>
+  </data>
+  <data name="Dry Run (log messages, don't actually send)" xml:space="preserve">
+    <value>وضع التجربة (تسجيل الرسائل دون إرسالها فعليًا)</value>
+  </data>
+  <data name="Leave ON until you've successfully tested. With Dry Run on, the rest of the app runs normally but no real emails go out — useful for staging or while you provision credentials." xml:space="preserve">
+    <value>اتركه مفعّلًا حتى تجري اختبارًا ناجحًا. عند تفعيل وضع التجربة، يعمل باقي التطبيق بشكل طبيعي لكن لا تُرسَل أي رسائل بريد فعلية — مفيد للبيئة التجريبية أو أثناء تجهيز بيانات الاعتماد.</value>
+  </data>
+  <data name="Test" xml:space="preserve">
+    <value>اختبار</value>
+  </data>
+  <data name="Send a test email using the values currently in the form (no need to Save first). Dry Run must be off for the test to actually contact your SMTP server." xml:space="preserve">
+    <value>أرسل رسالة اختبار باستخدام القيم الموجودة حاليًا في النموذج (دون الحاجة إلى الحفظ أولًا). يجب إيقاف وضع التجربة حتى يتصل الاختبار فعليًا بخادم SMTP الخاص بك.</value>
+  </data>
+  <data name="Test Recipient" xml:space="preserve">
+    <value>مستلم الاختبار</value>
+  </data>
+  <data name="Where to send the test message" xml:space="preserve">
+    <value>إلى أين تُرسل رسالة الاختبار</value>
+  </data>
+  <data name="Send Test Email" xml:space="preserve">
+    <value>إرسال رسالة اختبار</value>
+  </data>
+  <data name="Save Settings" xml:space="preserve">
+    <value>حفظ الإعدادات</value>
+  </data>
+  <data name="Every recorded action across the system — last" xml:space="preserve">
+    <value>كل إجراء مُسجَّل عبر النظام — آخر</value>
+  </data>
+  <data name="entries" xml:space="preserve">
+    <value>إدخالات</value>
+  </data>
+  <data name="Entity" xml:space="preserve">
+    <value>الكيان</value>
+  </data>
+  <data name="Filter by user (e.g. admin@example.com)" xml:space="preserve">
+    <value>التصفية حسب المستخدم (مثال: admin@example.com)</value>
+  </data>
+  <data name="No audit events match these filters" xml:space="preserve">
+    <value>لا توجد أحداث تدقيق مطابقة لهذه المرشحات</value>
+  </data>
+  <data name="First seen" xml:space="preserve">
+    <value>أول ظهور</value>
+  </data>
+  <data name="Last activity" xml:space="preserve">
+    <value>آخر نشاط</value>
+  </data>
+  <data name="No audit events recorded for this" xml:space="preserve">
+    <value>لا توجد أحداث تدقيق مُسجَّلة لهذا</value>
+  </data>
+  <data name="Create Maintenance Request" xml:space="preserve">
+    <value>إنشاء طلب صيانة</value>
+  </data>
+  <data name="Add a new maintenance request to the system" xml:space="preserve">
+    <value>إضافة طلب صيانة جديد إلى النظام</value>
+  </data>
+  <data name="Select a property" xml:space="preserve">
+    <value>اختر عقاراً</value>
+  </data>
+  <data name="Unit (Optional)" xml:space="preserve">
+    <value>الوحدة (اختياري)</value>
+  </data>
+  <data name="Select a unit" xml:space="preserve">
+    <value>اختر وحدة</value>
+  </data>
+  <data name="Tenant (Optional)" xml:space="preserve">
+    <value>المستأجر (اختياري)</value>
+  </data>
+  <data name="Select a tenant" xml:space="preserve">
+    <value>اختر مستأجراً</value>
+  </data>
+  <data name="Request Details" xml:space="preserve">
+    <value>تفاصيل الطلب</value>
+  </data>
+  <data name="Request Type" xml:space="preserve">
+    <value>نوع الطلب</value>
+  </data>
+  <data name="Select type" xml:space="preserve">
+    <value>اختر النوع</value>
+  </data>
+  <data name="Estimated Cost (Optional)" xml:space="preserve">
+    <value>التكلفة التقديرية (اختياري)</value>
+  </data>
+  <data name="0.000 KWD" xml:space="preserve">
+    <value>0.000 KWD</value>
+  </data>
+  <data name="Describe the maintenance issue in detail..." xml:space="preserve">
+    <value>صف مشكلة الصيانة بالتفصيل...</value>
+  </data>
+  <data name="Assign To (Optional)" xml:space="preserve">
+    <value>إسناد إلى (اختياري)</value>
+  </data>
+  <data name="Assign later" xml:space="preserve">
+    <value>الإسناد لاحقاً</value>
+  </data>
+  <data name="Create Request" xml:space="preserve">
+    <value>إنشاء الطلب</value>
+  </data>
+  <data name="Delete Maintenance Request" xml:space="preserve">
+    <value>حذف طلب الصيانة</value>
+  </data>
+  <data name="Confirm deletion of maintenance request" xml:space="preserve">
+    <value>تأكيد حذف طلب الصيانة</value>
+  </data>
+  <data name="Are you sure you want to delete this maintenance request? This action cannot be undone." xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف طلب الصيانة هذا؟ لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Request Information" xml:space="preserve">
+    <value>معلومات الطلب</value>
+  </data>
+  <data name="Request ID" xml:space="preserve">
+    <value>رقم الطلب</value>
+  </data>
+  <data name="Request Date" xml:space="preserve">
+    <value>تاريخ الطلب</value>
+  </data>
+  <data name="Assigned To" xml:space="preserve">
+    <value>مُسند إلى</value>
+  </data>
+  <data name="Cost" xml:space="preserve">
+    <value>التكلفة</value>
+  </data>
+  <data name="Yes, Delete Request" xml:space="preserve">
+    <value>نعم، احذف الطلب</value>
+  </data>
+  <data name="Maintenance Request" xml:space="preserve">
+    <value>طلب الصيانة</value>
+  </data>
+  <data name="View maintenance request details" xml:space="preserve">
+    <value>عرض تفاصيل طلب الصيانة</value>
+  </data>
+  <data name="Close Request" xml:space="preserve">
+    <value>إغلاق الطلب</value>
+  </data>
+  <data name="Unassigned" xml:space="preserve">
+    <value>غير مُسند</value>
+  </data>
+  <data name="Completion Details" xml:space="preserve">
+    <value>تفاصيل الإنجاز</value>
+  </data>
+  <data name="Completed Date" xml:space="preserve">
+    <value>تاريخ الإنجاز</value>
+  </data>
+  <data name="Duration:" xml:space="preserve">
+    <value>المدة:</value>
+  </data>
+  <data name="Audit Information" xml:space="preserve">
+    <value>معلومات التدقيق</value>
+  </data>
+  <data name="Edit Request" xml:space="preserve">
+    <value>تعديل الطلب</value>
+  </data>
+  <data name="Delete Request" xml:space="preserve">
+    <value>حذف الطلب</value>
+  </data>
+  <data name="Edit Maintenance Request" xml:space="preserve">
+    <value>تعديل طلب الصيانة</value>
+  </data>
+  <data name="Update maintenance request details" xml:space="preserve">
+    <value>تحديث تفاصيل طلب الصيانة</value>
+  </data>
+  <data name="Assign To" xml:space="preserve">
+    <value>إسناد إلى</value>
+  </data>
+  <data name="Completion Date" xml:space="preserve">
+    <value>تاريخ الإنجاز</value>
+  </data>
+  <data name="Cost (KWD)" xml:space="preserve">
+    <value>التكلفة (KWD)</value>
+  </data>
+  <data name="Add any additional notes or comments..." xml:space="preserve">
+    <value>أضف أي ملاحظات أو تعليقات إضافية...</value>
+  </data>
+  <data name="No Maintenance Requests" xml:space="preserve">
+    <value>لا توجد طلبات صيانة</value>
+  </data>
+  <data name="Start by creating your first maintenance request" xml:space="preserve">
+    <value>ابدأ بإنشاء أول طلب صيانة لك</value>
+  </data>
+  <data name="Mark this maintenance request as completed." xml:space="preserve">
+    <value>وضع علامة على طلب الصيانة هذا كمكتمل.</value>
+  </data>
+  <data name="Back to Details" xml:space="preserve">
+    <value>العودة إلى التفاصيل</value>
+  </data>
+  <data name="Requested" xml:space="preserve">
+    <value>تم الطلب</value>
+  </data>
+  <data name="Actual Cost (KWD)" xml:space="preserve">
+    <value>التكلفة الفعلية (KWD)</value>
+  </data>
+  <data name="Optional. Defaults to the estimated cost if you leave it blank." xml:space="preserve">
+    <value>اختياري. يتم استخدام التكلفة التقديرية إذا تركته فارغاً.</value>
+  </data>
+  <data name="Completion Notes" xml:space="preserve">
+    <value>ملاحظات الإنجاز</value>
+  </data>
+  <data name="What was done, parts replaced, follow-up needed..." xml:space="preserve">
+    <value>ما تم إنجازه، القطع المستبدلة، المتابعة المطلوبة...</value>
+  </data>
+  <data name="Appended to the existing notes — old notes are preserved." xml:space="preserve">
+    <value>تُضاف إلى الملاحظات الحالية — يتم الاحتفاظ بالملاحظات القديمة.</value>
+  </data>
+  <data name="Upload a new document to the system" xml:space="preserve">
+    <value>رفع مستند جديد إلى النظام</value>
+  </data>
+  <data name="Back to Documents" xml:space="preserve">
+    <value>العودة إلى المستندات</value>
+  </data>
+  <data name="File Selection" xml:space="preserve">
+    <value>اختيار الملف</value>
+  </data>
+  <data name="Click to select file or drag and drop" xml:space="preserve">
+    <value>انقر لاختيار ملف أو اسحبه وأفلته</value>
+  </data>
+  <data name="Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, and more" xml:space="preserve">
+    <value>الصيغ المدعومة: PDF وDOC وDOCX وXLS وXLSX وJPG وPNG وغيرها</value>
+  </data>
+  <data name="Maximum file size: 50 MB" xml:space="preserve">
+    <value>الحد الأقصى لحجم الملف: 50 ميغابايت</value>
+  </data>
+  <data name="Choose File" xml:space="preserve">
+    <value>اختيار ملف</value>
+  </data>
+  <data name="Document Information" xml:space="preserve">
+    <value>معلومات المستند</value>
+  </data>
+  <data name="Select document type" xml:space="preserve">
+    <value>اختر نوع المستند</value>
+  </data>
+  <data name="Lease Agreement" xml:space="preserve">
+    <value>عقد الإيجار</value>
+  </data>
+  <data name="Receipt" xml:space="preserve">
+    <value>إيصال</value>
+  </data>
+  <data name="ID Document" xml:space="preserve">
+    <value>مستند هوية</value>
+  </data>
+  <data name="Contract" xml:space="preserve">
+    <value>عقد</value>
+  </data>
+  <data name="Report" xml:space="preserve">
+    <value>تقرير</value>
+  </data>
+  <data name="Description (Optional)" xml:space="preserve">
+    <value>الوصف (اختياري)</value>
+  </data>
+  <data name="Add any additional notes or description about this document..." xml:space="preserve">
+    <value>أضف أي ملاحظات أو وصف إضافي حول هذا المستند...</value>
+  </data>
+  <data name="Link to Entity (Optional)" xml:space="preserve">
+    <value>الربط بكيان (اختياري)</value>
+  </data>
+  <data name="Entity Type" xml:space="preserve">
+    <value>نوع الكيان</value>
+  </data>
+  <data name="-- None --" xml:space="preserve">
+    <value>-- لا شيء --</value>
+  </data>
+  <data name="Select Entity" xml:space="preserve">
+    <value>اختر الكيان</value>
+  </data>
+  <data name="-- Select Lease --" xml:space="preserve">
+    <value>-- اختر عقد إيجار --</value>
+  </data>
+  <data name="-- Select Maintenance Request --" xml:space="preserve">
+    <value>-- اختر طلب صيانة --</value>
+  </data>
+  <data name="Search by name, description, or linked entity…" xml:space="preserve">
+    <value>ابحث بالاسم أو الوصف أو الكيان المرتبط…</value>
+  </data>
+  <data name="Search documents" xml:space="preserve">
+    <value>البحث في المستندات</value>
+  </data>
+  <data name="Clear search" xml:space="preserve">
+    <value>مسح البحث</value>
+  </data>
+  <data name="Linked to" xml:space="preserve">
+    <value>مرتبط بـ</value>
+  </data>
+  <data name="Linked entity no longer exists" xml:space="preserve">
+    <value>الكيان المرتبط لم يعد موجوداً</value>
+  </data>
+  <data name="Unlinked" xml:space="preserve">
+    <value>غير مرتبط</value>
+  </data>
+  <data name="Not attached to any entity" xml:space="preserve">
+    <value>غير مرفق بأي كيان</value>
+  </data>
+  <data name="Open linked" xml:space="preserve">
+    <value>فتح المرتبط</value>
+  </data>
+  <data name="No Documents Found" xml:space="preserve">
+    <value>لم يتم العثور على مستندات</value>
+  </data>
+  <data name="Start by uploading your first document" xml:space="preserve">
+    <value>ابدأ برفع أول مستند لك</value>
+  </data>
+  <data name="Error." xml:space="preserve">
+    <value>خطأ.</value>
+  </data>
+  <data name="An error occurred while processing your request." xml:space="preserve">
+    <value>حدث خطأ أثناء معالجة طلبك.</value>
+  </data>
+  <data name="Request ID:" xml:space="preserve">
+    <value>معرّف الطلب:</value>
+  </data>
+  <data name="Development Mode" xml:space="preserve">
+    <value>وضع التطوير</value>
+  </data>
+  <data name="Swapping to" xml:space="preserve">
+    <value>التبديل إلى بيئة</value>
+  </data>
+  <data name="Development" xml:space="preserve">
+    <value>التطوير</value>
+  </data>
+  <data name="environment will display more detailed information about the error that occurred." xml:space="preserve">
+    <value>سيعرض معلومات أكثر تفصيلاً عن الخطأ الذي حدث.</value>
+  </data>
+  <data name="The Development environment shouldn't be enabled for deployed applications." xml:space="preserve">
+    <value>يجب عدم تفعيل بيئة التطوير في التطبيقات المنشورة.</value>
+  </data>
+  <data name="It can result in displaying sensitive information from exceptions to end users." xml:space="preserve">
+    <value>فقد يؤدي ذلك إلى عرض معلومات حساسة من الاستثناءات للمستخدمين النهائيين.</value>
+  </data>
+  <data name="For local debugging, enable the" xml:space="preserve">
+    <value>لتصحيح الأخطاء محلياً، فعّل بيئة</value>
+  </data>
+  <data name="environment by setting the" xml:space="preserve">
+    <value>عن طريق ضبط متغير البيئة</value>
+  </data>
+  <data name="environment variable to" xml:space="preserve">
+    <value>على القيمة</value>
+  </data>
+  <data name="and restarting the app." xml:space="preserve">
+    <value>ثم إعادة تشغيل التطبيق.</value>
+  </data>
+  <data name="Success!" xml:space="preserve">
+    <value>تم بنجاح!</value>
+  </data>
+  <data name="Error!" xml:space="preserve">
+    <value>خطأ!</value>
+  </data>
+  <data name="Info:" xml:space="preserve">
+    <value>معلومة:</value>
+  </data>
+  <data name="Warning!" xml:space="preserve">
+    <value>تحذير!</value>
+  </data>
+  <data name="All active tenants across companies" xml:space="preserve">
+    <value>جميع المستأجرين النشطين عبر الشركات</value>
+  </data>
+  <data name="Comprehensive analytics and reporting for your rent collection system" xml:space="preserve">
+    <value>تحليلات وتقارير شاملة لنظام تحصيل الإيجارات</value>
+  </data>
+  <data name="Database Connection Test" xml:space="preserve">
+    <value>اختبار اتصال قاعدة البيانات</value>
+  </data>
+  <data name="Did everything that should have happened on the 1st actually happen?" xml:space="preserve">
+    <value>هل حدث بالفعل كل ما كان يجب أن يحدث في اليوم الأول؟</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>خطأ</value>
+  </data>
+  <data name="Forgot Password" xml:space="preserve">
+    <value>نسيت كلمة المرور</value>
+  </data>
+  <data name="Home Page" xml:space="preserve">
+    <value>الصفحة الرئيسية</value>
+  </data>
+  <data name="Import complete" xml:space="preserve">
+    <value>اكتمل الاستيراد</value>
+  </data>
+  <data name="Import results" xml:space="preserve">
+    <value>نتائج الاستيراد</value>
+  </data>
+  <data name="Invoice Management" xml:space="preserve">
+    <value>إدارة الفواتير</value>
+  </data>
+  <data name="Invoice Status Report" xml:space="preserve">
+    <value>تقرير حالة الفواتير</value>
+  </data>
+  <data name="Job Health" xml:space="preserve">
+    <value>حالة المهام</value>
+  </data>
+  <data name="KNET Payment - Test Mode" xml:space="preserve">
+    <value>دفع KNET - وضع الاختبار</value>
+  </data>
+  <data name="Login" xml:space="preserve">
+    <value>تسجيل الدخول</value>
+  </data>
+  <data name="Maintenance Request Details" xml:space="preserve">
+    <value>تفاصيل طلب الصيانة</value>
+  </data>
+  <data name="Manage and track all invoices for your properties" xml:space="preserve">
+    <value>إدارة وتتبع جميع فواتير عقاراتك</value>
+  </data>
+  <data name="New Tenant" xml:space="preserve">
+    <value>مستأجر جديد</value>
+  </data>
+  <data name="Password Reset Requested" xml:space="preserve">
+    <value>تم طلب إعادة تعيين كلمة المرور</value>
+  </data>
+  <data name="Payment Approvals" xml:space="preserve">
+    <value>موافقات الدفع</value>
+  </data>
+  <data name="Payment Receipt" xml:space="preserve">
+    <value>إيصال الدفع</value>
+  </data>
+  <data name="Payment Successful" xml:space="preserve">
+    <value>تم الدفع بنجاح</value>
+  </data>
+  <data name="Privacy Policy" xml:space="preserve">
+    <value>سياسة الخصوصية</value>
+  </data>
+  <data name="Property Performance Report" xml:space="preserve">
+    <value>تقرير أداء العقارات</value>
+  </data>
+  <data name="Register" xml:space="preserve">
+    <value>تسجيل</value>
+  </data>
+  <data name="Reports Dashboard" xml:space="preserve">
+    <value>لوحة التقارير</value>
+  </data>
+  <data name="Results" xml:space="preserve">
+    <value>النتائج</value>
+  </data>
+  <data name="Review and approve Cash and Bank Transfer payments" xml:space="preserve">
+    <value>مراجعة واعتماد مدفوعات النقد والتحويل البنكي</value>
+  </data>
+  <data name="Tenant Dashboard" xml:space="preserve">
+    <value>لوحة تحكم المستأجر</value>
+  </data>
+  <data name="Tenant Login" xml:space="preserve">
+    <value>تسجيل دخول المستأجر</value>
+  </data>
+  <data name="Test Bank Transfer" xml:space="preserve">
+    <value>اختبار التحويل البنكي</value>
+  </data>
+  <data name="Track and manage rent payments with mismatch detection" xml:space="preserve">
+    <value>تتبع وإدارة مدفوعات الإيجار مع كشف عدم التطابق</value>
+  </data>
+  <data name="Upload a CSV or XLSX to bulk-create tenants" xml:space="preserve">
+    <value>ارفع ملف CSV أو XLSX لإنشاء المستأجرين دفعةً واحدة</value>
+  </data>
+  <data name="Users Management" xml:space="preserve">
+    <value>إدارة المستخدمين</value>
+  </data>
+  <data name="New User" xml:space="preserve">
+    <value>مستخدم جديد</value>
+  </data>
+  <data name="Manage your rental properties ({0} properties total)" xml:space="preserve">
+    <value>إدارة عقاراتك الإيجارية (إجمالي {0} عقار)</value>
+  </data>
+  <data name="Manage your tenants ({0} total)" xml:space="preserve">
+    <value>إدارة المستأجرين (الإجمالي {0})</value>
+  </data>
+  <data name="Track and manage property maintenance ({0} requests total)" xml:space="preserve">
+    <value>تتبع وإدارة صيانة العقارات (إجمالي {0} طلب)</value>
+  </data>
+  <data name="Manage all your documents in one place ({0} documents)" xml:space="preserve">
+    <value>إدارة جميع مستنداتك في مكان واحد ({0} مستند)</value>
+  </data>
+  <data name="{0} units matching current filters" xml:space="preserve">
+    <value>{0} وحدة مطابقة للمرشحات الحالية</value>
+  </data>
+  <data name="12-digit Civil ID" xml:space="preserve">
+    <value>الرقم المدني (12 رقمًا)</value>
+  </data>
+  <data name="This is the tenant's app login." xml:space="preserve">
+    <value>هذا هو معرّف دخول المستأجر إلى التطبيق.</value>
+  </data>
+  <data name="More details (DOB, employment, emergency contact)" xml:space="preserve">
+    <value>تفاصيل إضافية (تاريخ الميلاد، الوظيفة، جهة اتصال الطوارئ)</value>
+  </data>
+  <data name="DOB pre-filled from Civil ID" xml:space="preserve">
+    <value>تم تعبئة تاريخ الميلاد من الرقم المدني</value>
+  </data>
+  <data name="Invalid format" xml:space="preserve">
+    <value>صيغة غير صحيحة</value>
+  </data>
+</root>

@@ -1,0 +1,80 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+    // Sprint 26 — Firebase Cloud Messaging. Reads android/app/google-services.json.
+    id "com.google.gms.google-services"
+}
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace = "com.viijar.tenant"
+    compileSdk = 35
+    ndkVersion = "26.1.10909125"
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        applicationId = "com.viijar.tenant"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
+                storeFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storePassword = keystoreProperties['storePassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Use the release signing config when keystore is present, otherwise
+            // fall through to a clearly-invalid config so debug-mode builds still
+            // configure successfully. The hard error is moved to a task-graph
+            // check below so it only fails actual release tasks, not :assembleDebug.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.release
+            }
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// Block release builds at execution time when key.properties is missing,
+// rather than at configuration time (which would also break debug builds).
+gradle.taskGraph.whenReady { graph ->
+    def releaseTasks = graph.allTasks.findAll { task ->
+        task.name.toLowerCase().contains('release')
+    }
+    if (!releaseTasks.isEmpty() && !keystorePropertiesFile.exists()) {
+        throw new GradleException(
+            "android/key.properties is missing. Refusing to build a release APK with debug signing. " +
+            "Create android/key.properties with keyAlias, keyPassword, storeFile, storePassword.")
+    }
+}
+
+flutter {
+    source = "../.."
+}

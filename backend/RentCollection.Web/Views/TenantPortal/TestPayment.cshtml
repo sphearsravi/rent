@@ -1,0 +1,144 @@
+@{
+    ViewData["Title"] = "KNET Payment - Test Mode";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - VIIJAR</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); min-height: 100vh;">
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <!-- Test Mode Banner -->
+            <div class="alert alert-warning text-center mb-4">
+                <i class="fas fa-flask me-2"></i>
+                <strong>@L["TEST MODE"]</strong> - @L["This is a simulated KNET payment gateway"]
+            </div>
+
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/KNET_logo.svg/200px-KNET_logo.svg.png"
+                         alt="KNET Logo" style="height: 50px; filter: brightness(0) invert(1);"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <h3 style="display: none;" class="mb-0">@L["KNET Payment"]</h3>
+                </div>
+                <div class="card-body p-4">
+                    <h5 class="text-center mb-4">@L["Payment Details"]</h5>
+
+                    <div class="row mb-3">
+                        <div class="col-6 text-muted">@L["Invoice Number:"]</div>
+                        <div class="col-6 text-end fw-bold">INV-@ViewBag.InvoiceId</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6 text-muted">@L["Amount:"]</div>
+                        <div class="col-6 text-end fw-bold text-primary" style="font-size: 1.5rem;">@ViewBag.Amount KWD</div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-6 text-muted">@L["Transaction ID:"]</div>
+                        <div class="col-6 text-end"><code style="font-size: 0.75rem;">@ViewBag.KnetPaymentId</code></div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Simulated Card Entry Form -->
+                    <div class="mb-4">
+                        <label class="form-label">@L["Card Number (Test)"]</label>
+                        <input type="text" class="form-control" value="4111 1111 1111 1111" readonly>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <label class="form-label">@L["Expiry"]</label>
+                            <input type="text" class="form-control" value="12/25" readonly>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">@L["CVV"]</label>
+                            <input type="text" class="form-control" value="123" readonly>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success btn-lg" onclick="completePayment(true)">
+                            <i class="fas fa-check-circle me-2"></i>@L["Simulate Successful Payment"]
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="completePayment(false)">
+                            <i class="fas fa-times-circle me-2"></i>@L["Simulate Failed Payment"]
+                        </button>
+                        <a href="@Url.Action("MakePayment", "TenantPortal")" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>@L["Cancel"]
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light text-center py-3">
+                    <small class="text-muted">
+                        <i class="fas fa-lock me-1"></i>
+                        @L["Secure Test Payment Simulation"]
+                    </small>
+                </div>
+            </div>
+
+            <!-- Processing Modal -->
+            <div class="modal fade" id="processingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body text-center py-5">
+                            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                                <span class="visually-hidden">@L["Processing..."]</span>
+                            </div>
+                            <h5>@L["Processing Payment..."]</h5>
+                            <p class="text-muted mb-0">@L["Please wait while we process your test payment."]</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const paymentId = @ViewBag.PaymentId;
+
+    function completePayment(success) {
+        // Show processing modal
+        const modal = new bootstrap.Modal(document.getElementById('processingModal'));
+        modal.show();
+
+        // Call the API to complete the test payment
+        fetch('/api/payments/knet/test/complete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                paymentId: paymentId,
+                success: success
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Simulate processing delay
+            setTimeout(() => {
+                if (data.success && success) {
+                    window.location.href = '@Url.Action("PaymentSuccess", "TenantPortal")?paymentId=' + data.paymentId + '&reference=' + (data.transactionReference || '');
+                } else {
+                    window.location.href = '@Url.Action("PaymentFailed", "TenantPortal")?error=Payment+was+not+completed&reference=' + (data.transactionReference || '');
+                }
+            }, 1500);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error processing payment: ' + error.message);
+            modal.hide();
+        });
+    }
+</script>
+</body>
+</html>

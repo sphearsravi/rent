@@ -1,0 +1,56 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Release signing
+android/key.properties
+*.jks
+*.keystore
+
+# Sprint 26 — Firebase config (DO NOT commit the real one — keep secret).
+# The repo currently ships a placeholder so the build succeeds. When you
+# drop in the real google-services.json from Firebase Console, uncomment
+# the line below to keep it out of git. See docs/PUSH_NOTIFICATIONS_SETUP.md.
+# android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+

@@ -1,0 +1,855 @@
+﻿@model RentCollection.Core.Entities.Property
+
+@{
+    ViewData["Title"] = "Property Details";
+    var totalUnits = Model.Units?.Count ?? 0;
+    // Use the persisted Unit.Status field — the daily reconciliation job
+    // keeps it honest. Falls back to active-lease check for backward compat.
+    var occupiedUnits = Model.Units?.Count(u => u.Status == "Occupied") ?? 0;
+    var vacantUnits = Model.Units?.Count(u => u.Status == "Vacant") ?? 0;
+    var maintenanceUnits = Model.Units?.Count(u => u.Status == "Maintenance") ?? 0;
+    var reservedUnits = Model.Units?.Count(u => u.Status == "Reserved") ?? 0;
+    var occupancyRate = totalUnits > 0 ? (occupiedUnits * 100.0 / totalUnits) : 0;
+}
+
+<div class="container-fluid">
+    <div class="page-header">
+        <div>
+            <h1>@L["Property Details"]</h1>
+            <p class="text-muted">@L["Complete property information"]</p>
+        </div>
+        <div class="header-actions">
+            <a asp-action="Edit" asp-route-id="@Model.PropertyId" class="btn btn-primary">
+                <i class="fas fa-edit"></i> @L["Edit"]
+            </a>
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> @L["Back to List"]
+            </a>
+        </div>
+    </div>
+
+    <div class="details-grid">
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-building"></i> @L["Property Information"]</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <span class="info-label">@L["Property Name"]</span>
+                    <span class="info-value">@Model.PropertyName</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["PACI Number"]</span>
+                    <span class="info-value">@Model.PACINumber</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Property Type"]</span>
+                    <span class="info-value">@Model.PropertyType</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Number Of Units"]</span>
+                    <span class="info-value">@Model.NumberOfUnits</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Purchase Date"]</span>
+                    <span class="info-value">@Model.PurchaseDate?.ToString("MMMM dd, yyyy")</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Property Value"]</span>
+                    <span class="info-value">@("KWD " + (Model.PropertyValue?.ToString("N3") ?? "0.000"))</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Created Date"]</span>
+                    <span class="info-value">@Model.CreatedDate.ToString("MMMM dd, yyyy")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-map-marker-alt"></i> @L["Address Information"]</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <span class="info-label">@L["Address"]</span>
+                    <span class="info-value">@Model.Address</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Governorate"]</span>
+                    <span class="info-value">@Model.Governorate</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Area"]</span>
+                    <span class="info-value">@Model.Area</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Block"]</span>
+                    <span class="info-value">@Model.Block</span>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Manager != null)
+        {
+            <div class="info-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-user-tie"></i> @L["Property Manager"]</h3>
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <span class="info-label">@L["Manager Name"]</span>
+                        <span class="info-value">@Model.Manager.FirstName @Model.Manager.LastName</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">@L["Email"]</span>
+                        <span class="info-value"><a href="mailto:@Model.Manager.Email">@Model.Manager.Email</a></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">@L["Phone"]</span>
+                        <span class="info-value"><a href="tel:@Model.Manager.PhoneNumber">@Model.Manager.PhoneNumber</a></span>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-pie"></i> @L["Financial Summary"]</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <span class="info-label">@L["Property Value"]</span>
+                    <span class="info-value">@("KWD " + (Model.PropertyValue?.ToString("N3") ?? "0.000"))</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Occupied Units"]</span>
+                    <span class="info-value">@occupiedUnits / @totalUnits</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Occupancy Rate"]</span>
+                    <span class="info-value">
+                        <span class="occupancy-badge @(occupancyRate >= 80 ? "badge-success" : occupancyRate >= 50 ? "badge-warning" : "badge-danger")">
+                            @occupancyRate.ToString("F1")%
+                        </span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">@L["Company"]</span>
+                    <span class="info-value">@Model.Company?.CompanyName</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Units quick-link strip (Unit revamp Phase B). Each chip count
+       deep-links to the global /Units page filtered to this property +
+       status, so admins can drill in with one click. *@
+    <div class="info-card">
+        <div class="card-header">
+            <h3><i class="fas fa-th-large"></i> @L["Units"] (@totalUnits)</h3>
+            <div style="display:flex; gap:0.5rem;">
+                <a class="btn btn-secondary" href="/Units?propertyId=@Model.PropertyId">
+                    <i class="fas fa-list"></i> @L["All units"]
+                </a>
+                <a class="btn btn-primary" href="/Units/Create?propertyId=@Model.PropertyId">
+                    <i class="fas fa-plus"></i> @L["Add unit"]
+                </a>
+            </div>
+        </div>
+        <div class="card-body" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:0.85rem;">
+            <a class="unit-quick unit-quick-vacant" href="/Units?propertyId=@Model.PropertyId&status=Vacant">
+                <div class="unit-quick-count">@vacantUnits</div>
+                <div class="unit-quick-label"><i class="fas fa-door-open"></i> @L["Vacant"]</div>
+            </a>
+            <a class="unit-quick unit-quick-occupied" href="/Units?propertyId=@Model.PropertyId&status=Occupied">
+                <div class="unit-quick-count">@occupiedUnits</div>
+                <div class="unit-quick-label"><i class="fas fa-house-user"></i> @L["Occupied"]</div>
+            </a>
+            <a class="unit-quick unit-quick-maint" href="/Units?propertyId=@Model.PropertyId&status=Maintenance">
+                <div class="unit-quick-count">@maintenanceUnits</div>
+                <div class="unit-quick-label"><i class="fas fa-screwdriver-wrench"></i> @L["Maintenance"]</div>
+            </a>
+            <a class="unit-quick unit-quick-reserved" href="/Units?propertyId=@Model.PropertyId&status=Reserved">
+                <div class="unit-quick-count">@reservedUnits</div>
+                <div class="unit-quick-label"><i class="fas fa-bookmark"></i> @L["Reserved"]</div>
+            </a>
+            <a class="unit-quick" href="/Units?propertyId=@Model.PropertyId">
+                <div class="unit-quick-count">@totalUnits</div>
+                <div class="unit-quick-label"><i class="fas fa-th-large"></i> @L["Total"]</div>
+            </a>
+        </div>
+        <style>
+            .unit-quick {
+                display: flex; flex-direction: column; align-items: center;
+                gap: 0.35rem; padding: 0.85rem 1rem;
+                background: white; border: 1px solid #e2e8f0;
+                border-left: 4px solid #cbd5e1;
+                border-radius: 10px; text-decoration: none;
+                transition: all 0.15s ease;
+            }
+            .unit-quick:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(99,102,241,0.12); border-color: #6366f1; }
+            .unit-quick-vacant   { border-left-color: #10b981; }
+            .unit-quick-occupied { border-left-color: #3b82f6; }
+            .unit-quick-maint    { border-left-color: #f59e0b; }
+            .unit-quick-reserved { border-left-color: #a855f7; }
+            .unit-quick-count { font-size: 1.6rem; font-weight: 700; color: #0f172a; line-height: 1; }
+            .unit-quick-label { font-size: 0.78rem; color: #64748b; font-weight: 600; }
+            .unit-quick-label i { color: #94a3b8; margin-right: 0.25rem; }
+        </style>
+    </div>
+
+    @{
+        var activeTenantsWithLeases = Model.Units?
+            .SelectMany(u => u.Leases ?? new List<RentCollection.Core.Entities.Lease>())
+            .Where(l => l.Status == "Active" && l.Tenant != null)
+            .Select(l => new { Lease = l, Tenant = l.Tenant, Unit = Model.Units.FirstOrDefault(u => u.UnitId == l.UnitId) })
+            .OrderBy(x => x.Unit?.UnitNumber)
+            .ToList();
+    }
+
+    @if (activeTenantsWithLeases != null && activeTenantsWithLeases.Any())
+    {
+        <div class="info-card">
+            <div class="card-header">
+                <h3><i class="fas fa-users"></i> @L["Current Tenants"] (@activeTenantsWithLeases.Count)</h3>
+            </div>
+            <div class="card-body">
+                <table class="details-table">
+                    <thead>
+                        <tr>
+                            <th>@L["Unit"]</th>
+                            <th>@L["Tenant Name"]</th>
+                            <th>@L["Email"]</th>
+                            <th>@L["Phone"]</th>
+                            <th>@L["PACI Number"]</th>
+                            <th>@L["Lease Start"]</th>
+                            <th>@L["Lease End"]</th>
+                            <th>@L["Monthly Rent"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in activeTenantsWithLeases)
+                        {
+                            <tr>
+                                <td><strong>@item.Unit?.UnitNumber</strong></td>
+                                <td>
+                                    <div class="tenant-name">
+                                        <i class="fas fa-user-circle text-primary"></i>
+                                        <span>@item.Tenant.FirstName @item.Tenant.LastName</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.Tenant.Email))
+                                    {
+                                        <a href="mailto:@item.Tenant.Email">
+                                            <i class="fas fa-envelope"></i> @item.Tenant.Email
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.Tenant.Phone))
+                                    {
+                                        <a href="tel:@item.Tenant.Phone">
+                                            <i class="fas fa-phone"></i> @item.Tenant.Phone
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                                <td>@item.Tenant.PACINumber</td>
+                                <td>@item.Lease.LeaseStartDate.ToString("MMM dd, yyyy")</td>
+                                <td>@item.Lease.LeaseEndDate.ToString("MMM dd, yyyy")</td>
+                                <td>
+                                    <strong class="rent-amount">KWD @item.Lease.MonthlyRent.ToString("N3")</strong>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <!-- Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ Documents (P3) Ã¢â‚¬” lazy-loaded list + inline upload Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ -->
+    <div class="info-card" id="docsCard">
+        <div class="info-card-header">
+            <h2 class="info-card-title">
+                <i class="fas fa-folder-open"></i>
+                @L["Documents"]
+                <span class="docs-count" id="docsCount" aria-live="polite"></span>
+            </h2>
+            <button type="button" class="btn-add" id="docsToggleUpload">
+                <i class="fas fa-upload"></i> @L["Upload"]
+            </button>
+        </div>
+
+        @Html.AntiForgeryToken()
+
+        <form class="docs-upload-form" id="docsUploadForm" enctype="multipart/form-data" hidden>
+            <input type="hidden" name="entityType" value="Property" />
+            <input type="hidden" name="entityId" value="@Model.PropertyId" />
+            <div class="upload-row">
+                <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" />
+                <input type="text" name="documentType" placeholder="@(L["Type (e.g. Contract, ID)"].Value)" required maxlength="50" />
+            </div>
+            <div class="upload-row">
+                <input type="text" name="description" placeholder="@(L["Description (optional)"].Value)" maxlength="200" />
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-circle-check"></i> @L["Upload & link"]
+                </button>
+            </div>
+            <div class="upload-msg" id="docsUploadMsg" hidden></div>
+        </form>
+
+        <div class="docs-list" id="docsList">
+            <div class="docs-skeleton" id="docsSkeleton">
+                <div class="skel-row"></div>
+                <div class="skel-row"></div>
+            </div>
+        </div>
+        <div class="docs-empty" id="docsEmpty" hidden>
+            <i class="fas fa-folder-open"></i>
+            <p>@L["No documents linked to this property yet."]</p>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+    (function () {
+        const PROPERTY_ID = @Model.PropertyId;
+        const list = document.getElementById('docsList');
+        const empty = document.getElementById('docsEmpty');
+        const count = document.getElementById('docsCount');
+        const skel = document.getElementById('docsSkeleton');
+        const token = document.querySelector('#docsCard input[name="__RequestVerificationToken"]').value;
+
+        const ICONS = {
+            '.pdf': 'fa-file-pdf', '.doc': 'fa-file-word', '.docx': 'fa-file-word',
+            '.xls': 'fa-file-excel', '.xlsx': 'fa-file-excel',
+            '.jpg': 'fa-file-image', '.jpeg': 'fa-file-image', '.png': 'fa-file-image',
+        };
+        const KB = b => b < 1024 ? `${b} B` : b < 1024*1024 ? `${(b/1024).toFixed(1)} KB` : `${(b/1024/1024).toFixed(1)} MB`;
+        const ext = n => { const i = n.lastIndexOf('.'); return i < 0 ? '' : n.slice(i).toLowerCase(); };
+
+        async function load() {
+            try {
+                const res = await fetch(`/Documents/ByEntity?type=Property&id=${PROPERTY_ID}`,
+                    { credentials: 'same-origin' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const docs = await res.json();
+                render(docs);
+            } catch (e) {
+                skel?.remove();
+                list.innerHTML = `<div class="docs-error">Couldn't load documents (${e.message}).</div>`;
+            }
+        }
+
+        function render(docs) {
+            skel?.remove();
+            list.innerHTML = '';
+            count.textContent = docs.length ? `Ã‚· ${docs.length}` : '';
+            if (!docs.length) { empty.removeAttribute('hidden'); return; }
+            empty.setAttribute('hidden', '');
+
+            for (const d of docs) {
+                const icon = ICONS[ext(d.documentName)] || 'fa-file';
+                const date = new Date(d.uploadedDate).toLocaleDateString(undefined,
+                    { year: 'numeric', month: 'short', day: '2-digit' });
+                const row = document.createElement('div');
+                row.className = 'doc-row';
+                row.dataset.docId = d.documentId;
+                row.dataset.linkId = d.linkId ?? '';
+                row.innerHTML = `
+                    <i class="fas ${icon} doc-row-icon"></i>
+                    <div class="doc-row-body">
+                      <a class="doc-row-name" href="/Documents/Download/${d.documentId}">${escapeHtml(d.documentName)}</a>
+                      <div class="doc-row-meta">
+                        <span class="doc-row-type">${escapeHtml(d.documentType || 'Ã¢â‚¬”')}</span>
+                        Ã‚· ${KB(d.fileSize)} Ã‚· ${escapeHtml(d.uploadedBy || '')} Ã‚· ${date}
+                      </div>
+                      ${d.description ? `<div class="doc-row-desc">${escapeHtml(d.description)}</div>` : ''}
+                    </div>
+                    <div class="doc-row-actions">
+                      <a href="/Documents/Download/${d.documentId}" title="Download" class="btn-row-icon"><i class="fas fa-download"></i></a>
+                      <button type="button" class="btn-row-icon btn-row-danger" title="Unlink from this property"
+                              data-action="unlink"><i class="fas fa-link-slash"></i></button>
+                    </div>`;
+                list.appendChild(row);
+            }
+        }
+
+        function escapeHtml(s) {
+            return (s ?? '').replace(/[&<>"']/g, c => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+            }[c]));
+        }
+
+        list.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-action="unlink"]');
+            if (!btn) return;
+            const row = btn.closest('.doc-row');
+            const linkId = row.dataset.linkId;
+            if (!linkId) { alert('No link id Ã¢â‚¬” refresh and try again.'); return; }
+            if (!confirm("Remove this document's link to this property? The file itself isn't deleted.")) return;
+            btn.disabled = true;
+            try {
+                const fd = new FormData();
+                fd.set('linkId', linkId);
+                fd.set('__RequestVerificationToken', token);
+                const res = await fetch('/Documents/Unlink', { method: 'POST', body: fd, credentials: 'same-origin' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                row.remove();
+                const remaining = list.querySelectorAll('.doc-row').length;
+                count.textContent = remaining ? `Ã‚· ${remaining}` : '';
+                if (!remaining) empty.removeAttribute('hidden');
+            } catch (err) {
+                alert('Unlink failed: ' + err.message);
+                btn.disabled = false;
+            }
+        });
+
+        // Inline upload form
+        const form = document.getElementById('docsUploadForm');
+        const toggle = document.getElementById('docsToggleUpload');
+        const msg = document.getElementById('docsUploadMsg');
+        toggle.addEventListener('click', () => {
+            form.hidden = !form.hidden;
+            if (!form.hidden) form.querySelector('input[type="file"]').focus();
+        });
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            msg.hidden = true;
+            const fd = new FormData(form);
+            fd.set('__RequestVerificationToken', token);
+            const btn = form.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/Documents/Upload', { method: 'POST', body: fd, credentials: 'same-origin' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                form.reset();
+                form.hidden = true;
+                msg.hidden = false;
+                msg.className = 'upload-msg upload-msg-ok';
+                msg.innerHTML = '<i class="fas fa-circle-check"></i> Uploaded.';
+                setTimeout(() => msg.hidden = true, 3000);
+                await load();
+            } catch (err) {
+                msg.hidden = false;
+                msg.className = 'upload-msg upload-msg-err';
+                msg.textContent = 'Upload failed: ' + err.message;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        load();
+    })();
+    </script>
+}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        color: #1e293b;
+        min-height: 100vh;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-card {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        padding: 1.25rem;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #475569;
+        flex: 0 0 40%;
+    }
+
+    .info-value {
+        color: #1e293b;
+        flex: 1;
+        text-align: right;
+    }
+
+    .info-value a {
+        color: #6366f1;
+        text-decoration: none;
+    }
+
+    .info-value a:hover {
+        text-decoration: underline;
+    }
+
+    .description-text {
+        margin: 0;
+        line-height: 1.6;
+        color: #1e293b;
+        white-space: pre-wrap;
+    }
+
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .occupancy-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .badge-success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .badge-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .text-muted {
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    .details-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .details-table thead {
+        background: rgba(99, 102, 241, 0.08);
+    }
+
+    .details-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #334155;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .details-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        color: #1e293b;
+    }
+
+    .details-table tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #334155;
+        margin: 0;
+    }
+
+    .page-header .text-muted {
+        color: #475569;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+
+    .tenant-name {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .tenant-name i {
+        font-size: 1.25rem;
+    }
+
+    .text-primary {
+        color: #6366f1 !important;
+    }
+
+    .rent-amount {
+        color: #059669;
+        font-size: 1.05rem;
+    }
+
+    .details-table td a {
+        color: #6366f1;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+
+    .details-table td a:hover {
+        text-decoration: underline;
+        color: #4f46e5;
+    }
+
+    .details-table td a i {
+        font-size: 0.875rem;
+    }
+
+    @@media (max-width: 768px) {
+        .details-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+        .info-row {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-label {
+            flex: 1;
+        }
+
+        .info-value {
+            text-align: left;
+        }
+
+        .details-table {
+            font-size: 0.875rem;
+            display: block;
+            overflow-x: auto;
+        }
+    }
+
+    /* Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ Documents section (P3) Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ */
+    .docs-count { font-size: 0.85rem; font-weight: 500; color: #94a3b8; margin-left: 0.4rem; }
+    .docs-upload-form {
+        display: flex; flex-direction: column; gap: 0.5rem;
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1; border-radius: 10px;
+        padding: 0.85rem;
+        margin: 0.5rem 1.5rem 1rem;
+    }
+    .docs-upload-form .upload-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .docs-upload-form input[type="file"],
+    .docs-upload-form input[type="text"] {
+        flex: 1; min-width: 180px;
+        padding: 0.5rem 0.7rem;
+        border: 1px solid #e2e8f0; border-radius: 6px;
+        background: white; font-size: 0.85rem;
+    }
+    .docs-upload-form input[type="text"]:focus,
+    .docs-upload-form input[type="file"]:focus {
+        outline: none; border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241,0.1);
+    }
+    .upload-msg {
+        padding: 0.5rem 0.75rem; border-radius: 6px;
+        font-size: 0.85rem;
+    }
+    .upload-msg-ok { background: #d1fae5; color: #047857; }
+    .upload-msg-err { background: #fee2e2; color: #991b1b; }
+    .upload-msg i { margin-right: 0.3rem; }
+
+    .docs-list { padding: 0 1.5rem 1rem; }
+    .doc-row {
+        display: flex; align-items: flex-start; gap: 0.85rem;
+        padding: 0.75rem;
+        border: 1px solid #e2e8f0; border-radius: 8px;
+        margin-bottom: 0.5rem;
+        background: white;
+        transition: border-color 0.15s;
+    }
+    .doc-row:hover { border-color: #c7d2fe; }
+    .doc-row-icon {
+        font-size: 1.5rem; color: #6366f1;
+        flex-shrink: 0; padding-top: 2px;
+    }
+    .fa-file-pdf { color: #ef4444 !important; }
+    .fa-file-word { color: #3b82f6 !important; }
+    .fa-file-excel { color: #10b981 !important; }
+    .fa-file-image { color: #f59e0b !important; }
+    .doc-row-body { flex: 1; min-width: 0; }
+    .doc-row-name {
+        display: block;
+        font-weight: 600; color: #0f172a; text-decoration: none;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .doc-row-name:hover { color: #6366f1; }
+    .doc-row-meta { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+    .doc-row-type {
+        display: inline-block;
+        padding: 0.05rem 0.45rem;
+        background: rgba(99, 102, 241,0.08);
+        color: #4338ca; border-radius: 4px;
+        font-weight: 600; font-size: 0.7rem; text-transform: uppercase;
+    }
+    .doc-row-desc {
+        font-size: 0.82rem; color: #475569;
+        margin-top: 0.3rem; line-height: 1.4;
+    }
+    .doc-row-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+    .btn-row-icon {
+        width: 32px; height: 32px;
+        display: flex; align-items: center; justify-content: center;
+        border: 1px solid #e2e8f0; border-radius: 6px;
+        background: white; color: #64748b;
+        text-decoration: none; cursor: pointer;
+        transition: all 0.15s;
+    }
+    .btn-row-icon:hover { background: #f1f5f9; color: #6366f1; border-color: #6366f1; }
+    .btn-row-icon:disabled { opacity: 0.5; cursor: wait; }
+    .btn-row-danger:hover { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+
+    .docs-skeleton { padding: 0.5rem 0; }
+    .skel-row {
+        height: 56px; margin-bottom: 0.5rem;
+        background: linear-gradient(90deg, #f1f5f9 0%, #f8fafc 50%, #f1f5f9 100%);
+        background-size: 200% 100%;
+        border-radius: 8px;
+        animation: docs-shimmer 1.4s infinite;
+    }
+    @@keyframes docs-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .docs-empty {
+        text-align: center; padding: 2rem 1rem;
+        color: #94a3b8;
+    }
+    .docs-empty i { font-size: 2rem; margin-bottom: 0.5rem; display: block; }
+    .docs-empty p { margin: 0; font-size: 0.9rem; }
+
+    .docs-error {
+        padding: 1rem;
+        background: #fef2f2; color: #991b1b;
+        border-radius: 8px; font-size: 0.85rem;
+    }
+</style>

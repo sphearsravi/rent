@@ -1,0 +1,72 @@
+# Codemagic CI/CD — builds a signed iOS IPA for the Viijar Tenant app.
+# iOS builds require macOS; this runs on Codemagic's mac_mini instances so you
+# don't need a Mac locally.
+#
+# ── ONE-TIME SETUP IN THE CODEMAGIC UI (do these before the first build) ──
+#   1. Apple Developer Program membership ($99/yr).
+#   2. Register the App ID `com.viijar.tenant` in App Store Connect and create
+#      the app record there (note its Apple ID number → APP_STORE_APPLE_ID).
+#   3. Create an App Store Connect API key (Users and Access → Integrations →
+#      App Store Connect API), then in Codemagic: Teams → Integrations →
+#      Developer Portal → connect it. Name the integration exactly
+#      `ViijarASCKey` (or change the name under `integrations` below).
+#   4. Connect this git repository to a Codemagic application.
+#   5. Fill the TODOs marked below.
+#
+# Docs: https://docs.codemagic.io/yaml-quick-start/building-a-flutter-app/
+
+workflows:
+  ios-release:
+    name: iOS Release (IPA)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # Must match the App Store Connect integration name set in the Codemagic UI.
+      app_store_connect: ViijarASCKey
+    environment:
+      ios_signing:
+        # Codemagic fetches/creates the distribution certificate + provisioning
+        # profile automatically from the API key above (automatic signing).
+        distribution_type: app_store          # app_store | ad_hoc | development | enterprise
+        bundle_identifier: com.viijar.tenant
+      vars:
+        # TODO: point at your PRODUCTION HTTPS API (iOS ATS blocks cleartext http).
+        API_BASE_URL: "https://api.viijar.com/api"
+        # TODO: the app's Apple ID number from App Store Connect (used for build numbering).
+        APP_STORE_APPLE_ID: 0000000000
+        BUNDLE_ID: "com.viijar.tenant"
+      flutter: 3.24.5
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Install CocoaPods dependencies
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Apply signing profiles to the Xcode project
+        script: xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          # Auto-increment the build number off the latest TestFlight build.
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0) + 1))
+          flutter build ipa --release \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      # Emails you the IPA when the build finishes.
+      email:
+        recipients:
+          - sphearsravi@gmail.com
+        notify:
+          success: true
+          failure: true
+      # Uploads the IPA to TestFlight automatically. Set to false to just get
+      # the artifact without publishing while you're still testing the pipeline.
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

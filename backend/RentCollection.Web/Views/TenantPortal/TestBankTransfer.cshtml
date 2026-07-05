@@ -1,0 +1,105 @@
+@{
+    ViewData["Title"] = "Test Bank Transfer";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Bank Transfer Upload</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .form-group { margin: 15px 0; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input, select, textarea { width: 100%; padding: 8px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>@L["Bank Transfer Test Page"]</h1>
+    <p>@L["Session TenantId:"] @Context.Session.GetInt32("TenantId")</p>
+
+    <form id="testForm" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>@L["Invoice ID:"]</label>
+            <input type="number" name="invoiceId" value="4" required />
+        </div>
+
+        <div class="form-group">
+            <label>@L["Tenant ID:"]</label>
+            <input type="number" name="tenantId" value="@Context.Session.GetInt32("TenantId")" required />
+        </div>
+
+        <div class="form-group">
+            <label>@L["Property ID:"]</label>
+            <input type="number" name="propertyId" value="1" required />
+        </div>
+
+        <div class="form-group">
+            <label>@L["Amount:"]</label>
+            <input type="number" step="0.001" name="amount" value="380.000" required />
+        </div>
+
+        <div class="form-group">
+            <label>@L["Transfer Date:"]</label>
+            <input type="date" name="transferDate" value="@DateTime.Now.ToString("yyyy-MM-dd")" required />
+        </div>
+
+        <div class="form-group">
+            <label>@L["Bank Name:"]</label>
+            <select name="bankName" required>
+                <option value="Gulf Bank">Gulf Bank</option>
+                <option value="National Bank of Kuwait">National Bank of Kuwait</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>@L["Reference Number:"]</label>
+            <input type="text" name="referenceNumber" value="TEST123" />
+        </div>
+
+        <div class="form-group">
+            <label>@L["Proof File:"]</label>
+            <input type="file" name="proofFile" accept=".jpg,.jpeg,.png,.pdf" required />
+        </div>
+
+        <div class="form-group">
+            <label>@L["Notes:"]</label>
+            <textarea name="notes" rows="3">Test bank transfer submission</textarea>
+        </div>
+
+        <button type="submit">@L["Submit Bank Transfer"]</button>
+    </form>
+
+    <div id="result" class="result" style="display:none;"></div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script>
+        $('#testForm').on('submit', function(e) {
+            e.preventDefault();
+
+            var formData = new FormData(this);
+
+            console.log('Submitting form data...');
+
+            $.ajax({
+                url: '/api/payments/bank/upload',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    console.log('Success:', response);
+                    $('#result').show().html('<h3 style="color:green;">SUCCESS!</h3><pre>' + JSON.stringify(response, null, 2) + '</pre>');
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error:', xhr, status, error);
+                    var errorMsg = xhr.responseJSON ? JSON.stringify(xhr.responseJSON, null, 2) : xhr.responseText;
+                    $('#result').show().html('<h3 style="color:red;">ERROR!</h3><p>Status: ' + xhr.status + '</p><pre>' + errorMsg + '</pre>');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

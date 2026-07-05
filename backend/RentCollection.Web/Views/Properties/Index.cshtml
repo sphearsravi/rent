@@ -1,0 +1,1259 @@
+﻿@model List<RentCollection.Core.Entities.Property>
+@{
+    ViewData["Title"] = "Properties";
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = "Properties",
+        ["Subtitle"] = string.Format(L["Manage your rental properties ({0} properties total)"].Value, Model.Count),
+        ["ActionLabel"] = "Add Property",
+        ["ActionHref"] = Url.Action("Create"),
+        ["Crumbs"] = new (string label, string? href)[]
+            {
+                ("Admin", "/Dashboard"),
+                ("Properties", null)
+            }
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <!-- ─── Sprint 1 — Portfolio KPI strip ─── -->
+    <div class="portfolio-strip" id="portfolioStrip" aria-live="polite">
+        <div class="kpi-card"><div class="kpi-icon ki-prop"><i class="fas fa-building"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Properties"]</div><div class="kpi-value skeleton" data-k="totalProperties">&nbsp;</div>
+            <div class="kpi-sub"><span data-k="activeProperties">—</span> @L["active"]</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-unit"><i class="fas fa-door-open"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Units"]</div><div class="kpi-value skeleton" data-k="totalUnits">&nbsp;</div>
+            <div class="kpi-sub"><span data-k="occupiedUnits">—</span> @L["occupied"]</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-occ"><i class="fas fa-chart-pie"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Occupancy"]</div><div class="kpi-value skeleton" data-k="occupancy">&nbsp;</div>
+            <div class="kpi-sub">@L["portfolio-wide"]</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-rent"><i class="fas fa-money-bill-trend-up"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Potential rent"]</div><div class="kpi-value skeleton" data-k="potentialMonthly">&nbsp;</div>
+            <div class="kpi-sub">@L["per month, all units"]</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon ki-vacant"><i class="fas fa-circle-exclamation"></i></div>
+            <div class="kpi-body"><div class="kpi-label">@L["Vacant units"]</div><div class="kpi-value skeleton" data-k="vacantUnits">&nbsp;</div>
+            <div class="kpi-sub">@L["available now"]</div></div></div>
+    </div>
+
+    <!-- ─── Sprint 1 — Toolbar: chips + sort + view + export ─── -->
+    <div class="properties-toolbar">
+        <div class="filter-chips" id="filterChips" aria-label="@(L["Active filters"].Value)"></div>
+        <div class="toolbar-right">
+            <label class="toolbar-label" for="sortBy">@L["Sort"]</label>
+            <select id="sortBy" class="form-control toolbar-select" onchange="applySort()">
+                <option value="newest">@L["Newest first"]</option>
+                <option value="name-asc">@L["Name A → Z"]</option>
+                <option value="name-desc">@L["Name Z → A"]</option>
+                <option value="value-desc">@L["Value (high → low)"]</option>
+                <option value="units-desc">@L["Units (most first)"]</option>
+                <option value="occupancy-desc">@L["Occupancy (high → low)"]</option>
+            </select>
+            <div class="view-toggle" role="group" aria-label="@(L["View mode"].Value)">
+                <button type="button" id="viewGrid" class="view-btn is-active" onclick="setView('grid')" aria-label="@(L["Grid view"].Value)"><i class="fas fa-grip"></i></button>
+                <button type="button" id="viewTable" class="view-btn" onclick="setView('table')" aria-label="@(L["Table view"].Value)"><i class="fas fa-table-list"></i></button>
+            </div>
+            <a id="exportExcelLink" class="btn-export" href="/Properties/ExportExcel" aria-label="@(L["Export filtered list as Excel"].Value)">
+                <i class="fas fa-file-excel"></i> @L["Export"]
+            </a>
+        </div>
+    </div>
+
+    <!-- Search/Filter Section -->
+    <div class="filter-section">
+        <div class="filter-row">
+            <div class="search-group">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="@(L["Search by property name, PACI number, address, or area..."].Value)" onkeyup="filterProperties()">
+            </div>
+            <div class="filter-group">
+                <label>@L["Type:"]</label>
+                <select id="typeFilter" onchange="filterProperties()">
+                    <option value="">@L["All Types"]</option>
+                    @foreach (var type in Model.Select(p => p.PropertyType).Distinct().OrderBy(t => t))
+                    {
+                        <option value="@type">@type</option>
+                    }
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>@L["Governorate:"]</label>
+                <select id="governorateFilter" onchange="filterProperties()">
+                    <option value="">@L["All Governorates"]</option>
+                    @foreach (var gov in Model.Select(p => p.Governorate).Distinct().OrderBy(g => g))
+                    {
+                        <option value="@gov">@gov</option>
+                    }
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>@L["Status:"]</label>
+                <select id="statusFilter" onchange="filterProperties()">
+                    <option value="">@L["All Status"]</option>
+                    <option value="Active">@L["Active"]</option>
+                    <option value="Inactive">@L["Inactive"]</option>
+                </select>
+            </div>
+            <button class="btn-clear" onclick="clearFilters()">
+                <i class="fas fa-times"></i> @L["Clear"]
+            </button>
+        </div>
+        <div class="filter-results">
+            <span id="resultCount">@L["Showing all"] @Model.Count @L["properties"]</span>
+        </div>
+    </div>
+
+    @* Antiforgery token consumed by the inline status toggle (Sprint 2). *@
+    @Html.AntiForgeryToken()
+
+    @if (Model.Any())
+    {
+        <div class="properties-grid">
+            @foreach (var property in Model)
+            {
+                var occupiedUnits = property.Units.Count(u => u.Status == "Occupied");
+                var totalUnits = property.Units.Count;
+                var occupancyRate = totalUnits > 0 ? Math.Round((double)occupiedUnits / totalUnits * 100, 1) : 0;
+
+                <div class="property-card"
+                     data-property-id="@property.PropertyId"
+                     data-name="@property.PropertyName.ToLower()"
+                     data-paci="@((property.PACINumber ?? "").ToLower())"
+                     data-address="@property.Address.ToLower()"
+                     data-area="@property.Area.ToLower()"
+                     data-governorate="@property.Governorate"
+                     data-type="@property.PropertyType"
+                     data-units="@property.Units.Count"
+                     data-occupancy="@(property.Units.Count > 0 ? (int)Math.Round((double)property.Units.Count(u => u.Status == "Occupied") / property.Units.Count * 100) : 0)"
+                     data-value="@(property.PropertyValue ?? 0)"
+                     data-created="@property.CreatedDate.Ticks"
+                     data-status="@property.Status">
+                    <div class="property-header">
+                        <div class="property-header-text">
+                            <div class="property-avatar" aria-hidden="true">
+                                @if (!string.IsNullOrEmpty(property.ImageUrl))
+                                {
+                                    <img src="@property.ImageUrl" alt="">
+                                }
+                                else
+                                {
+                                    @(new string(property.PropertyName.Where(char.IsLetterOrDigit).Take(2).ToArray()).ToUpper())
+                                }
+                            </div>
+                            <div>
+                                <h3>@property.PropertyName</h3>
+                                @if (!string.IsNullOrEmpty(property.PACINumber))
+                                {
+                                    <div class="paci-badge">
+                                        <i class="fas fa-id-card"></i>
+                                        <span>@L["PACI:"] @property.PACINumber</span>
+                                    </div>
+                                }
+                                <p class="property-address">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    @property.Address, @property.Governorate, @property.Area @property.Block
+                                </p>
+                            </div>
+                        </div>
+                        <div class="property-header-meta">
+                            @* Inline status toggle — POSTs to /Properties/ToggleStatus
+                               with antiforgery; updates the badge in-place via JS. *@
+                            <button type="button"
+                                    class="status-badge status-toggle status-@property.Status.ToLower()"
+                                    data-status="@property.Status"
+                                    aria-label="@(L["Toggle property status"].Value)">@property.Status</button>
+                            <div class="kebab-wrap">
+                                <button type="button" class="kebab-btn" aria-label="@(L["More actions"].Value)" aria-haspopup="menu" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-vertical"></i>
+                                </button>
+                                <div class="kebab-menu" role="menu" hidden>
+                                    <a href="/Units/Create?propertyId=@property.PropertyId" role="menuitem"><i class="fas fa-plus"></i> @L["Add Unit"]</a>
+                                    <a href="/Units?propertyId=@property.PropertyId" role="menuitem"><i class="fas fa-door-open"></i> @L["View Units"]</a>
+                                    <a href="/Tenants?propertyId=@property.PropertyId" role="menuitem"><i class="fas fa-users"></i> @L["View Tenants"]</a>
+                                    <a href="/Invoices?propertyId=@property.PropertyId" role="menuitem"><i class="fas fa-file-invoice-dollar"></i> @L["View Invoices"]</a>
+                                    <a href="/Reports/PropertyPerformance?propertyId=@property.PropertyId" role="menuitem"><i class="fas fa-chart-line"></i> @L["Performance"]</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Sprint 3 — per-card KPIs filled by /Properties/KpiBatch. *@
+                    <div class="property-kpis" aria-busy="true">
+                        <div class="pk"><span class="pk-label">@L["MTD"]</span><span class="pk-value skeleton">&nbsp;</span></div>
+                        <div class="pk"><span class="pk-label">@L["Outstanding"]</span><span class="pk-value skeleton">&nbsp;</span></div>
+                        <div class="pk"><span class="pk-label">@L["Last payment"]</span><span class="pk-value skeleton">&nbsp;</span></div>
+                    </div>
+
+                    <div class="property-stats">
+                        <div class="stat-item">
+                            <i class="fas fa-building"></i>
+                            <div>
+                                <strong>@property.PropertyType</strong>
+                                <small>@L["Type"]</small>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-door-open"></i>
+                            <div>
+                                <strong>@totalUnits @L["Units"]</strong>
+                                <small>@L["Total"]</small>
+                            </div>
+                        </div>
+                        @* Drill-down: clicking opens the Units page filtered by this property. *@
+                        <a class="stat-item stat-link" href="/Units?propertyId=@property.PropertyId" title="@(L["Open units"].Value)">
+                            <i class="fas fa-chart-pie"></i>
+                            <div>
+                                <strong>@occupancyRate%</strong>
+                                <small>@L["Occupied"]</small>
+                            </div>
+                        </a>
+                        @if (property.PropertyValue.HasValue)
+                        {
+                            <div class="stat-item">
+                                <i class="fas fa-dollar-sign"></i>
+                                <div>
+                                    <strong>@("KWD " + property.PropertyValue.Value.ToString("N3"))</strong>
+                                    <small>@L["Value"]</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="property-progress">
+                        <div class="progress-info">
+                            <span>@occupiedUnits @L["occupied"]</span>
+                            <span>@(totalUnits - occupiedUnits) @L["vacant"]</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width: @occupancyRate%"></div>
+                        </div>
+                    </div>
+
+                    <div class="property-actions">
+                        <a href="/Properties/Details/@property.PropertyId" class="btn-action">
+                            <i class="fas fa-eye"></i> @L["View Details"]
+                        </a>
+                        <a href="/Properties/Edit/@property.PropertyId" class="btn-action">
+                            <i class="fas fa-edit"></i> @L["Edit"]
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- ─── Sprint 1 — Table view (alternative to .properties-grid) ─── -->
+        <div class="properties-table-wrap" id="propertiesTableWrap" hidden>
+            <table class="properties-table">
+                <thead>
+                    <tr>
+                        <th data-sort="name">@L["Property"] <i class="fas fa-sort sort-ind"></i></th>
+                        <th>@L["Type"]</th>
+                        <th>@L["Governorate · Area"]</th>
+                        <th data-sort="units">@L["Units"] <i class="fas fa-sort sort-ind"></i></th>
+                        <th data-sort="occupancy">@L["Occupancy"] <i class="fas fa-sort sort-ind"></i></th>
+                        <th data-sort="value">@L["Value (KWD)"] <i class="fas fa-sort sort-ind"></i></th>
+                        <th>@L["Status"]</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="propertiesTableBody">
+                    @* Populated by JS from the .property-card data attributes — the
+                       same source of truth, so filter/sort stay in sync. *@
+                </tbody>
+            </table>
+        </div>
+
+        <!-- No Results Message -->
+        <div class="no-results-message" id="noResultsMessage">
+            <i class="fas fa-search"></i>
+            <h4>@L["No matching properties found"]</h4>
+            <p>@L["Try adjusting your search or filter criteria"]</p>
+            <button type="button" class="btn btn-secondary" onclick="clearFilters()">
+                <i class="fas fa-rotate-left"></i> @L["Clear filters"]
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="fas fa-building"></i>
+            <h3>@L["No Properties Found"]</h3>
+            <p>@L["Start by adding your first property"]</p>
+            <a href="/Properties/Create" class="btn btn-primary">
+                <i class="fas fa-plus"></i> @L["Add Property"]
+            </a>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .page-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .properties-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .property-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .property-card:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            transform: translateY(-4px);
+        }
+
+        .property-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .property-header h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+            color: #334155;
+        }
+
+        .paci-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin: 0.5rem 0;
+        }
+
+        .paci-badge i {
+            font-size: 0.75rem;
+        }
+
+        .property-address {
+            color: #475569;
+            margin: 0;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-inactive {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .property-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .stat-item i {
+            font-size: 1.5rem;
+            color: #6366f1;
+        }
+
+        .stat-item strong {
+            display: block;
+            font-size: 1rem;
+            color: #1e293b;
+        }
+
+        .stat-item small {
+            display: block;
+            font-size: 0.75rem;
+            color: #475569;
+        }
+
+        .property-progress {
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: #475569;
+        }
+
+        .progress-bar-container {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 9999px;
+            transition: width 0.3s ease;
+        }
+
+        .property-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 0.75rem;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #1e293b;
+            font-weight: 500;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-action:hover {
+            background: rgba(99, 102, 241, 0.08);
+            border-color: #6366f1;
+            color: #6366f1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+            color: #334155;
+        }
+
+        .empty-state p {
+            color: #475569;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-group {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.625rem 1rem;
+            transition: all 0.2s;
+        }
+
+        .search-group:focus-within {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-group i {
+            color: #94a3b8;
+            margin-right: 0.75rem;
+        }
+
+        .search-group input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+
+        .search-group input::placeholder {
+            color: #94a3b8;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .filter-group select {
+            padding: 0.625rem 2rem 0.625rem 0.875rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.5rem center/1.25rem;
+            font-size: 0.9rem;
+            color: #1e293b;
+            cursor: pointer;
+            min-width: 140px;
+            appearance: none;
+            transition: all 0.2s;
+        }
+
+        .filter-group select:focus {
+            border-color: #6366f1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .btn-clear {
+            padding: 0.625rem 1rem;
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .filter-results {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .filter-results span {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .filter-results strong {
+            color: #6366f1;
+        }
+
+        /* Hidden state for filtered elements */
+        .property-card.hidden {
+            display: none !important;
+        }
+
+        .no-results-message {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            color: #64748b;
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .no-results-message.show {
+            display: block;
+        }
+
+        .no-results-message i {
+            font-size: 3rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .no-results-message h4 {
+            font-size: 1.1rem;
+            color: #475569;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .no-results-message p {
+            margin: 0;
+        }
+
+        @@media (max-width: 768px) {
+            .properties-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-group {
+                min-width: auto;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+
+            .filter-group select {
+                flex: 1;
+            }
+        }
+
+        /* ─── Sprint 1/2/3 — KPI strip, toolbar, chips, kebab, table view ─── */
+        .portfolio-strip {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.85rem;
+            margin: 0 0 1rem;
+        }
+        @@media (max-width: 1100px) { .portfolio-strip { grid-template-columns: repeat(3, 1fr); } }
+        @@media (max-width: 700px)  { .portfolio-strip { grid-template-columns: repeat(2, 1fr); } }
+        .portfolio-strip .kpi-card {
+            display: flex; align-items: center; gap: 0.7rem;
+            padding: 0.85rem 1rem;
+            background: rgba(255,255,255,0.95);
+            border: 1px solid rgba(99, 102, 241,0.12);
+            border-radius: 12px;
+        }
+        .portfolio-strip .kpi-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 0.95rem;
+            background: linear-gradient(135deg,#6366f1,#8b5cf6);
+        }
+        .ki-unit   { background: linear-gradient(135deg,#3b82f6,#06b6d4) !important; }
+        .ki-occ    { background: linear-gradient(135deg,#10b981,#22c55e) !important; }
+        .ki-rent   { background: linear-gradient(135deg,#f59e0b,#f97316) !important; }
+        .ki-vacant { background: linear-gradient(135deg,#ef4444,#f43f5e) !important; }
+        .kpi-body { min-width: 0; }
+        .kpi-label { font-size: 0.65rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+        .kpi-value { font-size: 1.25rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
+        .kpi-sub   { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+
+        /* Skeleton shimmer */
+        .skeleton {
+            display: inline-block; min-width: 4rem; min-height: 1.2rem;
+            background: linear-gradient(90deg,#eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
+            background-size: 200% 100%;
+            border-radius: 6px;
+            animation: prop-shimmer 1.4s infinite;
+        }
+        @@keyframes prop-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Toolbar above grid */
+        .properties-toolbar {
+            display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+            margin: 0 0 0.75rem;
+        }
+        .filter-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; flex: 1; min-width: 0; }
+        .filter-chip {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.3rem 0.7rem;
+            background: rgba(99, 102, 241,0.08);
+            color: #4338ca;
+            border-radius: 999px;
+            font-size: 0.75rem; font-weight: 500;
+            border: 1px solid rgba(99, 102, 241,0.18);
+        }
+        .filter-chip button {
+            background: none; border: 0; cursor: pointer; color: #4338ca;
+            padding: 0; line-height: 1; font-size: 0.85rem;
+        }
+        .toolbar-right { display: flex; align-items: center; gap: 0.5rem; }
+        .toolbar-label { font-size: 0.75rem; color: #64748b; font-weight: 500; }
+        .toolbar-select { padding: 0.4rem 0.6rem; font-size: 0.85rem; height: auto; }
+        .view-toggle {
+            display: inline-flex; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .view-btn {
+            padding: 0.4rem 0.7rem;
+            background: white; border: 0; color: #64748b; cursor: pointer;
+            border-right: 1px solid #e2e8f0;
+        }
+        .view-btn:last-child { border-right: 0; }
+        .view-btn.is-active { background: #6366f1; color: white; }
+        .btn-export {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.45rem 0.85rem;
+            background: linear-gradient(135deg,#10b981,#22c55e);
+            color: white; border-radius: 8px; text-decoration: none;
+            font-size: 0.85rem; font-weight: 500;
+        }
+        .btn-export:hover { box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
+
+        /* Card additions */
+        .property-card { position: relative; }
+        .property-header-text { display: flex; gap: 0.85rem; align-items: flex-start; flex: 1; min-width: 0; }
+        .property-avatar {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: linear-gradient(135deg,#6366f1,#8b5cf6);
+            color: white; font-weight: 700; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; flex-shrink: 0;
+        }
+        .property-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .property-header-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; }
+        .status-toggle {
+            border: 0; cursor: pointer;
+            font-family: inherit; font-size: inherit; font-weight: inherit;
+        }
+        .status-toggle:hover { filter: brightness(0.95); }
+        .status-toggle:disabled { opacity: 0.6; cursor: wait; }
+
+        /* Kebab menu */
+        .kebab-wrap { position: relative; }
+        .kebab-btn {
+            background: none; border: 1px solid transparent; border-radius: 8px;
+            padding: 0.3rem 0.5rem; cursor: pointer; color: #64748b;
+        }
+        .kebab-btn:hover { background: #f1f5f9; color: #6366f1; }
+        .kebab-menu {
+            position: absolute; top: 100%; right: 0; z-index: 10;
+            background: white; min-width: 180px;
+            border: 1px solid #e2e8f0; border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(15,23,42,0.12);
+            padding: 0.35rem; margin-top: 4px;
+        }
+        .kebab-menu[hidden] { display: none; }
+        .kebab-menu a {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.5rem 0.75rem; border-radius: 6px;
+            color: #334155; text-decoration: none; font-size: 0.85rem;
+        }
+        .kebab-menu a:hover { background: #f8fafc; color: #6366f1; }
+        .kebab-menu a i { width: 16px; color: #94a3b8; }
+
+        /* Per-card KPIs strip */
+        .property-kpis {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
+            margin-top: 0.75rem; padding-top: 0.75rem;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .pk { display: flex; flex-direction: column; gap: 2px; }
+        .pk-label { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; }
+        .pk-value { font-size: 0.9rem; font-weight: 600; color: #0f172a; }
+        .pk-value.muted { color: #94a3b8; }
+
+        .stat-link {
+            text-decoration: none; color: inherit;
+            transition: transform 0.1s ease;
+            cursor: pointer;
+        }
+        .stat-link:hover { transform: translateY(-1px); color: #6366f1; }
+
+        /* Table view */
+        .properties-table-wrap {
+            background: white; border: 1px solid rgba(99, 102, 241,0.12);
+            border-radius: 12px; overflow: hidden; margin-top: 0.5rem;
+        }
+        .properties-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .properties-table th {
+            text-align: left; padding: 0.75rem 1rem;
+            background: #f8fafc; color: #475569;
+            font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .properties-table th[data-sort] { cursor: pointer; user-select: none; }
+        .properties-table th[data-sort]:hover { color: #6366f1; }
+        .sort-ind { opacity: 0.35; margin-left: 4px; font-size: 0.7rem; }
+        .properties-table th.is-sort .sort-ind { opacity: 1; color: #6366f1; }
+        .properties-table td { padding: 0.7rem 1rem; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
+        .properties-table tr:hover td { background: rgba(99, 102, 241,0.03); }
+        .properties-table td.col-actions { white-space: nowrap; text-align: right; }
+        .properties-table td.col-actions a { color: #6366f1; margin-left: 0.5rem; text-decoration: none; }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        const totalProperties = @Model.Count;
+
+        function filterProperties() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const typeFilter = document.getElementById('typeFilter').value;
+            const governorateFilter = document.getElementById('governorateFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            const propertyCards = document.querySelectorAll('.property-card');
+            let visibleCount = 0;
+
+            propertyCards.forEach(card => {
+                const name = card.dataset.name || '';
+                const paci = card.dataset.paci || '';
+                const address = card.dataset.address || '';
+                const area = card.dataset.area || '';
+                const governorate = card.dataset.governorate || '';
+                const type = card.dataset.type || '';
+                const status = card.dataset.status || '';
+
+                // Check search term matches
+                const matchesSearch = !searchTerm ||
+                    name.includes(searchTerm) ||
+                    paci.includes(searchTerm) ||
+                    address.includes(searchTerm) ||
+                    area.includes(searchTerm) ||
+                    governorate.toLowerCase().includes(searchTerm);
+
+                // Check type filter matches
+                const matchesType = !typeFilter || type === typeFilter;
+
+                // Check governorate filter matches
+                const matchesGovernorate = !governorateFilter || governorate === governorateFilter;
+
+                // Check status filter matches
+                const matchesStatus = !statusFilter || status === statusFilter;
+
+                if (matchesSearch && matchesType && matchesGovernorate && matchesStatus) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+
+            // Update result count
+            updateResultCount(visibleCount, searchTerm || typeFilter || governorateFilter || statusFilter);
+
+            // Show/hide no results message
+            const noResultsMessage = document.getElementById('noResultsMessage');
+            const propertiesGrid = document.querySelector('.properties-grid');
+
+            if (visibleCount === 0 && propertiesGrid) {
+                noResultsMessage.classList.add('show');
+            } else {
+                noResultsMessage.classList.remove('show');
+            }
+        }
+
+        function updateResultCount(count, hasFilters) {
+            const resultCountElement = document.getElementById('resultCount');
+            if (hasFilters) {
+                resultCountElement.innerHTML = `Found <strong>${count}</strong> of ${totalProperties} properties`;
+            } else {
+                resultCountElement.innerHTML = `Showing all ${totalProperties} properties`;
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('typeFilter').value = '';
+            document.getElementById('governorateFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+
+            // Show all property cards
+            document.querySelectorAll('.property-card').forEach(card => {
+                card.classList.remove('hidden');
+            });
+
+            // Hide no results message
+            document.getElementById('noResultsMessage').classList.remove('show');
+
+            // Reset result count
+            document.getElementById('resultCount').innerHTML = `Showing all ${totalProperties} properties`;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            let searchTimeout;
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(filterProperties, 150);
+                });
+            }
+        });
+
+        // ─── Sprint 1/2/3 — KPI strip, chips, sort, view toggle, per-card KPIs, kebab, status toggle ───
+        (function () {
+            const KWD = (n) => (n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 3 }) + ' KWD';
+            const PCT = (n) => (n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) + '%';
+            const INT = (n) => Math.round(n ?? 0).toLocaleString();
+
+            // 1. Portfolio snapshot ----------------------------------------
+            async function loadPortfolio() {
+                try {
+                    const res = await fetch('/Properties/Snapshot', { credentials: 'same-origin' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const d = await res.json();
+                    const fmt = {
+                        totalProperties: INT, activeProperties: INT,
+                        totalUnits: INT, occupiedUnits: INT, vacantUnits: INT,
+                        occupancy: PCT, potentialMonthly: KWD,
+                    };
+                    document.querySelectorAll('#portfolioStrip [data-k]').forEach(el => {
+                        const k = el.dataset.k;
+                        if (d[k] === undefined) return;
+                        el.classList.remove('skeleton');
+                        el.textContent = (fmt[k] || INT)(d[k]);
+                    });
+                } catch (e) {
+                    document.querySelectorAll('#portfolioStrip .skeleton').forEach(el => {
+                        el.classList.remove('skeleton'); el.textContent = '—';
+                    });
+                }
+            }
+
+            // 2. Per-card KPIs (batched) -----------------------------------
+            async function loadCardKpis() {
+                const ids = Array.from(document.querySelectorAll('.property-card[data-property-id]'))
+                    .map(c => c.dataset.propertyId).filter(Boolean);
+                if (!ids.length) return;
+                try {
+                    const res = await fetch('/Properties/KpiBatch?ids=' + ids.join(','),
+                        { credentials: 'same-origin' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const rows = await res.json();
+                    const byId = new Map(rows.map(r => [String(r.propertyId), r]));
+                    document.querySelectorAll('.property-card[data-property-id]').forEach(card => {
+                        const r = byId.get(card.dataset.propertyId);
+                        const cells = card.querySelectorAll('.property-kpis .pk-value');
+                        if (!r) return;
+                        cells.forEach(c => c.classList.remove('skeleton'));
+                        cells[0].textContent = KWD(r.mtdCollected);
+                        cells[1].textContent = KWD(r.outstanding);
+                        cells[1].classList.toggle('muted', !r.outstanding);
+                        cells[2].textContent = r.lastPaymentDate
+                            ? new Date(r.lastPaymentDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
+                            : 'No payments';
+                        cells[2].classList.toggle('muted', !r.lastPaymentDate);
+                        card.querySelector('.property-kpis').removeAttribute('aria-busy');
+                    });
+                } catch (e) {
+                    document.querySelectorAll('.property-kpis .skeleton').forEach(el => {
+                        el.classList.remove('skeleton'); el.textContent = '—';
+                    });
+                }
+            }
+
+            // 3. Filter chips ---------------------------------------------
+            function refreshChips() {
+                const search = document.getElementById('searchInput')?.value.trim();
+                const type   = document.getElementById('typeFilter')?.value;
+                const gov    = document.getElementById('governorateFilter')?.value;
+                const status = document.getElementById('statusFilter')?.value;
+                const chips = [
+                    { k: 'search', label: search && `“${search}”`, clear: () => { document.getElementById('searchInput').value = ''; window.filterProperties?.(); } },
+                    { k: 'type',   label: type   && `Type · ${type}`, clear: () => { document.getElementById('typeFilter').value = ''; window.filterProperties?.(); } },
+                    { k: 'gov',    label: gov    && `Gov · ${gov}`,  clear: () => { document.getElementById('governorateFilter').value = ''; window.filterProperties?.(); } },
+                    { k: 'status', label: status && `Status · ${status}`, clear: () => { document.getElementById('statusFilter').value = ''; window.filterProperties?.(); } },
+                ].filter(c => c.label);
+                const host = document.getElementById('filterChips');
+                if (!host) return;
+                host.innerHTML = '';
+                chips.forEach((c, idx) => {
+                    const el = document.createElement('span');
+                    el.className = 'filter-chip';
+                    el.innerHTML = `${c.label} <button type="button" aria-label="Remove filter" data-idx="${idx}">Ã—</button>`;
+                    el.querySelector('button').addEventListener('click', c.clear);
+                    host.appendChild(el);
+                });
+                // Export link tracks the filter set.
+                const exportLink = document.getElementById('exportExcelLink');
+                if (exportLink) {
+                    const q = new URLSearchParams();
+                    if (search) q.set('search', search);
+                    if (type)   q.set('type', type);
+                    if (gov)    q.set('governorate', gov);
+                    if (status) q.set('status', status);
+                    exportLink.href = '/Properties/ExportExcel' + (q.toString() ? '?' + q.toString() : '');
+                }
+            }
+
+            // Hook into the existing filterProperties() so chips refresh on every filter change.
+            const origFilter = window.filterProperties;
+            if (origFilter) {
+                window.filterProperties = function () {
+                    origFilter.apply(this, arguments);
+                    refreshChips();
+                    applySort(true);
+                    if (currentView === 'table') renderTable();
+                };
+            }
+            // And clearFilters too.
+            const origClear = window.clearFilters;
+            if (origClear) {
+                window.clearFilters = function () {
+                    origClear.apply(this, arguments);
+                    refreshChips();
+                };
+            }
+
+            // 4. Sort -----------------------------------------------------
+            window.applySort = function (silent) {
+                const v = document.getElementById('sortBy')?.value || 'newest';
+                const grid = document.querySelector('.properties-grid');
+                if (!grid) return;
+                const cards = Array.from(grid.children);
+                const num = (c, k) => parseFloat(c.dataset[k] || '0');
+                cards.sort((a, b) => {
+                    switch (v) {
+                        case 'name-asc':       return (a.dataset.name || '').localeCompare(b.dataset.name || '');
+                        case 'name-desc':      return (b.dataset.name || '').localeCompare(a.dataset.name || '');
+                        case 'value-desc':     return num(b, 'value') - num(a, 'value');
+                        case 'units-desc':     return num(b, 'units') - num(a, 'units');
+                        case 'occupancy-desc': return num(b, 'occupancy') - num(a, 'occupancy');
+                        case 'newest':
+                        default:               return num(b, 'created') - num(a, 'created');
+                    }
+                });
+                cards.forEach(c => grid.appendChild(c));
+                if (currentView === 'table' && !silent) renderTable();
+            };
+
+            // 5. View toggle (grid â†” table), cookie-persisted -----------
+            let currentView = (document.cookie.match(/(?:^|; )rc-properties-view=([^;]+)/) || [])[1] || 'grid';
+            window.setView = function (v) {
+                currentView = v;
+                const d = new Date(); d.setDate(d.getDate() + 30);
+                document.cookie = 'rc-properties-view=' + v + '; expires=' + d.toUTCString() + '; path=/; samesite=lax';
+                document.getElementById('viewGrid').classList.toggle('is-active', v === 'grid');
+                document.getElementById('viewTable').classList.toggle('is-active', v === 'table');
+                const grid = document.querySelector('.properties-grid');
+                const tbl  = document.getElementById('propertiesTableWrap');
+                if (grid) grid.style.display = v === 'grid' ? '' : 'none';
+                if (tbl)  tbl.hidden = v !== 'table';
+                if (v === 'table') renderTable();
+            };
+
+            function renderTable() {
+                const tbody = document.getElementById('propertiesTableBody');
+                if (!tbody) return;
+                const cards = Array.from(document.querySelectorAll('.property-card:not(.hidden)'));
+                tbody.innerHTML = '';
+                cards.forEach(c => {
+                    const id = c.dataset.propertyId;
+                    const name = c.querySelector('h3')?.textContent.trim() ?? '';
+                    const type = c.dataset.type;
+                    const loc = `${c.dataset.governorate} · ${(c.dataset.area || '').replace(/^./, m => m.toUpperCase())}`;
+                    const units = c.dataset.units;
+                    const occ = c.dataset.occupancy + '%';
+                    const value = parseFloat(c.dataset.value || '0').toLocaleString(undefined, { maximumFractionDigits: 3 });
+                    const status = c.dataset.status;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${name}</strong></td>
+                        <td>${type}</td>
+                        <td>${loc}</td>
+                        <td>${units}</td>
+                        <td>${occ}</td>
+                        <td>${value}</td>
+                        <td><span class="status-badge status-${status.toLowerCase()}">${status}</span></td>
+                        <td class="col-actions">
+                            <a href="/Properties/Details/${id}" title="Details"><i class="fas fa-eye"></i></a>
+                            <a href="/Properties/Edit/${id}"    title="Edit"><i class="fas fa-edit"></i></a>
+                        </td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // 6. Inline status toggle (POST + antiforgery) --------------
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            document.querySelectorAll('.status-toggle').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!tokenInput) return;
+                    const card = btn.closest('.property-card');
+                    btn.disabled = true;
+                    try {
+                        const fd = new FormData();
+                        fd.set('id', card.dataset.propertyId);
+                        fd.set('__RequestVerificationToken', tokenInput.value);
+                        const res = await fetch('/Properties/ToggleStatus', { method: 'POST', body: fd, credentials: 'same-origin' });
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const json = await res.json();
+                        const next = json.status;
+                        btn.textContent = next;
+                        btn.dataset.status = next;
+                        btn.className = `status-badge status-toggle status-${next.toLowerCase()}`;
+                        card.dataset.status = next;
+                        if (currentView === 'table') renderTable();
+                    } catch (e) {
+                        btn.textContent = 'Retry';
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            // 7. Kebab open/close --------------------------------------
+            document.querySelectorAll('.kebab-btn').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    const menu = btn.parentElement.querySelector('.kebab-menu');
+                    const wasOpen = !menu.hasAttribute('hidden');
+                    document.querySelectorAll('.kebab-menu').forEach(m => m.setAttribute('hidden', ''));
+                    document.querySelectorAll('.kebab-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+                    if (!wasOpen) {
+                        menu.removeAttribute('hidden');
+                        btn.setAttribute('aria-expanded', 'true');
+                    }
+                });
+            });
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.kebab-menu').forEach(m => m.setAttribute('hidden', ''));
+                document.querySelectorAll('.kebab-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+            });
+
+            // 8. Table header sort -------------------------------------
+            document.querySelectorAll('.properties-table th[data-sort]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const map = { name: 'name-asc', units: 'units-desc', occupancy: 'occupancy-desc', value: 'value-desc' };
+                    const v = map[th.dataset.sort];
+                    if (!v) return;
+                    document.getElementById('sortBy').value = v;
+                    document.querySelectorAll('.properties-table th[data-sort]').forEach(t => t.classList.remove('is-sort'));
+                    th.classList.add('is-sort');
+                    applySort();
+                });
+            });
+
+            // Boot
+            loadPortfolio();
+            loadCardKpis();
+            refreshChips();
+            applySort();
+            setView(currentView);
+        })();
+    </script>
+}

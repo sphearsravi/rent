@@ -1,0 +1,153 @@
+@model List<RentCollection.Web.Controllers.JobHealthRow>
+@{
+    ViewData["Title"] = "Job Health";
+    var servers = ViewBag.Servers as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+}
+
+<div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">
+            <i class="fas fa-heartbeat" style="color:#dc2626"></i>
+            Job Health
+        </h2>
+        <div>
+            <a href="/hangfire" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-external-link-alt"></i> Hangfire dashboard
+            </a>
+            <a href="/health/ready" class="btn btn-outline-secondary btn-sm" target="_blank">
+                <i class="fas fa-stethoscope"></i> /health/ready
+            </a>
+        </div>
+    </div>
+
+    <p class="text-muted">
+        Recurring jobs registered with Hangfire. Failures float to the top —
+        a non-zero streak means N consecutive failed runs and the job needs
+        operator attention. Click <em>Hangfire dashboard</em> for stack traces
+        and a Retry button.
+    </p>
+
+    <!-- Scheduler servers strip -->
+    <div class="card mb-3">
+        <div class="card-header bg-light py-2">
+            <strong>Scheduler servers</strong>
+        </div>
+        <div class="card-body py-2">
+            @if (!servers.Any())
+            {
+                <span class="badge bg-danger">No servers registered — the scheduler is down.</span>
+            }
+            else
+            {
+                <div class="row">
+                    @foreach (var s in servers)
+                    {
+                        var ageStr = s.HeartbeatAgeSeconds < 0
+                            ? "no heartbeat"
+                            : ((int)s.HeartbeatAgeSeconds) + "s ago";
+                        var ageBadge = s.HeartbeatAgeSeconds < 30 ? "bg-success"
+                                     : s.HeartbeatAgeSeconds < 60 ? "bg-warning text-dark"
+                                     : "bg-danger";
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center justify-content-between border rounded p-2">
+                                <div>
+                                    <div class="fw-bold">@s.Name</div>
+                                    <small class="text-muted">@s.WorkersCount workers</small>
+                                </div>
+                                <span class="badge @ageBadge">@ageStr</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Recurring jobs table -->
+    <div class="card">
+        <div class="card-header bg-light py-2">
+            <strong>Recurring jobs (@Model.Count)</strong>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Job</th>
+                        <th>Cron</th>
+                        <th>Last run</th>
+                        <th>Outcome</th>
+                        <th>Failure streak</th>
+                        <th>Next run</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var r in Model)
+                {
+                    var rowClass = r.FailureStreak >= 3 ? "table-danger"
+                                 : r.FailureStreak > 0 ? "table-warning"
+                                 : "";
+                    <tr class="@rowClass">
+                        <td>
+                            <code>@r.JobId</code>
+                            <br /><small class="text-muted">@r.MethodName</small>
+                        </td>
+                        <td><code class="small">@r.Cron</code></td>
+                        <td>
+                            @if (r.LastExecution.HasValue)
+                            {
+                                <span title="@r.LastExecution.Value.ToString("u")">
+                                    @r.LastExecution.Value.ToString("dd MMM HH:mm")
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">never</span>
+                            }
+                        </td>
+                        <td>
+                            @if (r.LastJobState == "Succeeded")
+                            {
+                                <span class="badge bg-success">Succeeded</span>
+                            }
+                            else if (r.LastJobState == "Failed")
+                            {
+                                <span class="badge bg-danger">Failed</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">@r.LastJobState</span>
+                            }
+                        </td>
+                        <td>
+                            @if (r.FailureStreak == 0)
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                            else if (r.FailureStreak < 3)
+                            {
+                                <span class="badge bg-warning text-dark">@r.FailureStreak</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">@r.FailureStreak in a row</span>
+                            }
+                        </td>
+                        <td>
+                            @if (r.NextExecution.HasValue)
+                            {
+                                <span title="@r.NextExecution.Value.ToString("u")">
+                                    @r.NextExecution.Value.ToString("dd MMM HH:mm")
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

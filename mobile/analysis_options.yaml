@@ -1,0 +1,29 @@
+# Static analysis configuration.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  # Treat unawaited futures as warnings — accidentally fire-and-forget on a
+  # save/submit is a real source of UI desync bugs.
+  errors:
+    unawaited_futures: warning
+    invalid_annotation_target: ignore
+
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/generated_plugin_registrant.dart"
+
+linter:
+  rules:
+    # Quality-of-life rules above the flutter_lints baseline.
+    - avoid_print
+    - prefer_single_quotes
+    - unawaited_futures
+    - use_key_in_widget_constructors
+    - avoid_redundant_argument_values
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - sort_child_properties_last
+    - require_trailing_commas
+    # Off — too noisy on generated/serialized code in this project.
+    # prefer_relative_imports: true

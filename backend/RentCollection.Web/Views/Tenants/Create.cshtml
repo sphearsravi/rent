@@ -1,0 +1,417 @@
+@model RentCollection.Core.Entities.Tenant
+
+@{
+    ViewData["Title"] = "Create Tenant";
+}
+
+@*
+    Sprint 23 — Tenant Create revamp.
+    Single page, three zones (Essentials always visible / More details
+    collapsed / Documents). Shared visuals come from wwwroot/css/forms.css,
+    shared JS from wwwroot/js/form-helpers.js (both loaded by _Layout).
+
+    Sprint 21 (Civil ID scan) and Sprint 22 (auto-CompanyId) behaviour
+    is preserved — only the wrapping shell changed.
+*@
+
+<div class="container-fluid">
+    <div class="page-header page-header-flex">
+        <div>
+            <h1>@L["Create New Tenant"]</h1>
+            <p class="text-muted">@L["Add a new tenant. Only Essentials are required to save."]</p>
+        </div>
+        <div>
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> @L["Back to List"]
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["TenantCreated"] != null)
+    {
+        <div class="alert alert-success" style="margin-bottom:1rem;">
+            <i class="fas fa-check-circle"></i> Tenant @TempData["TenantCreated"] saved. Add another below.
+        </div>
+    }
+
+    @* Server-side error message (TempData) — shown at the very top. *@
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="fr-error-banner" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            <div>@TempData["ErrorMessage"]</div>
+        </div>
+    }
+
+    @* Shows the new tenant's login (Civil ID + temp password) after a
+       "Save & add another", since the operator lands back here. *@
+    @await Html.PartialAsync("_NewCredential")
+
+    <form asp-action="Create" method="post" enctype="multipart/form-data"
+          class="form-revamp" id="tenantCreateForm" data-fr-no-draft>
+
+        @* Error banner — appears at the top of the form whenever there is any
+           validation or server error, listing every problem to fix. Only
+           rendered when the model actually has errors (no empty red box). *@
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="fr-error-banner" id="formErrorBanner" role="alert" tabindex="-1">
+                <i class="fas fa-exclamation-circle"></i>
+                <div>
+                    <strong>@L["Please fix the following before saving:"]</strong>
+                    <div asp-validation-summary="All"></div>
+                </div>
+            </div>
+        }
+
+        <div data-fr-draft-slot></div>
+
+        @* ─────────── Zone 1 — Essentials (always visible) ─────────── *@
+        <div class="fr-zone fr-zone-essentials">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-asterisk"></i>
+                <span>@L["Essentials"]</span>
+            </h3>
+            <p class="fr-zone-hint">@L["Required to save. A valid Civil ID number auto-fills the date of birth."]</p>
+
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="FirstName">@L["First Name"] <span class="required">*</span></label>
+                    <input asp-for="FirstName" required />
+                    <span class="fr-hint">@L["As shown on Civil ID"]</span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="LastName">@L["Last Name"] <span class="required">*</span></label>
+                    <input asp-for="LastName" required />
+                    <span class="fr-hint"></span>
+                </div>
+            </div>
+
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="Email">@L["Email"] <span class="optional">@L["optional"]</span></label>
+                    <input asp-for="Email" type="email" />
+                    <span class="fr-hint">@L["Optional. If set, the login is emailed; if not, it's shown to you on save."]</span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="Phone">@L["Phone"] <span class="required">*</span></label>
+                    <input asp-for="Phone" required />
+                    <span class="fr-hint">@L["Kuwait mobile format preferred (+965…)"]</span>
+                </div>
+            </div>
+
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label>@L["Set password"] <span class="optional">@L["optional"]</span></label>
+                    <input type="text" name="InitialPassword" placeholder="@(L["Leave blank to auto-generate"].Value)"
+                           autocomplete="off" />
+                    <span class="fr-hint">@L["You give this to the tenant. They can change it later in the app."]</span>
+                </div>
+                <div class="fr-field"></div>
+            </div>
+
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="PACINumber">
+                        <i class="fas fa-id-card"></i> @L["Civil ID"] <span class="required">*</span>
+                    </label>
+                    <input asp-for="PACINumber" id="civilIdInput"
+                           placeholder="@(L["12-digit Civil ID"].Value)" maxlength="12" required />
+                    <span class="fr-hint">@L["This is the tenant's app login."]</span>
+                    <span id="civilIdStatus" class="fr-hint"></span>
+                    @* Civil ID scan (Gemini) removed — the number is validated
+                       locally (format + checksum + DOB) via the parser below. *@
+                </div>
+                <div class="fr-field">
+                    <label asp-for="BuildingPACINumber">
+                        <i class="fas fa-building"></i> @L["Building PACI"] <span class="required">*</span>
+                    </label>
+                    <input asp-for="BuildingPACINumber" placeholder="@(L["Property's PACI number"].Value)" required />
+                    <span class="fr-hint">@L["Tenant auto-linked to this building"]</span>
+                </div>
+            </div>
+        </div>
+
+        @* CompanyId is derived server-side (claim → DB user record). No hidden
+           field: an empty one posts '' and trips "The value '' is invalid." *@
+
+        @* ─────────── Zone 2 — More details (collapsed by default) ─────────── *@
+        <button type="button" class="fr-toggle-more" data-fr-toggle="moreDetails">
+            <i class="fas fa-chevron-down"></i>
+            <span>@L["More details (DOB, employment, emergency contact)"]</span>
+        </button>
+        <div data-fr-collapsible="moreDetails">
+            <div class="fr-zone">
+                <h3 class="fr-zone-title">
+                    <i class="fas fa-user"></i>
+                    <span>@L["Personal"]</span>
+                </h3>
+                <div class="fr-row">
+                    <div class="fr-field">
+                        <label asp-for="DateOfBirth">@L["Date of Birth"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="DateOfBirth" type="date" />
+                        <span class="fr-hint">@L["Pre-filled by Civil ID parser"]</span>
+                    </div>
+                    @* "Government ID" field removed — Government ID == Civil ID (the
+                       login), captured by the required Civil ID field above and copied
+                       into GovernmentId on save. A separate field here was ambiguous
+                       (its hint said "Passport / Iqama") and could overwrite the login. *@
+                </div>
+                <div class="fr-row">
+                    <div class="fr-field">
+                        <label asp-for="EmploymentStatus">@L["Employment Status"] <span class="optional">@L["optional"]</span></label>
+                        <select asp-for="EmploymentStatus">
+                            <option value="">@L["-- Select Status --"]</option>
+                            <option value="Employed">@L["Employed"]</option>
+                            <option value="Self-Employed">@L["Self-Employed"]</option>
+                            <option value="Unemployed">@L["Unemployed"]</option>
+                            <option value="Retired">@L["Retired"]</option>
+                            <option value="Student">@L["Student"]</option>
+                        </select>
+                        <span class="fr-hint"></span>
+                    </div>
+                    <div class="fr-field"></div>
+                </div>
+            </div>
+
+            <div class="fr-zone">
+                <h3 class="fr-zone-title">
+                    <i class="fas fa-phone-volume"></i>
+                    <span>@L["Emergency Contact"]</span>
+                </h3>
+                <div class="fr-row">
+                    <div class="fr-field">
+                        <label asp-for="EmergencyContact">@L["Contact Name"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="EmergencyContact" />
+                        <span class="fr-hint"></span>
+                    </div>
+                    <div class="fr-field">
+                        <label asp-for="EmergencyPhone">@L["Contact Phone"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="EmergencyPhone" />
+                        <span class="fr-hint"></span>
+                    </div>
+                </div>
+            </div>
+
+            @* Property & Unit section removed — a tenant's property/unit is assigned
+               later via a Lease, so it doesn't belong on the create form. *@
+        </div>
+
+        @* ─────────── Zone 3 — Documents (always visible) ─────────── *@
+        <div class="fr-zone">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-file-upload"></i>
+                <span>@L["Documents"]</span>
+            </h3>
+            <p class="fr-zone-hint">@L["Civil ID, passport, insurance, etc. Each row = one file. Max 10MB."]</p>
+
+            <div id="document-upload-area">
+                <div class="document-row">
+                    <div class="fr-row fr-row-3">
+                        <div class="fr-field">
+                            <label>@L["Document Type"]</label>
+                            <select name="DocumentTypes[]">
+                                <option value="">@L["-- Select Type --"]</option>
+                                <option value="Civil ID">@L["Civil ID (PACI)"]</option>
+                                <option value="Passport">@L["Passport"]</option>
+                                <option value="Visa">@L["Visa"]</option>
+                                <option value="Insurance Document">@L["Insurance"]</option>
+                                <option value="Employment Letter">@L["Employment Letter"]</option>
+                                <option value="Salary Certificate">@L["Salary Certificate"]</option>
+                                <option value="Bank Statement">@L["Bank Statement"]</option>
+                                <option value="Reference Letter">@L["Reference Letter"]</option>
+                                <option value="Other">@L["Other"]</option>
+                            </select>
+                        </div>
+                        <div class="fr-field">
+                            <label>@L["File"]</label>
+                            <input type="file" name="Documents[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                            <span class="fr-hint">@L["PDF, JPG, PNG, DOC, DOCX — max 10MB"]</span>
+                        </div>
+                        <div class="fr-field" style="justify-content:flex-end;">
+                            <label>&nbsp;</label>
+                            <button type="button" class="fr-btn fr-btn-ghost remove-document" style="display:none;">
+                                <i class="fas fa-trash"></i> @L["Remove"]
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="add-document-btn" class="fr-btn fr-btn-secondary" style="margin-top:0.5rem;">
+                <i class="fas fa-plus"></i> @L["Add another document"]
+            </button>
+        </div>
+
+        @* ─────────── Sticky action bar ─────────── *@
+        <div class="fr-actions">
+            <a asp-action="Index" class="fr-btn fr-btn-ghost">@L["Cancel"]</a>
+            <button type="button" id="clearAllBtn" class="fr-btn fr-btn-ghost">
+                <i class="fas fa-eraser"></i> @L["Clear All"]
+            </button>
+            <div class="fr-spacer"></div>
+            <button type="submit" class="fr-btn fr-btn-secondary" data-fr-save-and-add>
+                <i class="fas fa-plus"></i> @L["Save & add another"]
+            </button>
+            <button type="submit" class="fr-btn fr-btn-primary">
+                <i class="fas fa-save"></i> @L["Create Tenant"]
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    @* Civil ID enrichment — LOCAL parse only (format + checksum + DOB).
+       The Google Gemini image-scan option was removed. *@
+    <script>
+        (function () {
+            var civilInput   = document.getElementById('civilIdInput');
+            var statusChip   = document.getElementById('civilIdStatus');
+            var dobInput     = document.getElementById('DateOfBirth');
+
+            function showStatus(text, kind) {
+                statusChip.textContent = text;
+                statusChip.classList.remove('is-error', 'is-warn', 'is-success');
+                if (kind === 'ok')   statusChip.classList.add('is-success');
+                if (kind === 'warn') statusChip.classList.add('is-warn');
+                if (kind === 'err')  statusChip.classList.add('is-error');
+            }
+            function clearStatus() {
+                statusChip.textContent = '';
+                statusChip.classList.remove('is-error', 'is-warn', 'is-success');
+            }
+
+            function callParse(id) {
+                if (!id || id.length !== 12) { clearStatus(); return; }
+                fetch('/api/civilid/parse?id=' + encodeURIComponent(id), { credentials: 'same-origin' })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (j) {
+                        if (!j) return;
+                        if (!j.isFormatValid) { showStatus('✗ ' + (j.error || '@(L["Invalid format"].Value)'), 'err'); return; }
+                        if (j.dateOfBirth && dobInput && !dobInput.value) dobInput.value = j.dateOfBirth;
+                        // Any 12-digit Civil ID is accepted — the check digit is advisory
+                        // only (it's the login key regardless), so we never warn/block on a
+                        // checksum mismatch. Just confirm when we could pre-fill the DOB.
+                        if (j.dateOfBirth) showStatus('✓ @(L["DOB pre-filled from Civil ID"].Value)', 'ok');
+                        else clearStatus();
+                    })
+                    .catch(function () { /* silent */ });
+            }
+
+            if (civilInput) {
+                civilInput.addEventListener('blur', function () { callParse(this.value.trim()); });
+                civilInput.addEventListener('input', function () {
+                    if (this.value.trim().length === 12) callParse(this.value.trim());
+                    else clearStatus();
+                });
+            }
+        })();
+    </script>
+
+    @* Property/Unit cascade JS removed with its section — assignment happens via Lease. *@
+    <script>
+        // Add / remove document rows
+        document.getElementById('add-document-btn').addEventListener('click', function () {
+            var area = document.getElementById('document-upload-area');
+            var row = document.createElement('div');
+            row.className = 'document-row';
+            row.style.marginTop = '0.75rem';
+            row.innerHTML = `
+                <div class="fr-row fr-row-3">
+                    <div class="fr-field">
+                        <label>Document Type</label>
+                        <select name="DocumentTypes[]">
+                            <option value="">-- Select Type --</option>
+                            <option value="Civil ID">Civil ID (PACI)</option>
+                            <option value="Passport">Passport</option>
+                            <option value="Visa">Visa</option>
+                            <option value="Insurance Document">Insurance</option>
+                            <option value="Employment Letter">Employment Letter</option>
+                            <option value="Salary Certificate">Salary Certificate</option>
+                            <option value="Bank Statement">Bank Statement</option>
+                            <option value="Reference Letter">Reference Letter</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="fr-field">
+                        <label>File</label>
+                        <input type="file" name="Documents[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                        <span class="fr-hint">PDF, JPG, PNG, DOC, DOCX — max 10MB</span>
+                    </div>
+                    <div class="fr-field" style="justify-content:flex-end;">
+                        <label>&nbsp;</label>
+                        <button type="button" class="fr-btn fr-btn-ghost remove-document">
+                            <i class="fas fa-trash"></i> Remove
+                        </button>
+                    </div>
+                </div>`;
+            area.appendChild(row);
+            document.querySelector('.document-row:first-child .remove-document').style.display = 'inline-flex';
+            row.querySelector('.remove-document').addEventListener('click', function () {
+                row.remove();
+                if (document.querySelectorAll('.document-row').length === 1) {
+                    document.querySelector('.document-row:first-child .remove-document').style.display = 'none';
+                }
+            });
+        });
+
+        document.querySelectorAll('.remove-document').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                this.closest('.document-row').remove();
+                if (document.querySelectorAll('.document-row').length === 1) {
+                    document.querySelector('.document-row:first-child .remove-document').style.display = 'none';
+                }
+            });
+        });
+    </script>
+
+    @* Clear All — wipe every field + any cached draft, AI-fill highlights,
+       status chips, extra document rows, and the property/unit cascade. *@
+    <script>
+        (function () {
+            var clearBtn = document.getElementById('clearAllBtn');
+            var form = document.getElementById('tenantCreateForm');
+            if (!clearBtn || !form) return;
+
+            clearBtn.addEventListener('click', function () {
+                // Native reset clears text/select/checkbox/file inputs.
+                form.reset();
+
+                // Drop any saved draft so nothing repopulates on reload.
+                try { sessionStorage.removeItem('fr-draft:' + (form.id || form.action)); } catch (e) { /* silent */ }
+
+                // Clear AI-filled amber highlights + inline validation styling.
+                form.querySelectorAll('.fr-ai-filled').forEach(function (el) { el.classList.remove('fr-ai-filled'); });
+                form.querySelectorAll('input, select, textarea').forEach(function (el) { el.style.borderColor = ''; });
+
+                // Reset the Civil ID local-parse status chip.
+                var civilChip = document.getElementById('civilIdStatus');
+                if (civilChip) { civilChip.textContent = ''; civilChip.classList.remove('is-error', 'is-warn', 'is-success'); }
+
+                // Remove any extra document rows, keep the first.
+                var rows = document.querySelectorAll('.document-row');
+                rows.forEach(function (row, i) { if (i > 0) row.remove(); });
+                var firstRemove = document.querySelector('.document-row:first-child .remove-document');
+                if (firstRemove) firstRemove.style.display = 'none';
+
+                // Return focus to the top field for fast re-entry.
+                var first = document.getElementById('FirstName');
+                if (first) first.focus();
+            });
+        })();
+    </script>
+
+    @* When the server re-renders with errors, pull the banner into view so the
+       operator sees the message on top immediately. *@
+    <script>
+        (function () {
+            var banner = document.getElementById('formErrorBanner');
+            if (banner) {
+                banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                banner.focus({ preventScroll: true });
+            }
+        })();
+    </script>
+}

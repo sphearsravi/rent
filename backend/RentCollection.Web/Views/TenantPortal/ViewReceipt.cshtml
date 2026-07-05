@@ -1,0 +1,290 @@
+@model RentCollection.Core.Entities.Payment
+
+@{
+    ViewData["Title"] = "Payment Receipt";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .receipt-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 40px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .receipt-header {
+            text-align: center;
+            border-bottom: 3px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .receipt-header h1 {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .receipt-header h2 {
+            font-size: 24px;
+            color: #666;
+            font-weight: normal;
+        }
+
+        .receipt-body {
+            margin-bottom: 40px;
+        }
+
+        .receipt-row {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 15px;
+        }
+
+        .receipt-label {
+            font-weight: bold;
+            color: #333;
+            width: 200px;
+            font-size: 16px;
+        }
+
+        .receipt-value {
+            flex: 1;
+            color: #555;
+            font-size: 16px;
+        }
+
+        .amount-section {
+            background-color: #f9f9f9;
+            padding: 20px;
+            margin: 30px 0;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .amount-section .receipt-row {
+            border-bottom: none;
+            margin-bottom: 10px;
+        }
+
+        .amount-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .amount-words {
+            font-style: italic;
+            color: #666;
+        }
+
+        .receipt-footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #333;
+            text-align: center;
+        }
+
+        .receipt-footer p {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .company-info {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+
+        .company-info p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .print-button-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .btn-print {
+            background-color: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .btn-print:hover {
+            background-color: #5568d3;
+        }
+
+        .btn-back {
+            background-color: #6c757d;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .btn-back:hover {
+            background-color: #5a6268;
+        }
+
+        @@media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+
+            .receipt-container {
+                box-shadow: none;
+                padding: 20px;
+            }
+
+            .print-button-container {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-button-container">
+        <button class="btn-print" onclick="window.print()">
+            @L["Print Receipt"]
+        </button>
+        <a href="@Url.Action("Dashboard", "TenantPortal")" class="btn-back">
+            @L["Back to Dashboard"]
+        </a>
+    </div>
+
+    <div class="receipt-container">
+        <div class="receipt-header">
+            <h1>@L["RECEIPT / INVOICE"]</h1>
+            <h2>@L["Payment Confirmation"]</h2>
+        </div>
+
+        <div class="receipt-body">
+            <div class="receipt-row">
+                <div class="receipt-label">@L["Receipt No.:"]</div>
+                <div class="receipt-value">@Model.PaymentId.ToString("D6")</div>
+            </div>
+
+            <div class="receipt-row">
+                <div class="receipt-label">@L["Date:"]</div>
+                <div class="receipt-value">@Model.PaymentDate.ToString("dd/MM/yyyy")</div>
+            </div>
+
+            <div class="receipt-row">
+                <div class="receipt-label">@L["Received From:"]</div>
+                <div class="receipt-value">
+                    @if (Model.Lease.Tenant.Company != null)
+                    {
+                        <text>@Model.Lease.Tenant.FirstName @Model.Lease.Tenant.LastName / @Model.Lease.Tenant.Company.CompanyName</text>
+                    }
+                    else
+                    {
+                        <text>@Model.Lease.Tenant.FirstName @Model.Lease.Tenant.LastName</text>
+                    }
+                </div>
+            </div>
+
+            <div class="amount-section">
+                <div class="receipt-row">
+                    <div class="receipt-label">@L["Amount:"]</div>
+                    <div class="receipt-value amount-number">K.D @Model.AmountPaid.ToString("N3")</div>
+                </div>
+
+                <div class="receipt-row">
+                    <div class="receipt-label"></div>
+                    <div class="receipt-value amount-words">
+                        (Kuwaiti @ViewBag.AmountInWords Only)
+                    </div>
+                </div>
+            </div>
+
+            <div class="receipt-row">
+                <div class="receipt-label">@L["Payment For:"]</div>
+                <div class="receipt-value">
+                    @L["Rent for"] @Model.Lease.Unit.Property.PropertyName - @L["Unit No."] @Model.Lease.Unit.UnitNumber
+                </div>
+            </div>
+
+            <div class="receipt-row">
+                <div class="receipt-label">@L["Payment Method:"]</div>
+                <div class="receipt-value">@Model.PaymentMethod</div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.TransactionReference))
+            {
+                <div class="receipt-row">
+                    <div class="receipt-label">@L["Transaction Reference:"]</div>
+                    <div class="receipt-value">@Model.TransactionReference</div>
+                </div>
+            }
+
+            <div class="receipt-row">
+                <div class="receipt-label">@L["Payment Status:"]</div>
+                <div class="receipt-value">
+                    <span style="color: @(Model.PaymentStatus == "Completed" ? "#4CAF50" : Model.PaymentStatus == "Pending" ? "#ff9800" : "#f44336")">
+                        @Model.PaymentStatus
+                    </span>
+                </div>
+            </div>
+
+            <div class="receipt-row">
+                <div class="receipt-label">@L["Issued on:"]</div>
+                <div class="receipt-value">@Model.PaymentDate.ToString("MMMM yyyy")</div>
+            </div>
+        </div>
+
+        <div class="receipt-footer">
+            <p>@L["This is a computer-generated receipt and does not require a signature."]</p>
+            <p>@L["For any queries, please contact the property management office."]</p>
+        </div>
+
+        @if (Model.Lease.Unit.Property != null)
+        {
+            <div class="company-info">
+                <p><strong>@Model.Lease.Unit.Property.PropertyName</strong></p>
+                <p>@Model.Lease.Unit.Property.Address</p>
+            </div>
+        }
+    </div>
+</body>
+</html>

@@ -1,0 +1,152 @@
+name: test
+# Runs the three-tier test suite on every push and PR.
+#
+# Layers, in order of cheapness:
+#   unit         — RentCollection.Tests       (in-memory EF, no external deps)
+#   integration  — RentCollection.IntegrationTests  (in-memory app factory)
+#   e2e          — RentCollection.E2ETests    (real Chromium + live backend)
+#
+# unit and integration run on every push. e2e is gated by the `e2e` label on
+# PRs (and runs unconditionally on pushes to main) — Chromium boot + browser
+# install costs ~2 min and we don't want to spend that on a comment-only PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  unit:
+    name: unit + integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: restore
+        run: dotnet restore RentCollectionSystem.sln
+      - name: build
+        run: dotnet build RentCollectionSystem.sln --no-restore -c Release
+      - name: unit tests
+        run: |
+          dotnet test RentCollection.Tests/RentCollection.Tests.csproj \
+            --no-build -c Release \
+            --logger "trx;LogFileName=unit.trx" \
+            --logger "console;verbosity=minimal" \
+            --results-directory TestResults
+      - name: integration tests (in-memory only)
+        # Skip the Testcontainers tests on GH-hosted runners — Docker-in-Docker
+        # is brittle. They run in a dedicated nightly job, not on PR.
+        run: |
+          dotnet test RentCollection.IntegrationTests/RentCollection.IntegrationTests.csproj \
+            --no-build -c Release \
+            --filter "FullyQualifiedName!~SqlServerFixture&FullyQualifiedName!~AppVersionEndpointTests.GetVersion_ReturnsConfiguredMinSupportedVersion&FullyQualifiedName!~InvoicePdfEndpointTests" \
+            --logger "trx;LogFileName=integration.trx" \
+            --logger "console;verbosity=minimal" \
+            --results-directory TestResults
+      - name: upload TRX
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-unit
+          path: TestResults/*.trx
+
+  e2e:
+    name: e2e (browser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Only run on PRs that opt-in via the `e2e` label, or unconditionally on
+    # main. Saves ~2 min on the typical PR. Trigger with: gh pr edit --add-label e2e
+    if: github.event_name == 'push'
+        || contains(github.event.pull_request.labels.*.name, 'e2e')
+    services:
+      sqlserver:
+        # The backend talks to SQL Server. For PR runs we use the official
+        # image (Developer edition is free, no licence drama). Connection
+        # string is wired below in the `Run backend` step.
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        ports: ['1433:1433']
+        env:
+          ACCEPT_EULA: 'Y'
+          SA_PASSWORD: 'StrongPass!23'
+          MSSQL_PID: 'Developer'
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P StrongPass!23 -Q 'select 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: restore + build
+        run: |
+          dotnet restore RentCollectionSystem.sln
+          dotnet build RentCollectionSystem.sln --no-restore -c Release
+
+      - name: install Playwright browsers
+        run: pwsh RentCollection.E2ETests/bin/Release/net8.0/playwright.ps1 install --with-deps chromium
+
+      - name: apply migrations
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=RentCollectionDB;User Id=SA;Password=StrongPass!23;TrustServerCertificate=true"
+        run: |
+          dotnet tool install --global dotnet-ef --version 9.0.10 || true
+          export PATH="$PATH:/home/runner/.dotnet/tools"
+          dotnet ef database update --project RentCollection.Infrastructure --startup-project RentCollection.Web
+
+      - name: run backend
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=RentCollectionDB;User Id=SA;Password=StrongPass!23;TrustServerCertificate=true"
+          ASPNETCORE_ENVIRONMENT: Development
+        run: |
+          dotnet run --project RentCollection.Web --no-build -c Release > backend.log 2>&1 &
+          echo $! > backend.pid
+          # Wait for /health/ready
+          for i in {1..60}; do
+            if curl -sf http://localhost:5032/health/ready > /dev/null; then
+              echo "backend ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: smoke check
+        run: pwsh scripts/smoke.ps1
+
+      - name: e2e tests
+        run: |
+          dotnet test RentCollection.E2ETests/RentCollection.E2ETests.csproj \
+            --no-build -c Release \
+            --logger "trx;LogFileName=e2e.trx" \
+            --logger "console;verbosity=minimal" \
+            --results-directory TestResults
+
+      - name: upload backend log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-log
+          path: backend.log
+
+      - name: upload TRX
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-e2e
+          path: TestResults/*.trx
+
+      - name: stop backend
+        if: always()
+        run: kill $(cat backend.pid) 2>/dev/null || true

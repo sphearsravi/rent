@@ -1,0 +1,99 @@
+@model List<RentCollection.Core.Entities.Refund>
+@{
+    ViewData["Title"] = "Refunds";
+
+    string StatusClass(string? s) => s switch
+    {
+        "Approved" => "badge-success",
+        "Settled" => "badge-primary",
+        "Rejected" => "badge-danger",
+        "Pending" => "badge-warning",
+        _ => "badge-secondary"
+    };
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = "Refunds",
+        ["Subtitle"] = "Refunds queued against prior payments"
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <div class="card" style="padding:24px;">
+        @if (Model == null || !Model.Any())
+        {
+            <p style="color:#6b7280;margin:0;">No refunds recorded.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Refund #</th>
+                        <th>Payment / Receipt</th>
+                        <th>Tenant</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model)
+                    {
+                        var receipt = r.Payment?.ReceiptNumber;
+                        var tenantName = ((r.Payment?.Tenant?.FirstName ?? "") + " " + (r.Payment?.Tenant?.LastName ?? "")).Trim();
+                        <tr>
+                            <td>@r.RefundId</td>
+                            <td>
+                                @if (r.Payment != null)
+                                {
+                                    <a href="/Payments/Details/@r.PaymentId">
+                                        @(string.IsNullOrEmpty(receipt) ? $"#{r.PaymentId}" : receipt)
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span>#@r.PaymentId</span>
+                                }
+                            </td>
+                            <td>@(string.IsNullOrEmpty(tenantName) ? "—" : tenantName)</td>
+                            <td>@("KWD " + r.Amount.ToString("N3"))</td>
+                            <td>@r.Method</td>
+                            <td>@(string.IsNullOrEmpty(r.Reason) ? "—" : r.Reason)</td>
+                            <td><span class="badge @StatusClass(r.Status)">@r.Status</span></td>
+                            <td>@r.CreatedDate.ToString("dd MMM yyyy, HH:mm")</td>
+                            <td>
+                                @if (r.Status == "Pending")
+                                {
+                                    <form action="/Refunds/Approve/@r.RefundId" method="post" style="display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-check"></i> Approve
+                                        </button>
+                                    </form>
+                                }
+                                else if (r.Status == "Approved")
+                                {
+                                    <form action="/Refunds/Settle/@r.RefundId" method="post" style="display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            <i class="fas fa-money-bill-wave"></i> Settle
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span style="color:#9ca3af;">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

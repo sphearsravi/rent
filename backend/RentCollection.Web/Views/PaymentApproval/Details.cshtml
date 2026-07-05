@@ -1,0 +1,647 @@
+@model RentCollection.Core.Entities.Payment
+@{
+    ViewData["Title"] = $"Payment Review - #{Model.PaymentId}";
+}
+
+@section Styles {
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            color: #334155;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header .subtitle {
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .card-header-title {
+            color: #334155;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-header-title i {
+            color: #6366f1;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .info-item {
+            padding: 0.5rem 0;
+        }
+
+        .info-label {
+            color: #64748b;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            color: #1e293b;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-approved {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .amount-display {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #059669;
+        }
+
+        .proof-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            margin-top: 0.5rem;
+        }
+
+        .proof-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6366f1;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .proof-link:hover {
+            background: rgba(99, 102, 241, 0.2);
+            color: #4f46e5;
+        }
+
+        .actions-section {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .actions-title {
+            color: #334155;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .actions-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-approve:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-reject:hover {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-back {
+            background: rgba(100, 116, 139, 0.1);
+            color: #475569;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-back:hover {
+            background: rgba(100, 116, 139, 0.2);
+            color: #334155;
+        }
+
+        /* Modal Styles */
+        .modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 1.25rem 1.5rem;
+        }
+
+        .modal-title {
+            color: #334155;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            color: #1e293b;
+        }
+
+        .modal-footer {
+            border-top: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 1rem 1.5rem;
+        }
+
+        .form-control {
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #1e293b;
+        }
+
+        .form-control:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-label {
+            color: #334155;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-modal-cancel {
+            background: rgba(100, 116, 139, 0.1);
+            color: #475569;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .btn-modal-cancel:hover {
+            background: rgba(100, 116, 139, 0.2);
+            color: #334155;
+        }
+
+        .btn-modal-confirm {
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            border: none;
+        }
+
+        .btn-confirm-approve {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-confirm-approve:hover {
+            background: #059669;
+        }
+
+        .btn-confirm-reject {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-confirm-reject:hover {
+            background: #dc2626;
+        }
+
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        @@media (max-width: 768px) {
+            .two-column-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .actions-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .actions-buttons button,
+            .actions-buttons a {
+                justify-content: center;
+            }
+        }
+
+        .no-data {
+            color: #94a3b8;
+            font-style: italic;
+        }
+    </style>
+}
+
+<div class="page-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1><i class="fas fa-clipboard-check"></i> @L["Payment Review"]</h1>
+        <p class="subtitle">@L["Review payment details before approval"]</p>
+    </div>
+
+    <!-- Payment Information -->
+    <div class="info-card">
+        <div class="card-header-title">
+            <i class="fas fa-credit-card"></i>
+            @L["Payment Information"]
+        </div>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">@L["Payment ID"]</div>
+                <div class="info-value">#@Model.PaymentId</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">@L["Payment Date"]</div>
+                <div class="info-value">@Model.PaymentDate.ToString("MMM dd, yyyy")</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">@L["Amount"]</div>
+                <div class="info-value amount-display">@("KWD " + Model.AmountPaid.ToString("N3"))</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">@L["Payment Type"]</div>
+                <div class="info-value">@Model.PaymentType</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">@L["Transaction Reference"]</div>
+                <div class="info-value">@(Model.TransactionReference ?? "N/A")</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">@L["Status"]</div>
+                <div class="info-value">
+                    @{
+                        var statusClass = Model.Status switch
+                        {
+                            RentCollection.Core.Enums.PaymentStatus.PendingVerification => "status-pending",
+                            RentCollection.Core.Enums.PaymentStatus.Pending => "status-pending",
+                            RentCollection.Core.Enums.PaymentStatus.Approved => "status-approved",
+                            RentCollection.Core.Enums.PaymentStatus.Rejected => "status-rejected",
+                            _ => "status-pending"
+                        };
+                    }
+                    <span class="status-badge @statusClass">@Model.Status</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">@L["Receipt Number"]</div>
+                <div class="info-value">@(Model.ReceiptNumber ?? "N/A")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="two-column-layout">
+        <!-- Tenant Information -->
+        <div class="info-card">
+            <div class="card-header-title">
+                <i class="fas fa-user"></i>
+                @L["Tenant Information"]
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">@L["Tenant Name"]</div>
+                    <div class="info-value">
+                        @if (Model.Tenant != null)
+                        {
+                            @($"{Model.Tenant.FirstName} {Model.Tenant.LastName}")
+                        }
+                        else
+                        {
+                            <span class="no-data">@L["Not available"]</span>
+                        }
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Email"]</div>
+                    <div class="info-value">@(Model.Tenant?.Email ?? "N/A")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Phone"]</div>
+                    <div class="info-value">@(Model.Tenant?.Phone ?? "N/A")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["PACI Number"]</div>
+                    <div class="info-value">@(Model.Tenant?.PACINumber ?? "N/A")</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Property Information -->
+        <div class="info-card">
+            <div class="card-header-title">
+                <i class="fas fa-building"></i>
+                @L["Property Information"]
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">@L["Property Name"]</div>
+                    <div class="info-value">@(Model.Property?.PropertyName ?? "N/A")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Unit Number"]</div>
+                    <div class="info-value">@(Model.Lease?.Unit?.UnitNumber ?? "N/A")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Monthly Rent"]</div>
+                    <div class="info-value">@(Model.Lease?.Unit != null ? "KWD " + Model.Lease.Unit.MonthlyRent.ToString("N3") : "N/A")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bank Transfer Details (conditional) -->
+    @if (Model.PaymentType == RentCollection.Core.Enums.PaymentType.BankTransfer)
+    {
+        <div class="info-card">
+            <div class="card-header-title">
+                <i class="fas fa-university"></i>
+                @L["Bank Transfer Details"]
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">@L["Bank Name"]</div>
+                    <div class="info-value">@(Model.BankTransfer?.BankName ?? "N/A")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Transfer Date"]</div>
+                    <div class="info-value">@(Model.BankTransfer != null ? Model.BankTransfer.TransferDate.ToString("MMM dd, yyyy") : "N/A")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Reference Number"]</div>
+                    <div class="info-value">@(Model.BankTransfer?.ReferenceNumber ?? "N/A")</div>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.BankTransfer?.ProofFilePath))
+            {
+                <div class="info-item mt-3">
+                    <div class="info-label">@L["Transfer Proof"]</div>
+                    <div class="info-value">
+                        @{
+                            var extension = System.IO.Path.GetExtension(Model.BankTransfer.ProofFilePath)?.ToLower();
+                            var isImage = extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".gif" || extension == ".webp";
+                        }
+                        @if (isImage)
+                        {
+                            <img src="@Model.BankTransfer.ProofFilePath" alt="@(L["Transfer Proof"].Value)" class="proof-image" />
+                        }
+                        else
+                        {
+                            <a href="@Model.BankTransfer.ProofFilePath" target="_blank" class="proof-link">
+                                <i class="fas fa-file-alt"></i>
+                                @L["View Document"]
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Cash Payment Details (conditional) -->
+    @if (Model.PaymentType == RentCollection.Core.Enums.PaymentType.Cash)
+    {
+        <div class="info-card">
+            <div class="card-header-title">
+                <i class="fas fa-money-bill-wave"></i>
+                @L["Cash Payment Details"]
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">@L["Collected By"]</div>
+                    <div class="info-value">@(Model.CashPayment?.CollectedBy ?? "N/A")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Receipt Number"]</div>
+                    <div class="info-value">@(Model.CashPayment?.ReceiptNumber ?? "N/A")</div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Invoice Information (conditional) -->
+    @if (Model.Invoice != null)
+    {
+        <div class="info-card">
+            <div class="card-header-title">
+                <i class="fas fa-file-invoice-dollar"></i>
+                @L["Invoice Information"]
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">@L["Invoice ID"]</div>
+                    <div class="info-value">INV-@Model.Invoice.InvoiceId</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Due Date"]</div>
+                    <div class="info-value">@Model.Invoice.DueDate.ToString("MMM dd, yyyy")</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Total Amount"]</div>
+                    <div class="info-value">@("KWD " + Model.Invoice.TotalAmount.ToString("N3"))</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Paid Amount"]</div>
+                    <div class="info-value">@("KWD " + Model.Invoice.PaidAmount.ToString("N3"))</div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Approval Actions -->
+    <div class="actions-section">
+        <div class="actions-title">@L["Approval Actions"]</div>
+        <div class="actions-buttons">
+            <a href="@Url.Action("Index", "PaymentApproval")" class="btn-back">
+                <i class="fas fa-arrow-left"></i>
+                @L["Back to List"]
+            </a>
+            @if (Model.Status == RentCollection.Core.Enums.PaymentStatus.PendingVerification || Model.Status == RentCollection.Core.Enums.PaymentStatus.Pending)
+            {
+                <button type="button" class="btn-approve" data-bs-toggle="modal" data-bs-target="#approveModal">
+                    <i class="fas fa-check"></i>
+                    @L["Approve Payment"]
+                </button>
+                <button type="button" class="btn-reject" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                    <i class="fas fa-times"></i>
+                    @L["Reject Payment"]
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Approve Confirmation Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="approveModalLabel">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    @L["Confirm Approval"]
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@(L["Close"].Value)"></button>
+            </div>
+            <div class="modal-body">
+                <p>@L["Are you sure you want to approve this payment?"]</p>
+                <div class="mt-3 p-3" style="background: rgba(16, 185, 129, 0.1); border-radius: 8px;">
+                    <strong>@L["Payment ID:"]</strong> #@Model.PaymentId<br />
+                    <strong>@L["Amount:"]</strong> KWD @Model.AmountPaid.ToString("N3")<br />
+                    <strong>@L["Tenant:"]</strong> @(Model.Tenant != null ? $"{Model.Tenant.FirstName} {Model.Tenant.LastName}" : "N/A")
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-modal-cancel" data-bs-dismiss="modal">@L["Cancel"]</button>
+                <form asp-action="Approve" asp-controller="PaymentApproval" method="post" style="display: inline;">
+                    <input type="hidden" name="id" value="@Model.PaymentId" />
+                    <button type="submit" class="btn btn-modal-confirm btn-confirm-approve">
+                        <i class="fas fa-check me-1"></i>
+                        @L["Approve Payment"]
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal with Reason -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectModalLabel">
+                    <i class="fas fa-times-circle text-danger me-2"></i>
+                    @L["Reject Payment"]
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@(L["Close"].Value)"></button>
+            </div>
+            <form asp-action="Reject" asp-controller="PaymentApproval" method="post">
+                <div class="modal-body">
+                    <p>@L["Please provide a reason for rejecting this payment:"]</p>
+                    <div class="mt-3 p-3 mb-3" style="background: rgba(239, 68, 68, 0.1); border-radius: 8px;">
+                        <strong>@L["Payment ID:"]</strong> #@Model.PaymentId<br />
+                        <strong>@L["Amount:"]</strong> KWD @Model.AmountPaid.ToString("N3")<br />
+                        <strong>@L["Tenant:"]</strong> @(Model.Tenant != null ? $"{Model.Tenant.FirstName} {Model.Tenant.LastName}" : "N/A")
+                    </div>
+                    <input type="hidden" name="id" value="@Model.PaymentId" />
+                    <div class="mb-3">
+                        <label for="rejectionReason" class="form-label">@L["Rejection Reason"] <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="rejectionReason" name="reason" rows="4"
+                                  placeholder="@(L["Enter the reason for rejection..."].Value)" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-modal-cancel" data-bs-dismiss="modal">@L["Cancel"]</button>
+                    <button type="submit" class="btn btn-modal-confirm btn-confirm-reject">
+                        <i class="fas fa-times me-1"></i>
+                        @L["Reject Payment"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+}

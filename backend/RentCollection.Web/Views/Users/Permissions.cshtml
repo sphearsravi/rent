@@ -1,0 +1,172 @@
+﻿@{
+    ViewData["Title"] = "Role Permissions";
+
+    // Hand-curated matrix Ã¢â‚¬” kept next to the [Authorize] attributes on the
+    // controllers so drift is visible in one place. When you add a new
+    // capability, add a row here. Cells: "Y" = full access, "R" = read only,
+    // "-" = no access. The rendering layer turns each into a coloured tile.
+    var roles = new[] { "SuperAdmin", "Admin", "Manager", "Accountant", "User" };
+
+    var rows = new (string Section, string Capability, string[] Cells)[]
+    {
+        ("Browse",       "Dashboard",                                 new[] {"Y","Y","Y","Y","Y"}),
+        ("Browse",       "Properties / Units (read)",                 new[] {"Y","Y","Y","R","R"}),
+        ("Browse",       "Tenants (read)",                            new[] {"Y","Y","Y","R","R"}),
+        ("Browse",       "Leases (read)",                             new[] {"Y","Y","Y","R","R"}),
+        ("Browse",       "Invoices (read)",                           new[] {"Y","Y","R","Y","R"}),
+        ("Browse",       "Payments (read)",                           new[] {"Y","Y","R","Y","R"}),
+        ("Browse",       "Reports / Executive Dashboard",             new[] {"Y","Y","-","Y","-"}),
+
+        ("Tenants",      "Create / Edit Tenant",                      new[] {"Y","Y","Y","-","-"}),
+        ("Tenants",      "Toggle Active / Inactive",                  new[] {"Y","Y","Y","-","-"}),
+        ("Tenants",      "Bulk update / archive",                     new[] {"Y","Y","Y","-","-"}),
+        ("Tenants",      "Import (CSV / XLSX)",                       new[] {"Y","Y","-","-","-"}),
+        ("Tenants",      "Restore archived",                          new[] {"Y","Y","-","-","-"}),
+        ("Tenants",      "Forget (GDPR redact)",                      new[] {"Y","Y","-","-","-"}),
+        ("Tenants",      "Resend login credentials",                  new[] {"Y","Y","-","-","-"}),
+
+        ("Leases",       "Create lease (Pending)",                    new[] {"Y","Y","Y","-","-"}),
+        ("Leases",       "Edit lease (open status)",                  new[] {"Y","Y","Y","-","-"}),
+        ("Leases",       "Activate (Pending Ã¢â€ ’ Active + deposit invoice)", new[] {"Y","Y","-","-","-"}),
+        ("Leases",       "Renew lease",                               new[] {"Y","Y","-","-","-"}),
+        ("Leases",       "Terminate lease",                           new[] {"Y","Y","-","-","-"}),
+        ("Leases",       "Transfer to another unit",                  new[] {"Y","Y","-","-","-"}),
+        ("Leases",       "Delete lease (only when no invoices)",      new[] {"Y","Y","-","-","-"}),
+        ("Leases",       "View lease history",                        new[] {"Y","Y","Y","R","R"}),
+
+        ("Invoices",     "Generate monthly invoices manually",        new[] {"Y","Y","-","Y","-"}),
+        ("Invoices",     "Mark as paid / cancel",                     new[] {"Y","Y","-","Y","-"}),
+        ("Invoices",     "Download PDF",                              new[] {"Y","Y","Y","Y","R"}),
+
+        ("Payments",     "Record cash payment",                       new[] {"Y","Y","-","Y","-"}),
+        ("Payments",     "Approve bank transfers",                    new[] {"Y","Y","Y","Y","-"}),
+        ("Payments",     "Issue / approve refunds",                   new[] {"Y","Y","-","Y","-"}),
+
+        ("Documents",    "Upload / Link documents",                   new[] {"Y","Y","Y","-","-"}),
+        ("Documents",    "Delete documents",                          new[] {"Y","Y","Y","-","-"}),
+
+        ("Maintenance",  "Open / resolve maintenance tickets",        new[] {"Y","Y","Y","-","-"}),
+
+        ("Admin",        "Manage Users + roles",                      new[] {"Y","Y","-","-","-"}),
+        ("Admin",        "Grant SuperAdmin role",                     new[] {"Y","-","-","-","-"}),
+        ("Admin",        "/hangfire dashboard",                       new[] {"Y","Y","-","-","-"}),
+        ("Admin",        "Trigger recurring jobs manually",           new[] {"Y","Y","-","-","-"}),
+        ("Admin",        "View this Permissions matrix",              new[] {"Y","Y","-","-","-"}),
+    };
+
+    var grouped = rows.GroupBy(r => r.Section).ToList();
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = L["Role Permissions"].Value,
+        ["Subtitle"] = L["What each role can do across the system"].Value,
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            (L["Admin"].Value, "/Dashboard"),
+            (L["Users"].Value, "/Users"),
+            (L["Permissions"].Value, null),
+        }
+    })
+
+    <div class="perm-legend">
+        <span class="perm-cell perm-y">Y</span> @L["= full access"]
+        <span class="perm-cell perm-r" style="margin-left:0.75rem;">R</span> @L["= read-only"]
+        <span class="perm-cell perm-n" style="margin-left:0.75rem;">Ã¢â‚¬“</span> @L["= no access"]
+    </div>
+
+    @foreach (var sect in grouped)
+    {
+        <div class="perm-section">
+            <h3 class="perm-section-title">@sect.Key</h3>
+            <table class="perm-table">
+                <thead>
+                    <tr>
+                        <th class="cap">@L["Capability"]</th>
+                        @foreach (var role in roles)
+                        {
+                            <th>@role</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in sect)
+                    {
+                        <tr>
+                            <td class="cap">@row.Capability</td>
+                            @for (var i = 0; i < roles.Length; i++)
+                            {
+                                var v = row.Cells[i];
+                                var cls = v switch
+                                {
+                                    "Y" => "perm-y",
+                                    "R" => "perm-r",
+                                    _    => "perm-n",
+                                };
+                                <td><span class="perm-cell @cls">@(v == "-" ? "Ã¢â‚¬“" : v)</span></td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="perm-footnote">
+        Capabilities reflect the <code>[Authorize(Roles = ...)]</code> attributes on
+        the live controllers. If a controller changes role gating, add or update the
+        matching row in <code>Views/Users/Permissions.cshtml</code> so this page stays
+        in sync.
+    </div>
+</div>
+
+<style>
+    .page-container { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+    .perm-legend {
+        background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: 0.75rem 1rem; margin-bottom: 1.25rem;
+        font-size: 0.9rem; color: #475569;
+    }
+    .perm-section { margin-bottom: 1.5rem; }
+    .perm-section-title {
+        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+        color: #6366f1; margin: 0 0 0.5rem; font-weight: 700;
+    }
+    .perm-table {
+        width: 100%; border-collapse: separate; border-spacing: 0;
+        background: white; border-radius: 10px; overflow: hidden;
+        box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+    }
+    .perm-table th, .perm-table td {
+        padding: 0.65rem 0.85rem;
+        text-align: center; font-size: 0.85rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .perm-table thead th {
+        background: #f8fafc; color: #334155; font-weight: 700;
+        font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .perm-table tbody tr:last-child td { border-bottom: 0; }
+    .perm-table tbody tr:hover td { background: rgba(99, 102, 241,0.04); }
+    .perm-table td.cap, .perm-table th.cap {
+        text-align: left; min-width: 280px; font-weight: 500;
+    }
+    .perm-cell {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px; border-radius: 999px;
+        font-weight: 700; font-size: 0.85rem;
+    }
+    .perm-cell.perm-y { background: rgba(16,185,129,0.15); color: #065f46; }
+    .perm-cell.perm-r { background: rgba(245,158,11,0.18); color: #92400e; }
+    .perm-cell.perm-n { background: #f1f5f9; color: #94a3b8; }
+    .perm-footnote {
+        margin-top: 1.5rem; padding: 0.85rem 1rem;
+        background: rgba(99, 102, 241,0.06); border-left: 3px solid #6366f1;
+        font-size: 0.85rem; color: #475569; border-radius: 4px;
+    }
+    .perm-footnote code {
+        background: #e2e8f0; padding: 0.05rem 0.35rem; border-radius: 4px;
+        font-size: 0.78rem;
+    }
+</style>

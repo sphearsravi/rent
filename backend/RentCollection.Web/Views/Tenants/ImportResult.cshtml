@@ -1,0 +1,134 @@
+﻿@model List<RentCollection.Web.Controllers.TenantsController.ImportResultRow>
+@{
+    ViewData["Title"] = "Import results";
+    var imported = (int)(ViewBag.ImportedCount ?? 0);
+    var skipped  = (int)(ViewBag.SkippedCount ?? 0);
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = "Import complete",
+        ["Subtitle"] = $"{imported} created Ã‚· {skipped} skipped",
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            ("Admin", "/Dashboard"),
+            ("Tenants", "/Tenants"),
+            ("Import", "/Tenants/Import"),
+            ("Results", null)
+        }
+    })
+
+    <div class="result-strip">
+        <div class="result-card result-good">
+            <i class="fas fa-circle-check"></i>
+            <div><strong>@imported</strong> tenant@(imported == 1 ? "" : "s") created</div>
+        </div>
+        <div class="result-card result-warn">
+            <i class="fas fa-triangle-exclamation"></i>
+            <div><strong>@skipped</strong> row@(skipped == 1 ? "" : "s") skipped</div>
+        </div>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="result-table-card">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th style="width:80px;">@L["Row"]</th>
+                        <th>@L["Name"]</th>
+                        <th>@L["Email"]</th>
+                        <th style="width:100px;">@L["Result"]</th>
+                        <th>@L["Notes"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model)
+                    {
+                        <tr class="@(r.Imported ? "row-imported" : "row-skipped")">
+                            <td><code>#@r.Row</code></td>
+                            <td>@(string.IsNullOrWhiteSpace(r.Name) ? "Ã¢â‚¬”" : r.Name)</td>
+                            <td>@(string.IsNullOrWhiteSpace(r.Email) ? "Ã¢â‚¬”" : r.Email)</td>
+                            <td>
+                                @if (r.Imported)
+                                {
+                                    <span class="pill pill-good"><i class="fas fa-check"></i> @L["Imported"]</span>
+                                }
+                                else
+                                {
+                                    <span class="pill pill-bad"><i class="fas fa-xmark"></i> @L["Skipped"]</span>
+                                }
+                            </td>
+                            <td class="reason">@(r.Reason ?? "Ã¢â‚¬”")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="result-actions">
+        <a href="/Tenants" class="btn-primary"><i class="fas fa-list"></i> @L["Back to Tenants"]</a>
+        <a href="/Tenants/Import" class="btn-ghost"><i class="fas fa-arrow-rotate-left"></i> @L["Import another file"]</a>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .page-container { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+        .result-strip { display: flex; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .result-card {
+            flex: 1; min-width: 220px;
+            display: flex; align-items: center; gap: 0.85rem;
+            padding: 1rem 1.2rem;
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            border: 1px solid rgba(99, 102, 241,0.12);
+        }
+        .result-card i { font-size: 1.85rem; }
+        .result-card div strong { font-size: 1.4rem; color: #0f172a; }
+        .result-good i { color: #10b981; }
+        .result-warn i { color: #f59e0b; }
+
+        .result-table-card {
+            background: rgba(255,255,255,0.95);
+            border: 1px solid rgba(99, 102, 241,0.12);
+            border-radius: 12px; overflow: hidden;
+            margin-bottom: 1.25rem;
+        }
+        .modern-table { width: 100%; border-collapse: collapse; }
+        .modern-table thead th {
+            background: rgba(99, 102, 241,0.06); padding: 0.85rem 1rem;
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.4px;
+            color: #475569; text-align: left;
+        }
+        .modern-table tbody td {
+            padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9;
+            color: #334155; font-size: 0.9rem;
+        }
+        .row-imported td { background: rgba(16,185,129,0.02); }
+        .row-skipped  td { background: rgba(239,68,68,0.02); color: #64748b; }
+        .reason { font-size: 0.85rem; color: #64748b; }
+        code { background: #f1f5f9; padding: 0 0.4rem; border-radius: 4px; font-size: 0.8rem; }
+
+        .pill {
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            padding: 0.2rem 0.65rem; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .pill-good { background: rgba(16,185,129,0.12); color: #047857; }
+        .pill-bad  { background: rgba(239,68,68,0.10); color: #b91c1c; }
+
+        .result-actions { display: flex; gap: 0.6rem; }
+        .btn-primary, .btn-ghost {
+            display: inline-flex; align-items: center; gap: 0.45rem;
+            padding: 0.65rem 1.1rem; border-radius: 8px; text-decoration: none;
+            font-weight: 500;
+        }
+        .btn-primary { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white; }
+        .btn-primary:hover { box-shadow: 0 4px 12px rgba(99, 102, 241,0.3); }
+        .btn-ghost { background: #f1f5f9; color: #475569; }
+        .btn-ghost:hover { background: #e2e8f0; }
+    </style>
+}

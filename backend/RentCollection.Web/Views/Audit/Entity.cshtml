@@ -1,0 +1,88 @@
+@model List<RentCollection.Core.Entities.AuditLog>
+@{
+    var entityType = ViewBag.EntityType as string ?? "Entity";
+    var entityId = (int)(ViewBag.EntityId ?? 0);
+    var entityHref = ViewBag.EntityHref as string;
+    ViewData["Title"] = $"Audit · {entityType} #{entityId}";
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = $"{entityType} #{entityId} — audit trail",
+        ["Subtitle"] = $"{Model.Count} recorded event{(Model.Count == 1 ? "" : "s")}",
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            ("Admin", "/Dashboard"),
+            ("Audit Log", "/Audit"),
+            ($"{entityType} #{entityId}", null),
+        }
+    })
+
+    <div class="entity-card">
+        <div class="ent-info">
+            <strong>@entityType #@entityId</strong>
+            @if (Model.Any())
+            {
+                <span> · @L["First seen"] @Model.Last().At.ToString("dd MMM yyyy")</span>
+                <span> · @L["Last activity"] @Model.First().At.ToString("dd MMM yyyy HH:mm")</span>
+            }
+        </div>
+        @if (entityHref != null)
+        {
+            <a href="@entityHref" class="btn-link">
+                <i class="fas fa-arrow-right"></i> @L["Open"] @entityType
+            </a>
+        }
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="empty">
+            <i class="fas fa-clock-rotate-left"></i>
+            <h3>@L["No audit events recorded for this"] @entityType.</h3>
+        </div>
+    }
+    else
+    {
+        <ol class="timeline">
+            @foreach (var ev in Model)
+            {
+                var (icon, colour) = ev.Action switch
+                {
+                    "Created"        => ("fa-circle-plus", "#10b981"),
+                    "Edited"         => ("fa-pen", "#3b82f6"),
+                    "Renewed"        => ("fa-arrows-rotate", "#6366f1"),
+                    "Terminated"     => ("fa-circle-stop", "#ef4444"),
+                    "Transferred"    => ("fa-arrow-right-arrow-left", "#f59e0b"),
+                    "Activated"      => ("fa-circle-play", "#10b981"),
+                    "RoleChanged"    => ("fa-user-shield", "#6366f1"),
+                    "CredentialIssued" => ("fa-key", "#06b6d4"),
+                    "DepositRefunded"  => ("fa-rotate-left", "#a855f7"),
+                    "StatusChanged"  => ("fa-toggle-on", "#f59e0b"),
+                    "Deleted"        => ("fa-trash", "#dc2626"),
+                    _                => ("fa-circle", "#64748b"),
+                };
+                <li class="tl-row">
+                    <div class="tl-marker" style="background:@colour;"><i class="fas @icon"></i></div>
+                    <div class="tl-body">
+                        <div class="tl-head">
+                            <strong>@ev.Action</strong>
+                            <span class="tl-when" title="@ev.At.ToString("u")">@ev.At.ToString("dd MMM yyyy HH:mm:ss")</span>
+                        </div>
+                        <div class="tl-actor"><i class="fas fa-user"></i> @ev.ByUser</div>
+                        @if (!string.IsNullOrWhiteSpace(ev.PayloadJson))
+                        {
+                            <details class="tl-payload">
+                                <summary>@L["Payload"]</summary>
+                                <pre>@ev.PayloadJson</pre>
+                            </details>
+                        }
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+</div>
+
+<partial name="_AuditTimelineStyle" />

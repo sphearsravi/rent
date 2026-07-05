@@ -1,0 +1,432 @@
+@{
+    ViewData["Title"] = "Make Payment";
+    Layout = null;
+    var invoices = ViewBag.Invoices as List<RentCollection.Core.Entities.Invoice>;
+
+    // Sprint 24 — oldest-unpaid-first gate. Compute the queue once so we can
+    // visually disable the Pay button on everything except the oldest. The
+    // server enforces the same rule (PaymentEligibilityService) — this is
+    // UX only, the API will reject any newer invoice with HTTP 409.
+    var unpaidInvoices = (invoices ?? new())
+        .Where(i => i.Status == "Pending" || i.Status == "Overdue" || i.Status == "Partially Paid")
+        .OrderBy(i => i.InvoiceDate)
+        .ThenBy(i => i.InvoiceId)
+        .ToList();
+    var oldestUnpaid = unpaidInvoices.FirstOrDefault();
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - VIIJAR</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <nav class="tenant-navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-building"></i>
+                <span>@L["VIIJAR Tenant Portal"]</span>
+            </div>
+            <div class="navbar-menu">
+                <a href="/TenantPortal/Dashboard" class="nav-link">
+                    <i class="fas fa-home"></i> @L["Dashboard"]
+                </a>
+                <a href="/TenantPortal/MyDetails" class="nav-link">
+                    <i class="fas fa-user"></i> @L["My Details"]
+                </a>
+                <a href="/TenantPortal/MakePayment" class="nav-link active">
+                    <i class="fas fa-credit-card"></i> @L["Make Payment"]
+                </a>
+                <a href="/TenantPortal/PaymentHistory" class="nav-link">
+                    <i class="fas fa-history"></i> @L["Payment History"]
+                </a>
+                <a href="/TenantPortal/Logout" class="nav-link logout">
+                    <i class="fas fa-sign-out-alt"></i> @L["Logout"]
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                @TempData["SuccessMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <div class="page-header">
+            <h1><i class="fas fa-credit-card"></i> @L["Make Payment"]</h1>
+            <p class="text-muted">@L["Pay your rent instantly with KNET"]</p>
+        </div>
+
+        @if (unpaidInvoices.Any())
+        {
+            <div class="payment-card">
+                <div class="form-section">
+                    <h3 class="section-title">@L["Select Invoice to Pay"]</h3>
+
+                    @if (unpaidInvoices.Count > 1)
+                    {
+                        <div class="alert alert-info" style="margin-bottom:1rem;">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>@L["Pay oldest first."]</strong>
+                            @L["Invoices must be paid in order. Once invoice"]
+                            <strong>#@oldestUnpaid!.InvoiceId</strong> @L["is fully paid, the next one will unlock automatically."]
+                        </div>
+                    }
+
+                    <div class="invoices-grid">
+                        @foreach (var invoice in unpaidInvoices)
+                        {
+                            var isPayable = oldestUnpaid != null && oldestUnpaid.InvoiceId == invoice.InvoiceId;
+                            var balance = invoice.TotalAmount - invoice.PaidAmount;
+                            var propertyId = invoice.Lease?.Unit?.PropertyId ?? 0;
+                            var propertyName = invoice.Lease?.Unit?.Property?.PropertyName ?? "";
+                            var unitNumber = invoice.Lease?.Unit?.UnitNumber ?? "";
+                            <div class="invoice-card" style="@(isPayable ? "" : "opacity:0.65;")">
+                                <div class="invoice-header">
+                                    <span class="invoice-number">@L["Invoice"] #@invoice.InvoiceId</span>
+                                    <span class="badge badge-@(invoice.Status == "Overdue" ? "danger" : invoice.Status == "Partially Paid" ? "info" : "warning")">@invoice.Status</span>
+                                </div>
+                                <div class="invoice-body">
+                                    <div class="invoice-detail">
+                                        <i class="fas fa-building"></i>
+                                        <span>@propertyName @(string.IsNullOrEmpty(unitNumber) ? "" : "- Unit " + unitNumber)</span>
+                                    </div>
+                                    <div class="invoice-detail">
+                                        <i class="fas fa-calendar"></i>
+                                        <span>@L["Due:"] @invoice.DueDate.ToString("dd MMM yyyy")</span>
+                                    </div>
+                                    <div class="invoice-amount">
+                                        @balance.ToString("N3") KWD
+                                        @if (invoice.Status == "Partially Paid")
+                                        {
+                                            <small style="display:block; font-size:0.75rem; color:#64748b; font-weight:400;">
+                                                of @invoice.TotalAmount.ToString("N3") (@invoice.PaidAmount.ToString("N3") paid)
+                                            </small>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="invoice-actions">
+                                    @if (isPayable)
+                                    {
+                                        <button type="button" class="btn btn-select"
+                                                onclick="payWithKNET(@invoice.InvoiceId, @balance, @propertyId, @invoice.TenantId, this)">
+                                            <i class="fas fa-bolt"></i> @L["Pay with KNET"]
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-select" disabled
+                                                title="@(L["Pay invoice #"].Value)@oldestUnpaid!.InvoiceId@(L[" first to unlock this one"].Value)">
+                                            <i class="fas fa-lock"></i> @L["Pay #"]@oldestUnpaid!.InvoiceId @L["first"]
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state-card">
+                <i class="fas fa-file-invoice"></i>
+                <h3>@L["No Pending Invoices"]</h3>
+                <p>@L["You don't have any unpaid invoices at the moment."]</p>
+                <a href="/TenantPortal/Dashboard" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> @L["Back to Dashboard"]
+                </a>
+            </div>
+        }
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function payWithKNET(invoiceId, amount, propertyId, tenantId, btn) {
+            var originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
+
+            // Same endpoint MakePayment.cshtml posts to.
+            fetch('/api/payments/knet/initiate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    invoiceId: invoiceId,
+                    tenantId: tenantId,
+                    propertyId: propertyId,
+                    amount: amount,
+                    language: 'en'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.redirectUrl) {
+                    window.location.href = data.redirectUrl;
+                } else {
+                    alert('Failed to initiate payment: ' + (data.errorMessage || 'Unknown error'));
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to connect to payment gateway. Please try again.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
+
+<style>
+    body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+    }
+
+    .tenant-navbar {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        padding: 1rem 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .navbar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .navbar-menu {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+
+    .nav-link:hover {
+        background: rgba(255,255,255,0.2);
+    }
+
+    .nav-link.active {
+        background: rgba(255,255,255,0.3);
+    }
+
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .section-title::before {
+        content: '';
+        width: 4px;
+        height: 24px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border-radius: 2px;
+    }
+
+    .invoices-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .invoice-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        transition: all 0.3s;
+    }
+
+    .invoice-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .invoice-number {
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-info {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .invoice-detail {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .invoice-amount {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #6366f1;
+        margin: 1rem 0;
+    }
+
+    .btn-select {
+        width: 100%;
+        padding: 0.75rem;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-select:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-select:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+    }
+
+    .empty-state-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+
+    .empty-state-card i {
+        font-size: 4rem;
+        color: #6366f1;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-card h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-card p {
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+</style>

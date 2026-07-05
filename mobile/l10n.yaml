@@ -1,0 +1,9 @@
+# gen-l10n configuration. After editing lib/l10n/*.arb, run:
+#   flutter gen-l10n
+# which regenerates lib/l10n/app_localizations.dart and the per-locale files.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+synthetic-package: false
+output-dir: lib/l10n

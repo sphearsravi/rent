@@ -1,0 +1,94 @@
+@{
+    ViewData["Title"] = "Payment Successful";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - VIIJAR</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body style="background: linear-gradient(135deg, #f8fafc 0%, #d1fae5 50%, #a7f3d0 100%); min-height: 100vh;">
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-body text-center p-5">
+                    <div class="success-icon mb-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 5rem;"></i>
+                    </div>
+
+                    <h2 class="text-success mb-3">@L["Payment Successful!"]</h2>
+                    <p class="text-muted mb-4">@L["Your payment has been processed successfully."]</p>
+
+                    @if (ViewBag.Reference != null)
+                    {
+                        <div class="alert alert-light border mb-4">
+                            <strong>@L["Reference Number:"]</strong><br>
+                            <code class="fs-5">@ViewBag.Reference</code>
+                        </div>
+                    }
+
+                    @if (ViewBag.Payment != null)
+                    {
+                        var payment = ViewBag.Payment;
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">@L["Payment Details"]</h5>
+                                <table class="table table-borderless mb-0">
+                                    <tr>
+                                        <td class="text-muted">@L["Amount Paid:"]</td>
+                                        <td class="fw-bold">@payment.AmountPaid.ToString("N3") KWD</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">@L["Payment Date:"]</td>
+                                        <td>@payment.PaymentDate.ToString("dd MMM yyyy, hh:mm tt")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">@L["Payment Method:"]</td>
+                                        <td><span class="badge bg-primary">KNET</span></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="d-grid gap-2">
+                        <a href="@Url.Action("PaymentHistory", "TenantPortal")" class="btn btn-primary btn-lg">
+                            <i class="fas fa-history me-2"></i>@L["View Payment History"]
+                        </a>
+                        <a href="@Url.Action("Dashboard", "TenantPortal")" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i>@L["Back to Dashboard"]
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .success-icon {
+        animation: scaleIn 0.5s ease-out;
+    }
+
+    @@keyframes scaleIn {
+        from {
+            transform: scale(0);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>
+
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+@model List<RentCollection.Core.Entities.AuditLog>
+@{
+    ViewData["Title"] = "Audit Log";
+    var entityTypes = ViewBag.EntityTypes as List<string> ?? new();
+    var actions = ViewBag.Actions as List<string> ?? new();
+    var f = ViewBag.Filter as dynamic;
+    string? curEntityType = f?.EntityType;
+    string? curAction = f?.Action;
+    string? curByUser = f?.ByUser;
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = L["Audit Log"].Value,
+        ["Subtitle"] = $"{L["Every recorded action across the system — last"].Value} {Model.Count} {L["entries"].Value}",
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            (L["Admin"].Value, "/Dashboard"),
+            (L["Audit Log"].Value, null),
+        }
+    })
+
+    <form method="get" class="audit-filter">
+        <div class="chip-row">
+            <span class="chip-label">@L["Entity"]</span>
+            <a class="chip @(curEntityType == null ? "is-on" : "")" href="/Audit">@L["All"]</a>
+            @foreach (var t in entityTypes)
+            {
+                var active = curEntityType == t;
+                <a class="chip @(active ? "is-on" : "")" href="/Audit?entityType=@t">@t</a>
+            }
+        </div>
+        <div class="chip-row">
+            <span class="chip-label">@L["Action"]</span>
+            <a class="chip @(curAction == null ? "is-on" : "")"
+               href="/Audit@(curEntityType == null ? "" : "?entityType=" + curEntityType)">@L["All"]</a>
+            @foreach (var a in actions)
+            {
+                var active = curAction == a;
+                var href = "/Audit?action=" + a + (curEntityType == null ? "" : "&entityType=" + curEntityType);
+                <a class="chip @(active ? "is-on" : "")" href="@href">@a</a>
+            }
+        </div>
+        <div class="search-row">
+            <input type="text" name="byUser" value="@curByUser" placeholder="@(L["Filter by user (e.g. admin@example.com)"].Value)" />
+            @if (curEntityType != null) { <input type="hidden" name="entityType" value="@curEntityType" /> }
+            @if (curAction != null) { <input type="hidden" name="action" value="@curAction" /> }
+            <button type="submit" class="btn-filter"><i class="fas fa-filter"></i> @L["Apply"]</button>
+            <a class="btn-link" href="/Audit">@L["Clear"]</a>
+        </div>
+    </form>
+
+    @if (!Model.Any())
+    {
+        <div class="empty">
+            <i class="fas fa-clock-rotate-left"></i>
+            <h3>@L["No audit events match these filters"]</h3>
+        </div>
+    }
+    else
+    {
+        <ol class="timeline">
+            @foreach (var ev in Model)
+            {
+                var (icon, colour) = ev.Action switch
+                {
+                    "Created"        => ("fa-circle-plus", "#10b981"),
+                    "Edited"         => ("fa-pen", "#3b82f6"),
+                    "Renewed"        => ("fa-arrows-rotate", "#6366f1"),
+                    "Terminated"     => ("fa-circle-stop", "#ef4444"),
+                    "Transferred"    => ("fa-arrow-right-arrow-left", "#f59e0b"),
+                    "Activated"      => ("fa-circle-play", "#10b981"),
+                    "RoleChanged"    => ("fa-user-shield", "#6366f1"),
+                    "CredentialIssued" => ("fa-key", "#06b6d4"),
+                    "DepositRefunded"  => ("fa-rotate-left", "#a855f7"),
+                    "StatusChanged"  => ("fa-toggle-on", "#f59e0b"),
+                    "Deleted"        => ("fa-trash", "#dc2626"),
+                    _                => ("fa-circle", "#64748b"),
+                };
+                <li class="tl-row">
+                    <div class="tl-marker" style="background:@colour;"><i class="fas @icon"></i></div>
+                    <div class="tl-body">
+                        <div class="tl-head">
+                            <strong>@ev.Action</strong>
+                            <a class="tl-entity" href="/Audit/@ev.EntityType/@ev.EntityId">@ev.EntityType #@ev.EntityId</a>
+                            <span class="tl-when" title="@ev.At.ToString("u")">@ev.At.ToString("dd MMM yyyy HH:mm:ss")</span>
+                        </div>
+                        <div class="tl-actor"><i class="fas fa-user"></i> @ev.ByUser</div>
+                        @if (!string.IsNullOrWhiteSpace(ev.PayloadJson))
+                        {
+                            <details class="tl-payload">
+                                <summary>@L["Payload"]</summary>
+                                <pre>@ev.PayloadJson</pre>
+                            </details>
+                        }
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+</div>
+
+<partial name="_AuditTimelineStyle" />

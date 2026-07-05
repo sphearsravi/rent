@@ -1,0 +1,389 @@
+@model RentCollection.Core.Entities.MaintenanceRequest
+@{
+    ViewData["Title"] = "Delete Maintenance Request";
+}
+
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1>@L["Delete Maintenance Request"]</h1>
+            <p class="text-muted">@L["Confirm deletion of maintenance request"]</p>
+        </div>
+        <a href="/Maintenance" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> @L["Back to List"]
+        </a>
+    </div>
+
+    <div class="delete-card">
+        <div class="warning-banner">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <h3>@L["Warning"]</h3>
+                <p>@L["Are you sure you want to delete this maintenance request? This action cannot be undone."]</p>
+            </div>
+        </div>
+
+        <div class="details-section">
+            <h3 class="section-title">@L["Request Information"]</h3>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>@L["Request ID"]</label>
+                    <div class="info-value">#@Model.RequestId</div>
+                </div>
+
+                <div class="info-item">
+                    <label>@L["Status"]</label>
+                    <span class="status-badge status-@Model.Status.ToLower().Replace(" ", "-")">
+                        @Model.Status
+                    </span>
+                </div>
+
+                <div class="info-item">
+                    <label>@L["Property"]</label>
+                    <div class="info-value">@Model.Property.PropertyName</div>
+                    <small class="text-muted">@Model.Property.Address</small>
+                </div>
+
+                @if (Model.Unit != null)
+                {
+                    <div class="info-item">
+                        <label>@L["Unit"]</label>
+                        <div class="info-value">@L["Unit"] @Model.Unit.UnitNumber</div>
+                    </div>
+                }
+
+                @if (Model.Tenant != null)
+                {
+                    <div class="info-item">
+                        <label>@L["Tenant"]</label>
+                        <div class="info-value">@Model.Tenant.FirstName @Model.Tenant.LastName</div>
+                    </div>
+                }
+
+                <div class="info-item">
+                    <label>@L["Request Type"]</label>
+                    <div class="info-value">@Model.Category</div>
+                </div>
+
+                <div class="info-item">
+                    <label>@L["Priority"]</label>
+                    <span class="priority-badge priority-@Model.Priority.ToLower()">
+                        @Model.Priority
+                    </span>
+                </div>
+
+                <div class="info-item">
+                    <label>@L["Request Date"]</label>
+                    <div class="info-value">@Model.RequestDate.ToString("MMMM dd, yyyy")</div>
+                </div>
+
+                @if (Model.AssignedToUser != null)
+                {
+                    <div class="info-item">
+                        <label>@L["Assigned To"]</label>
+                        <div class="info-value">@Model.AssignedToUser.Email</div>
+                    </div>
+                }
+
+                @if (Model.ActualCost != null)
+                {
+                    <div class="info-item">
+                        <label>@L["Cost"]</label>
+                        <div class="info-value">KWD @Model.ActualCost.Value.ToString("N3")</div>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.Description))
+            {
+                <div class="info-item full-width">
+                    <label>@L["Description"]</label>
+                    <div class="description-box">@Model.Description</div>
+                </div>
+            }
+        </div>
+
+        <form asp-action="Delete" method="post">
+            <input type="hidden" asp-for="RequestId" />
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> @L["Yes, Delete Request"]
+                </button>
+                <a href="/Maintenance" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> @L["Cancel"]
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .page-container {
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .delete-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .warning-banner {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-left: 4px solid #f59e0b;
+            padding: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .warning-banner i {
+            font-size: 2rem;
+            color: #d97706;
+            flex-shrink: 0;
+        }
+
+        .warning-banner h3 {
+            margin: 0 0 0.5rem 0;
+            color: #92400e;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .warning-banner p {
+            margin: 0;
+            color: #78350f;
+            line-height: 1.5;
+        }
+
+        .details-section {
+            padding: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-radius: 2px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .info-item label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        .description-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .status-open {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-in-progress {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-completed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-cancelled {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .priority-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .priority-low {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .priority-medium {
+            background-color: #fed7aa;
+            color: #92400e;
+        }
+
+        .priority-high {
+            background-color: #fecaca;
+            color: #991b1b;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            padding: 2rem;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+}

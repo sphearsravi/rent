@@ -1,0 +1,695 @@
+@{
+    ViewData["Title"] = "Executive Dashboard";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .bg-animation .circle {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+            animation: float 20s infinite;
+        }
+
+        .bg-animation .circle:nth-child(1) {
+            width: 400px;
+            height: 400px;
+            top: -100px;
+            right: -100px;
+            animation-delay: 0s;
+        }
+
+        .bg-animation .circle:nth-child(2) {
+            width: 300px;
+            height: 300px;
+            bottom: -50px;
+            left: -50px;
+            animation-delay: 5s;
+        }
+
+        .bg-animation .circle:nth-child(3) {
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            left: 50%;
+            animation-delay: 10s;
+        }
+
+        @@keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.5; }
+            50% { transform: translateY(-30px) rotate(180deg); opacity: 0.8; }
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 1;
+            padding: 1.5rem;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .header-content h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-content h1 i {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-content p {
+            color: #64748b;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* Glassmorphic Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Filter Section */
+        .filter-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-header h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .filter-header i {
+            color: #818cf8;
+        }
+
+        .filter-form {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 0.875rem 1rem;
+            color: #1e293b;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #818cf8;
+            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+            background: #ffffff;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.875rem 1.5rem;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(99, 102, 241, 0.1);
+            color: #4f46e5;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(99, 102, 241, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-color), transparent);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card.properties { --accent-color: #6366f1; }
+        .stat-card.occupancy { --accent-color: #10b981; }
+        .stat-card.collection { --accent-color: #3b82f6; }
+        .stat-card.outstanding { --accent-color: #f59e0b; }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-card.properties .stat-icon {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
+            color: #818cf8;
+        }
+
+        .stat-card.occupancy .stat-icon {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+            color: #34d399;
+        }
+
+        .stat-card.collection .stat-icon {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+            color: #60a5fa;
+        }
+
+        .stat-card.outstanding .stat-icon {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
+            color: #fbbf24;
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1e293b;
+            line-height: 1.2;
+        }
+
+        .stat-sub {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-top: 0.25rem;
+        }
+
+        /* Data Table */
+        .table-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .table-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .table-header h3 i {
+            color: #818cf8;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background: rgba(99, 102, 241, 0.08);
+            padding: 1rem 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+            color: #334155;
+        }
+
+        .data-table tr {
+            transition: all 0.2s ease;
+        }
+
+        .data-table tr:hover {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .data-table .amount {
+            font-weight: 600;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .row-highlight-info {
+            background: rgba(59, 130, 246, 0.1) !important;
+        }
+
+        .row-highlight-danger {
+            background: rgba(239, 68, 68, 0.1) !important;
+        }
+
+        .row-highlight-success {
+            background: rgba(16, 185, 129, 0.1) !important;
+        }
+
+        /* Summary Cards Grid */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-table {
+            width: 100%;
+        }
+
+        .summary-table td {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .summary-table td:first-child {
+            font-weight: 500;
+            color: #475569;
+        }
+
+        .summary-table td:last-child {
+            text-align: right;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* Responsive */
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .filter-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+}
+
+<!-- Animated Background -->
+<div class="bg-animation">
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+</div>
+
+<div class="app-container">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1><i class="fas fa-tachometer-alt"></i> @L["Executive Dashboard"]</h1>
+            <p>@L["High-level portfolio overview with key business metrics"]</p>
+        </div>
+        <div class="header-actions">
+            <a href="@Url.Action("ExecutiveDashboardExcel", new { fromDate = ViewBag.FromDate, toDate = ViewBag.ToDate })" class="btn btn-success">
+                <i class="fas fa-file-excel"></i> @L["Export Excel"]
+            </a>
+            <a href="@Url.Action("Index")" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> @L["Back"]
+            </a>
+        </div>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="glass-card">
+        <div class="filter-header">
+            <i class="fas fa-calendar-alt"></i>
+            <h3>@L["Date Range Filter"]</h3>
+        </div>
+        <form method="get" class="filter-form">
+            <div class="form-group">
+                <label>@L["From Date"]</label>
+                <input type="date" name="fromDate" class="form-control" value="@ViewBag.FromDate?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-group">
+                <label>@L["To Date"]</label>
+                <input type="date" name="toDate" class="form-control" value="@ViewBag.ToDate?.ToString("yyyy-MM-dd")" />
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> @L["Apply Filter"]
+            </button>
+        </form>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="stats-grid">
+        <div class="stat-card properties">
+            <div class="stat-icon">
+                <i class="fas fa-building"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">@L["Total Properties"]</div>
+                <div class="stat-value">@ViewBag.TotalProperties</div>
+                <div class="stat-sub">@L["Total Units:"] @ViewBag.TotalUnits</div>
+            </div>
+        </div>
+        <div class="stat-card occupancy">
+            <div class="stat-icon">
+                <i class="fas fa-home"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">@L["Occupancy Rate"]</div>
+                <div class="stat-value">@ViewBag.OccupancyRate.ToString("N2")%</div>
+                <div class="stat-sub">@ViewBag.OccupiedUnits / @ViewBag.TotalUnits @L["units"]</div>
+            </div>
+        </div>
+        <div class="stat-card collection">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">@L["Collection Rate"]</div>
+                <div class="stat-value">@ViewBag.CollectionRate.ToString("N2")%</div>
+                <div class="stat-sub">@L["Of expected rent"]</div>
+            </div>
+        </div>
+        <div class="stat-card outstanding">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">@L["Outstanding Amount"]</div>
+                <div class="stat-value">@ViewBag.TotalOutstanding.ToString("N3")</div>
+                <div class="stat-sub">@L["KWD - Unpaid invoices"]</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3><i class="fas fa-money-bill-wave"></i> @L["Financial Summary"]</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>@L["Metric"]</th>
+                        <th class="text-right">@L["Amount (KWD)"]</th>
+                        <th>@L["Details"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>@L["Potential Monthly Rent"]</strong></td>
+                        <td class="text-right amount">@ViewBag.PotentialMonthlyRent.ToString("N3")</td>
+                        <td>@L["If all units were occupied"]</td>
+                    </tr>
+                    <tr>
+                        <td><strong>@L["Actual Monthly Rent"]</strong></td>
+                        <td class="text-right amount">@ViewBag.ActualMonthlyRent.ToString("N3")</td>
+                        <td>@L["Current occupied units"]</td>
+                    </tr>
+                    <tr class="row-highlight-info">
+                        <td><strong>@L["YTD Revenue"]</strong></td>
+                        <td class="text-right amount" style="color: #60a5fa;">@ViewBag.YTDRevenue.ToString("N3")</td>
+                        <td>@L["Year-to-date collected payments"]</td>
+                    </tr>
+                    <tr class="row-highlight-danger">
+                        <td><strong>@L["YTD Maintenance Costs"]</strong></td>
+                        <td class="text-right amount" style="color: #f87171;">@ViewBag.YTDMaintenanceCosts.ToString("N3")</td>
+                        <td>@ViewBag.MaintenanceCount @L["completed requests"]</td>
+                    </tr>
+                    <tr class="row-highlight-success">
+                        <td><strong>@L["Net Revenue (YTD)"]</strong></td>
+                        <td class="text-right amount" style="color: #34d399;">@ViewBag.NetRevenue.ToString("N3")</td>
+                        <td>@L["Revenue minus maintenance costs"]</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tenant & Maintenance Summary -->
+    <div class="summary-grid">
+        <div class="table-card">
+            <div class="table-header">
+                <h3><i class="fas fa-users"></i> @L["Tenant Summary"]</h3>
+            </div>
+            <div style="padding: 1.5rem;">
+                <table class="summary-table">
+                    <tr>
+                        <td>@L["Total Active Tenants"]</td>
+                        <td>@ViewBag.ActiveTenants</td>
+                    </tr>
+                    <tr>
+                        <td>@L["Total Active Leases"]</td>
+                        <td>@ViewBag.ActiveLeases</td>
+                    </tr>
+                    <tr>
+                        <td>@L["Average Rent per Tenant"]</td>
+                        <td>@ViewBag.AvgRentPerTenant.ToString("N3") KWD</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div class="table-card">
+            <div class="table-header">
+                <h3><i class="fas fa-wrench"></i> @L["Maintenance Summary"]</h3>
+            </div>
+            <div style="padding: 1.5rem;">
+                <table class="summary-table">
+                    <tr>
+                        <td>@L["Total Requests (Period)"]</td>
+                        <td>@ViewBag.MaintenanceCount</td>
+                    </tr>
+                    <tr>
+                        <td>@L["Total Cost (Period)"]</td>
+                        <td>@ViewBag.YTDMaintenanceCosts.ToString("N3") KWD</td>
+                    </tr>
+                    <tr>
+                        <td>@L["Average Cost per Request"]</td>
+                        <td>@ViewBag.AvgMaintenanceCost.ToString("N3") KWD</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Add subtle animation on scroll
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.stat-card, .glass-card, .table-card');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            cards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'all 0.6s ease';
+                observer.observe(card);
+            });
+        });
+    </script>
+}

@@ -1,0 +1,790 @@
+@{
+    ViewData["Title"] = "Make Payment";
+    Layout = null;
+    var invoices = ViewBag.Invoices as List<RentCollection.Core.Entities.Invoice>;
+    var properties = ViewBag.Properties as List<RentCollection.Core.Entities.Property>;
+
+    // Sprint 24 — oldest-unpaid-first gate. Compute the queue once so we can
+    // visually disable the Pay button on everything except the oldest. The
+    // server enforces the same rule (PaymentEligibilityService) — this is
+    // UX only, the API will reject any newer invoice with HTTP 409.
+    var unpaidInvoices = (invoices ?? new())
+        .Where(i => i.Status == "Pending" || i.Status == "Overdue" || i.Status == "Partially Paid")
+        .OrderBy(i => i.InvoiceDate)
+        .ThenBy(i => i.InvoiceId)
+        .ToList();
+    var oldestUnpaid = unpaidInvoices.FirstOrDefault();
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - VIIJAR</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <nav class="tenant-navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-building"></i>
+                <span>@L["VIIJAR Tenant Portal"]</span>
+            </div>
+            <div class="navbar-menu">
+                <a href="/TenantPortal/Dashboard" class="nav-link">
+                    <i class="fas fa-home"></i> @L["Dashboard"]
+                </a>
+                <a href="/TenantPortal/MyDetails" class="nav-link">
+                    <i class="fas fa-user"></i> @L["My Details"]
+                </a>
+                <a href="/TenantPortal/MakePayment" class="nav-link active">
+                    <i class="fas fa-credit-card"></i> @L["Make Payment"]
+                </a>
+                <a href="/TenantPortal/PaymentHistory" class="nav-link">
+                    <i class="fas fa-history"></i> @L["Payment History"]
+                </a>
+                <a href="/TenantPortal/Logout" class="nav-link logout">
+                    <i class="fas fa-sign-out-alt"></i> @L["Logout"]
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                @TempData["SuccessMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <div class="page-header">
+            <h1><i class="fas fa-credit-card"></i> @L["Make Payment"]</h1>
+            <p class="text-muted">@L["Choose your payment method below"]</p>
+        </div>
+
+        @if (invoices != null && invoices.Any())
+        {
+            <div class="payment-card">
+                <!-- Step 1: Select Invoice -->
+                <div class="form-section">
+                    <h3 class="section-title">@L["Select Invoice to Pay"]</h3>
+
+                    @if (unpaidInvoices.Count > 1)
+                    {
+                        <div class="alert alert-info" style="margin-bottom:1rem;">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>@L["Pay oldest first."]</strong>
+                            @L["Invoices must be paid in order. Once invoice"]
+                            <strong>#@oldestUnpaid!.InvoiceId</strong> @L["is fully paid, the next one will unlock automatically."]
+                        </div>
+                    }
+
+                    <div class="invoices-grid">
+                        @foreach (var invoice in unpaidInvoices)
+                        {
+                            var isPayable = oldestUnpaid != null && oldestUnpaid.InvoiceId == invoice.InvoiceId;
+                            var balance = invoice.TotalAmount - invoice.PaidAmount;
+                            <div class="invoice-card" data-invoice-id="@invoice.InvoiceId" data-amount="@balance" data-property-id="@invoice.Lease.Unit.PropertyId" style="@(isPayable ? "" : "opacity:0.65;")">
+                                <div class="invoice-header">
+                                    <span class="invoice-number">@L["Invoice"] #@invoice.InvoiceId</span>
+                                    <span class="badge badge-@(invoice.Status == "Overdue" ? "danger" : invoice.Status == "Partially Paid" ? "info" : "warning")">@invoice.Status</span>
+                                </div>
+                                <div class="invoice-body">
+                                    <div class="invoice-detail">
+                                        <i class="fas fa-building"></i>
+                                        <span>@invoice.Lease.Unit.Property.PropertyName - Unit @invoice.Lease.Unit.UnitNumber</span>
+                                    </div>
+                                    <div class="invoice-detail">
+                                        <i class="fas fa-calendar"></i>
+                                        <span>@L["Due:"] @invoice.DueDate.ToString("dd MMM yyyy")</span>
+                                    </div>
+                                    <div class="invoice-amount">
+                                        @balance.ToString("N3") KWD
+                                        @if (invoice.Status == "Partially Paid")
+                                        {
+                                            <small style="display:block; font-size:0.75rem; color:#64748b; font-weight:400;">
+                                                of @invoice.TotalAmount.ToString("N3") (@invoice.PaidAmount.ToString("N3") paid)
+                                            </small>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="invoice-actions" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                                    @if (isPayable)
+                                    {
+                                        <button type="button" class="btn btn-select" onclick="selectInvoice(@invoice.InvoiceId, @balance, @invoice.Lease.Unit.PropertyId, @invoice.TenantId)">
+                                            <i class="fas fa-check-circle"></i> @L["Select & Pay"]
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-select" disabled
+                                                title="@(L["Pay invoice #"].Value)@oldestUnpaid!.InvoiceId@(L[" first to unlock this one"].Value)">
+                                            <i class="fas fa-lock"></i> @L["Pay #"]@oldestUnpaid!.InvoiceId @L["first"]
+                                        </button>
+                                    }
+                                    @* Cookie auth on the PDF endpoint means a plain link "just works"
+                                       from the Razor tenant portal; the `download` attribute prompts
+                                       a save instead of opening in a new tab on most browsers. *@
+                                    <a class="btn btn-secondary"
+                                       href="/api/tenant/@invoice.TenantId/invoices/@invoice.InvoiceId/invoice.pdf"
+                                       download="INV-@(invoice.InvoiceId.ToString("D6")).pdf">
+                                        <i class="fas fa-file-pdf"></i> @L["Download PDF"]
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state-card">
+                <i class="fas fa-file-invoice"></i>
+                <h3>@L["No Pending Invoices"]</h3>
+                <p>@L["You don't have any unpaid invoices at the moment."]</p>
+                <a href="/TenantPortal/Dashboard" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> @L["Back to Dashboard"]
+                </a>
+            </div>
+        }
+    </div>
+
+    <!-- Payment Method Modal -->
+    <div class="modal fade" id="paymentMethodModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-credit-card"></i> @L["Choose Payment Method"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="selected-invoice-info" id="selectedInvoiceInfo" style="display:none;">
+                        <h6>@L["Selected Invoice:"]</h6>
+                        <p><strong>@L["Amount:"]</strong> <span id="selectedAmount"></span> KWD</p>
+                    </div>
+
+                    <div class="payment-methods-grid">
+                        <!-- KNET Payment -->
+                        <div class="payment-method-card" onclick="payWithKNET()">
+                            <div class="payment-icon knet">
+                                <i class="fas fa-credit-card"></i>
+                            </div>
+                            <h4>KNET</h4>
+                            <p>@L["Pay online instantly using KNET"]</p>
+                            <button type="button" class="btn btn-primary">
+                                <i class="fas fa-bolt"></i> @L["Pay Now"]
+                            </button>
+                        </div>
+
+                        <!-- Bank Transfer -->
+                        <div class="payment-method-card" data-bs-toggle="modal" data-bs-target="#bankTransferModal">
+                            <div class="payment-icon bank">
+                                <i class="fas fa-university"></i>
+                            </div>
+                            <h4>@L["Bank Transfer"]</h4>
+                            <p>@L["Upload your transfer receipt"]</p>
+                            <button type="button" class="btn btn-success">
+                                <i class="fas fa-upload"></i> @L["Upload Receipt"]
+                            </button>
+                        </div>
+
+                        <!-- Cash Payment -->
+                        <div class="payment-method-card">
+                            <div class="payment-icon cash">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <h4>@L["Cash Payment"]</h4>
+                            <p>@L["Visit our office to pay"]</p>
+                            <div class="alert alert-info mt-3">
+                                <small><i class="fas fa-info-circle"></i> @L["Please visit our office during business hours (9 AM - 5 PM)"]</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bank Transfer Upload Modal -->
+    <div class="modal fade" id="bankTransferModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-university"></i> @L["Submit Bank Transfer"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="bankTransferForm" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <input type="hidden" id="transferInvoiceId" name="invoiceId" />
+                        <input type="hidden" id="transferTenantId" name="tenantId" />
+                        <input type="hidden" id="transferPropertyId" name="propertyId" />
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>@L["Bank Transfer Instructions:"]</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>@L["Make the transfer to our bank account"]</li>
+                                <li>@L["Take a photo/screenshot of the transfer receipt"]</li>
+                                <li>@L["Upload it here along with transfer details"]</li>
+                                <li>@L["Your payment will be verified by our team"]</li>
+                            </ol>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-money-bill"></i> @L["Amount (KWD)"] *</label>
+                                    <input type="number" id="transferAmount" name="amount" class="form-control" step="0.001" required readonly />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-calendar"></i> @L["Transfer Date"] *</label>
+                                    <input type="date" id="transferDate" name="transferDate" class="form-control" required />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-university"></i> @L["Bank Name"] *</label>
+                                    <select name="bankName" class="form-control" required>
+                                        <option value="">@L["-- Select Bank --"]</option>
+                                        <option>National Bank of Kuwait</option>
+                                        <option>Gulf Bank</option>
+                                        <option>Commercial Bank of Kuwait</option>
+                                        <option>Burgan Bank</option>
+                                        <option>Kuwait Finance House</option>
+                                        <option>Al Ahli Bank of Kuwait</option>
+                                        <option>Boubyan Bank</option>
+                                        <option>Kuwait International Bank</option>
+                                        <option>@L["Other"]</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-hashtag"></i> @L["Reference Number"]</label>
+                                    <input type="text" name="referenceNumber" class="form-control" placeholder="@(L["Transaction reference (optional)"].Value)" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label"><i class="fas fa-file-upload"></i> @L["Upload Transfer Receipt"] * <span class="text-danger">@L["(Max 5MB)"]</span></label>
+                            <input type="file" name="proofFile" id="proofFile" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required />
+                            <small class="form-text text-muted">@L["Accepted formats: JPG, PNG, PDF"]</small>
+                            <div id="filePreview" class="mt-3" style="display:none;">
+                                <img id="imagePreview" src="" style="max-width: 200px; max-height: 200px; border-radius: 8px;" />
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label"><i class="fas fa-comment"></i> @L["Notes (Optional)"]</label>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="@(L["Any additional information..."].Value)"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> @L["Cancel"]
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-upload"></i> @L["Submit Transfer"]
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedInvoiceId = null;
+        let selectedAmount = null;
+        let selectedPropertyId = null;
+        let selectedTenantId = null;
+
+        function selectInvoice(invoiceId, amount, propertyId, tenantId) {
+            selectedInvoiceId = invoiceId;
+            selectedAmount = amount;
+            selectedPropertyId = propertyId;
+            selectedTenantId = tenantId;
+
+            $('#selectedAmount').text(amount.toFixed(3));
+            $('#selectedInvoiceInfo').show();
+
+            // Set values for bank transfer form
+            $('#transferInvoiceId').val(invoiceId);
+            $('#transferAmount').val(amount);
+            $('#transferPropertyId').val(propertyId);
+            $('#transferTenantId').val(tenantId);
+
+            // Show payment method modal
+            var paymentModal = new bootstrap.Modal(document.getElementById('paymentMethodModal'));
+            paymentModal.show();
+        }
+
+        function payWithKNET() {
+            if (!selectedInvoiceId) {
+                alert('Please select an invoice first');
+                return;
+            }
+
+            // Show loading state
+            var knetBtn = document.querySelector('.payment-method-card .btn-primary');
+            var originalText = knetBtn.innerHTML;
+            knetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            knetBtn.disabled = true;
+
+            // Call KNET API to initiate payment
+            fetch('/api/payments/knet/initiate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    invoiceId: selectedInvoiceId,
+                    tenantId: selectedTenantId,
+                    propertyId: selectedPropertyId,
+                    amount: selectedAmount,
+                    language: 'en'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.redirectUrl) {
+                    // Redirect to KNET payment page
+                    window.location.href = data.redirectUrl;
+                } else {
+                    alert('Failed to initiate payment: ' + (data.errorMessage || 'Unknown error'));
+                    knetBtn.innerHTML = originalText;
+                    knetBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to connect to payment gateway. Please try again.');
+                knetBtn.innerHTML = originalText;
+                knetBtn.disabled = false;
+            });
+        }
+
+        // Set today's date as default
+        document.getElementById('transferDate').valueAsDate = new Date();
+
+        // File preview
+        document.getElementById('proofFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File size exceeds 5MB limit');
+                    this.value = '';
+                    return;
+                }
+
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('imagePreview').src = e.target.result;
+                        document.getElementById('filePreview').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    document.getElementById('filePreview').style.display = 'none';
+                }
+            }
+        });
+
+        // Submit bank transfer
+        $('#bankTransferForm').submit(function(e) {
+            e.preventDefault();
+
+            var formData = new FormData(this);
+            var submitBtn = $(this).find('button[type="submit"]');
+
+            submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Submitting...');
+
+            $.ajax({
+                url: '/api/payments/bank/upload',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        // Close modals
+                        $('#bankTransferModal').modal('hide');
+                        $('#paymentMethodModal').modal('hide');
+
+                        // Show success message
+                        $('body').prepend('<div class="alert alert-success alert-dismissible fade show" style="position:fixed; top:20px; right:20px; z-index:9999; max-width:400px;"><i class="fas fa-check-circle"></i> Bank transfer submitted successfully! Awaiting admin verification.<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+
+                        // Reload page after 2 seconds
+                        setTimeout(function() {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        alert('Error: ' + response.message);
+                        submitBtn.prop('disabled', false).html('<i class="fas fa-upload"></i> Submit Transfer');
+                    }
+                },
+                error: function(xhr) {
+                    alert('Failed to submit bank transfer. Please try again.');
+                    submitBtn.prop('disabled', false).html('<i class="fas fa-upload"></i> Submit Transfer');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
+<style>
+    body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+    }
+
+    .tenant-navbar {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        padding: 1rem 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .navbar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .navbar-menu {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+
+    .nav-link:hover {
+        background: rgba(255,255,255,0.2);
+    }
+
+    .nav-link.active {
+        background: rgba(255,255,255,0.3);
+    }
+
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .section-title::before {
+        content: '';
+        width: 4px;
+        height: 24px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border-radius: 2px;
+    }
+
+    .invoices-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .invoice-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        transition: all 0.3s;
+    }
+
+    .invoice-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .invoice-number {
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .invoice-detail {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .invoice-amount {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #6366f1;
+        margin: 1rem 0;
+    }
+
+    .btn-select {
+        width: 100%;
+        padding: 0.75rem;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-select:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .payment-methods-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .payment-method-card {
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 2rem 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .payment-method-card:hover {
+        border-color: #6366f1;
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+    }
+
+    .payment-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+
+    .payment-icon.knet {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+    }
+
+    .payment-icon.bank {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+
+    .payment-icon.cash {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+    }
+
+    .payment-method-card h4 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 0.5rem;
+    }
+
+    .payment-method-card p {
+        color: #6b7280;
+        margin-bottom: 1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    .modal-content {
+        border-radius: 12px;
+        border: none;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .selected-invoice-info {
+        background: #f0f4ff;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+
+    .empty-state-card i {
+        font-size: 4rem;
+        color: #6366f1;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-card h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-card p {
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+</style>

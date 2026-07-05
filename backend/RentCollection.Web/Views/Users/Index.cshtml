@@ -1,0 +1,590 @@
+﻿@model IEnumerable<RentCollection.Core.Entities.User>
+
+@{
+    ViewData["Title"] = "Users Management";
+}
+
+@section Styles {
+    <style>
+        .page-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #334155;
+            margin: 0;
+        }
+
+        .page-title i {
+            color: #6366f1;
+            margin-right: 0.5rem;
+        }
+
+        .text-muted {
+            color: #64748b;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            color: white;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .filter-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #475569;
+        }
+
+        .form-control, .form-select {
+            padding: 0.75rem;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            background: white;
+            color: #1e293b;
+        }
+
+        .form-control:focus, .form-select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .btn-filter {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-filter:hover {
+            background: #4f46e5;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .data-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #334155;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            color: #1e293b;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(99, 102, 241, 0.04);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .badge {
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-info {
+            background: rgba(99, 102, 241, 0.1);
+            color: #6366f1;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-action {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: 1px solid;
+        }
+
+        .btn-view {
+            background: rgba(99, 102, 241, 0.1);
+            color: #6366f1;
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-view:hover {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-edit {
+            background: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-edit:hover {
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        .btn-delete {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-delete:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .text-success {
+            color: #10b981;
+        }
+
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .filter-form {
+                grid-template-columns: 1fr;
+            }
+
+            .data-table {
+                min-width: 800px;
+            }
+        }
+    </style>
+}
+
+<div class="page-container">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = L["User Management"].Value,
+        ["Subtitle"] = L["Manage system users and their roles"].Value,
+        ["ActionLabel"] = L["Add New User"].Value,
+        ["ActionHref"] = Url.Action("Create", "Users"),
+        ["Crumbs"] = new (string label, string? href)[]
+            {
+                (L["Admin"].Value, "/Dashboard"),
+                (L["Users"].Value, null)
+            }
+    })
+
+    <div style="margin-bottom:1rem;">
+        <a asp-action="Permissions" class="btn-filter" style="text-decoration:none;">
+            <i class="fas fa-shield-halved"></i> @L["View role permissions"]
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+        </div>
+    }
+
+    <!-- Filters -->
+    <div class="card">
+        <div class="card-body">
+            <form asp-action="Index" method="get" class="filter-form">
+                <div class="form-group">
+                    <label for="searchString" class="form-label">@L["Search"]</label>
+                    <input type="text" class="form-control" name="searchString" id="searchString"
+                           value="@ViewData["CurrentSearch"]" placeholder="@(L["Name or email..."].Value)">
+                </div>
+                <div class="form-group">
+                    <label for="roleFilter" class="form-label">@L["Role"]</label>
+                    <select class="form-select" name="roleFilter" id="roleFilter">
+                        <option value="">@L["All Roles"]</option>
+                        @if (ViewBag.RoleList != null)
+                        {
+                            @foreach (var role in ViewBag.RoleList as SelectList)
+                            {
+                                <option value="@role.Value" selected="@(role.Value == ViewData["CurrentRole"]?.ToString())">@role.Text</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="activeFilter" class="form-label">@L["Status"]</label>
+                    <select class="form-select" name="activeFilter" id="activeFilter">
+                        <option value="">@L["All Status"]</option>
+                        <option value="true" selected="@(ViewData["CurrentActive"]?.ToString() == "True")">@L["Active"]</option>
+                        <option value="false" selected="@(ViewData["CurrentActive"]?.ToString() == "False")">@L["Inactive"]</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn-filter">
+                        <i class="fas fa-search"></i> @L["Filter"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>@L["Name"]</th>
+                            <th>@L["Email"]</th>
+                            <th>@L["Phone"]</th>
+                            <th>@L["Role"]</th>
+                            <th>@L["Status"]</th>
+                            <th>@L["Last Login"]</th>
+                            <th>@L["Actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            @foreach (var user in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="user-info">
+                                            <div class="user-avatar">
+                                                @user.FirstName.Substring(0, 1)@user.LastName.Substring(0, 1)
+                                            </div>
+                                            <div class="user-name">@user.FirstName @user.LastName</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @user.Email
+                                        @if (user.EmailVerified)
+                                        {
+                                            <i class="fas fa-check-circle text-success" title="@(L["Verified"].Value)"></i>
+                                        }
+                                    </td>
+                                    <td>@(user.PhoneNumber ?? "N/A")</td>
+                                    <td>
+                                        @{
+                                            // Inline role-change pill (Phase B of role-access plan).
+                                            // The dropdown is locked when:
+                                            //   • This row IS the caller (no self-demote)
+                                            //   • This row is currently SuperAdmin and the caller is not (can't touch the SA)
+                                            var grantable = (string[])(ViewBag.GrantableRoles ?? Array.Empty<string>());
+                                            var isSelf = string.Equals(
+                                                (string)(ViewBag.ActorName ?? ""),
+                                                user.Username,
+                                                StringComparison.OrdinalIgnoreCase)
+                                                || string.Equals(
+                                                (string)(ViewBag.ActorName ?? ""),
+                                                user.Email,
+                                                StringComparison.OrdinalIgnoreCase);
+                                            var actorIsSA = (bool)(ViewBag.ActorIsSuperAdmin ?? false);
+                                            var rowIsSA = user.Role == "SuperAdmin";
+                                            var locked = isSelf || (rowIsSA && !actorIsSA);
+                                            var lockReason = isSelf
+                                                ? "You cannot change your own role"
+                                                : "Only a SuperAdmin can change a SuperAdmin's role";
+                                            // Make sure the current role appears in the options even
+                                            // when it isn't in the caller's grantable set (e.g. an
+                                            // Admin viewing a SuperAdmin row — read-only).
+                                            var options = grantable.Contains(user.Role)
+                                                ? grantable
+                                                : grantable.Concat(new[] { user.Role }).ToArray();
+                                        }
+                                        @if (locked)
+                                        {
+                                            <span class="badge badge-info" title="@lockReason">
+                                                @user.Role <i class="fas fa-lock" style="font-size:0.7rem; margin-left:0.25rem;"></i>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <select class="role-pill" data-user-id="@user.UserId"
+                                                    data-current-role="@user.Role" aria-label="@(L["Change role"].Value)">
+                                                @foreach (var r in options)
+                                                {
+                                                    if (r == user.Role)
+                                                    {
+                                                        <option value="@r" selected>@r</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@r">@r</option>
+                                                    }
+                                                }
+                                            </select>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="badge badge-success">@L["Active"]</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-danger">@L["Inactive"]</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (user.LastLogin.HasValue)
+                                        {
+                                            @user.LastLogin.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">@L["Never"]</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a asp-action="Details" asp-route-id="@user.UserId" class="btn-action btn-view" title="@(L["View Details"].Value)">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a asp-action="Edit" asp-route-id="@user.UserId" class="btn-action btn-edit" title="@(L["Edit"].Value)">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@user.UserId" class="btn-action btn-delete" title="@(L["Delete"].Value)">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <i class="fas fa-users"></i>
+                                        <p>@L["No users found matching your criteria."]</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @Html.AntiForgeryToken()
+    <script>
+        // Auto-dismiss alerts after 5 seconds
+        setTimeout(function() {
+            var alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                alert.style.opacity = '0';
+                alert.style.transition = 'opacity 0.5s';
+                setTimeout(function() {
+                    alert.style.display = 'none';
+                }, 500);
+            });
+        }, 5000);
+
+        // Inline role change (Phase B). Change-event posts to /Users/ChangeRole,
+        // server applies the safeguards. On reject we revert the dropdown.
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        document.querySelectorAll('select.role-pill').forEach(sel => {
+            sel.addEventListener('change', async function () {
+                const userId = sel.dataset.userId;
+                const previous = sel.dataset.currentRole;
+                const next = sel.value;
+                if (previous === next || !tokenInput) return;
+                if (!confirm(`Change this user's role from ${previous} to ${next}?`)) {
+                    sel.value = previous;
+                    return;
+                }
+                sel.disabled = true;
+                try {
+                    const fd = new FormData();
+                    fd.set('id', userId);
+                    fd.set('newRole', next);
+                    fd.set('__RequestVerificationToken', tokenInput.value);
+                    const res = await fetch('/Users/ChangeRole', { method: 'POST', body: fd, credentials: 'same-origin' });
+                    const json = await res.json();
+                    if (!res.ok || !json.success) {
+                        alert(json?.message ?? `Role change failed (${res.status})`);
+                        sel.value = previous;
+                    } else {
+                        sel.dataset.currentRole = next;
+                    }
+                } catch (e) {
+                    alert('Role change failed: ' + e.message);
+                    sel.value = previous;
+                } finally {
+                    sel.disabled = false;
+                }
+            });
+        });
+    </script>
+    <style>
+        select.role-pill {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+            border-radius: 999px;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            min-width: 110px;
+        }
+        select.role-pill:focus { outline: 2px solid #2563eb; outline-offset: 1px; }
+        select.role-pill:disabled { opacity: 0.6; cursor: wait; }
+    </style>
+}

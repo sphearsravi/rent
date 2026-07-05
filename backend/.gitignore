@@ -1,0 +1,52 @@
+# ─── .NET build outputs ─────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# ─── Publish output + DB backups (never commit) ─────────────────────
+publish/
+*.bak
+*.zip
+artifacts/
+
+# ─── Secrets (NEVER commit) ─────────────────────────────────────────
+secrets.json
+appsettings.Local.json
+appsettings.Production.json
+*.pfx
+*.key
+
+# ─── Node / front-end ───────────────────────────────────────────────
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# ─── Uploaded user content (runtime, not source) ────────────────────
+RentCollection.Web/wwwroot/uploads/
+RentCollection.Web/wwwroot/img/branding/*.local.*
+
+# ─── Logs ───────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── Test results + coverage ────────────────────────────────────────
+TestResults/
+coverage/
+*.trx
+
+# ─── OS / IDE noise ─────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+*.swp
+*~
+.idea/
+
+# ─── User secrets (dev) — kept in %APPDATA%, not in repo ────────────
+*.userprefs

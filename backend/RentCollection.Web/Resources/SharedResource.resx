@@ -1,0 +1,4427 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- Navigation / chrome -->
+  <data name="Main Menu" xml:space="preserve">
+    <value>Main Menu</value>
+  </data>
+  <data name="Dashboard" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
+  <data name="Properties" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="Tenants" xml:space="preserve">
+    <value>Tenants</value>
+  </data>
+  <data name="Units" xml:space="preserve">
+    <value>Units</value>
+  </data>
+  <data name="Leases" xml:space="preserve">
+    <value>Leases</value>
+  </data>
+  <data name="Financial" xml:space="preserve">
+    <value>Financial</value>
+  </data>
+  <data name="Payments" xml:space="preserve">
+    <value>Payments</value>
+  </data>
+  <data name="Invoices" xml:space="preserve">
+    <value>Invoices</value>
+  </data>
+  <data name="Reports" xml:space="preserve">
+    <value>Reports</value>
+  </data>
+  <data name="Approvals" xml:space="preserve">
+    <value>Approvals</value>
+  </data>
+  <data name="System" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Maintenance" xml:space="preserve">
+    <value>Maintenance</value>
+  </data>
+  <data name="Documents" xml:space="preserve">
+    <value>Documents</value>
+  </data>
+  <data name="Users" xml:space="preserve">
+    <value>Users</value>
+  </data>
+  <data name="Audit Log" xml:space="preserve">
+    <value>Audit Log</value>
+  </data>
+  <data name="Email Settings" xml:space="preserve">
+    <value>Email Settings</value>
+  </data>
+  <data name="Search properties, tenants..." xml:space="preserve">
+    <value>Search properties, tenants...</value>
+  </data>
+  <data name="My Profile" xml:space="preserve">
+    <value>My Profile</value>
+  </data>
+  <data name="Logout" xml:space="preserve">
+    <value>Logout</value>
+  </data>
+  <data name="Pay - Rent - Easy" xml:space="preserve">
+    <value>Pay - Rent - Easy</value>
+  </data>
+  <!-- Common actions / labels -->
+  <data name="Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Back to List" xml:space="preserve">
+    <value>Back to List</value>
+  </data>
+  <data name="Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="required" xml:space="preserve">
+    <value>required</value>
+  </data>
+  <data name="optional" xml:space="preserve">
+    <value>optional</value>
+  </data>
+  <!-- Login -->
+  <data name="Sign in" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="Username or Email" xml:space="preserve">
+    <value>Username or Email</value>
+  </data>
+  <data name="Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Remember me" xml:space="preserve">
+    <value>Remember me</value>
+  </data>
+  <data name="Forgot password?" xml:space="preserve">
+    <value>Forgot password?</value>
+  </data>
+  <!-- Language switcher -->
+  <data name="Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="English" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Arabic" xml:space="preserve">
+    <value>Arabic</value>
+  </data>
+  <data name="Print Receipt" xml:space="preserve">
+    <value>Print Receipt</value>
+  </data>
+  <data name="Back to Dashboard" xml:space="preserve">
+    <value>Back to Dashboard</value>
+  </data>
+  <data name="RECEIPT / INVOICE" xml:space="preserve">
+    <value>RECEIPT / INVOICE</value>
+  </data>
+  <data name="Payment Confirmation" xml:space="preserve">
+    <value>Payment Confirmation</value>
+  </data>
+  <data name="Receipt No.:" xml:space="preserve">
+    <value>Receipt No.:</value>
+  </data>
+  <data name="Date:" xml:space="preserve">
+    <value>Date:</value>
+  </data>
+  <data name="Received From:" xml:space="preserve">
+    <value>Received From:</value>
+  </data>
+  <data name="Amount:" xml:space="preserve">
+    <value>Amount:</value>
+  </data>
+  <data name="Payment For:" xml:space="preserve">
+    <value>Payment For:</value>
+  </data>
+  <data name="Rent for" xml:space="preserve">
+    <value>Rent for</value>
+  </data>
+  <data name="Unit No." xml:space="preserve">
+    <value>Unit No.</value>
+  </data>
+  <data name="Payment Method:" xml:space="preserve">
+    <value>Payment Method:</value>
+  </data>
+  <data name="Transaction Reference:" xml:space="preserve">
+    <value>Transaction Reference:</value>
+  </data>
+  <data name="Payment Status:" xml:space="preserve">
+    <value>Payment Status:</value>
+  </data>
+  <data name="Issued on:" xml:space="preserve">
+    <value>Issued on:</value>
+  </data>
+  <data name="This is a computer-generated receipt and does not require a signature." xml:space="preserve">
+    <value>This is a computer-generated receipt and does not require a signature.</value>
+  </data>
+  <data name="For any queries, please contact the property management office." xml:space="preserve">
+    <value>For any queries, please contact the property management office.</value>
+  </data>
+  <data name="Bank Transfer Test Page" xml:space="preserve">
+    <value>Bank Transfer Test Page</value>
+  </data>
+  <data name="Session TenantId:" xml:space="preserve">
+    <value>Session TenantId:</value>
+  </data>
+  <data name="Invoice ID:" xml:space="preserve">
+    <value>Invoice ID:</value>
+  </data>
+  <data name="Tenant ID:" xml:space="preserve">
+    <value>Tenant ID:</value>
+  </data>
+  <data name="Property ID:" xml:space="preserve">
+    <value>Property ID:</value>
+  </data>
+  <data name="Transfer Date:" xml:space="preserve">
+    <value>Transfer Date:</value>
+  </data>
+  <data name="Bank Name:" xml:space="preserve">
+    <value>Bank Name:</value>
+  </data>
+  <data name="Reference Number:" xml:space="preserve">
+    <value>Reference Number:</value>
+  </data>
+  <data name="Proof File:" xml:space="preserve">
+    <value>Proof File:</value>
+  </data>
+  <data name="Notes:" xml:space="preserve">
+    <value>Notes:</value>
+  </data>
+  <data name="Submit Bank Transfer" xml:space="preserve">
+    <value>Submit Bank Transfer</value>
+  </data>
+  <data name="Payment Successful!" xml:space="preserve">
+    <value>Payment Successful!</value>
+  </data>
+  <data name="Your payment has been processed successfully." xml:space="preserve">
+    <value>Your payment has been processed successfully.</value>
+  </data>
+  <data name="Payment Details" xml:space="preserve">
+    <value>Payment Details</value>
+  </data>
+  <data name="Amount Paid:" xml:space="preserve">
+    <value>Amount Paid:</value>
+  </data>
+  <data name="Payment Date:" xml:space="preserve">
+    <value>Payment Date:</value>
+  </data>
+  <data name="View Payment History" xml:space="preserve">
+    <value>View Payment History</value>
+  </data>
+  <data name="Payment Failed" xml:space="preserve">
+    <value>Payment Failed</value>
+  </data>
+  <data name="Unfortunately, your payment could not be processed." xml:space="preserve">
+    <value>Unfortunately, your payment could not be processed.</value>
+  </data>
+  <data name="What you can do:" xml:space="preserve">
+    <value>What you can do:</value>
+  </data>
+  <data name="Check your card details and try again" xml:space="preserve">
+    <value>Check your card details and try again</value>
+  </data>
+  <data name="Ensure you have sufficient funds" xml:space="preserve">
+    <value>Ensure you have sufficient funds</value>
+  </data>
+  <data name="Contact your bank if the problem persists" xml:space="preserve">
+    <value>Contact your bank if the problem persists</value>
+  </data>
+  <data name="Try using a different payment method" xml:space="preserve">
+    <value>Try using a different payment method</value>
+  </data>
+  <data name="Try Again" xml:space="preserve">
+    <value>Try Again</value>
+  </data>
+  <data name="TEST MODE" xml:space="preserve">
+    <value>TEST MODE</value>
+  </data>
+  <data name="This is a simulated KNET payment gateway" xml:space="preserve">
+    <value>This is a simulated KNET payment gateway</value>
+  </data>
+  <data name="KNET Payment" xml:space="preserve">
+    <value>KNET Payment</value>
+  </data>
+  <data name="Invoice Number:" xml:space="preserve">
+    <value>Invoice Number:</value>
+  </data>
+  <data name="Transaction ID:" xml:space="preserve">
+    <value>Transaction ID:</value>
+  </data>
+  <data name="Card Number (Test)" xml:space="preserve">
+    <value>Card Number (Test)</value>
+  </data>
+  <data name="Expiry" xml:space="preserve">
+    <value>Expiry</value>
+  </data>
+  <data name="CVV" xml:space="preserve">
+    <value>CVV</value>
+  </data>
+  <data name="Simulate Successful Payment" xml:space="preserve">
+    <value>Simulate Successful Payment</value>
+  </data>
+  <data name="Simulate Failed Payment" xml:space="preserve">
+    <value>Simulate Failed Payment</value>
+  </data>
+  <data name="Secure Test Payment Simulation" xml:space="preserve">
+    <value>Secure Test Payment Simulation</value>
+  </data>
+  <data name="Processing..." xml:space="preserve">
+    <value>Processing...</value>
+  </data>
+  <data name="Processing Payment..." xml:space="preserve">
+    <value>Processing Payment...</value>
+  </data>
+  <data name="Please wait while we process your test payment." xml:space="preserve">
+    <value>Please wait while we process your test payment.</value>
+  </data>
+  <data name="VIIJAR Tenant Portal" xml:space="preserve">
+    <value>VIIJAR Tenant Portal</value>
+  </data>
+  <data name="My Details" xml:space="preserve">
+    <value>My Details</value>
+  </data>
+  <data name="Make Payment" xml:space="preserve">
+    <value>Make Payment</value>
+  </data>
+  <data name="Payment History" xml:space="preserve">
+    <value>Payment History</value>
+  </data>
+  <data name="Welcome," xml:space="preserve">
+    <value>Welcome,</value>
+  </data>
+  <data name="Here's your rental dashboard" xml:space="preserve">
+    <value>Here's your rental dashboard</value>
+  </data>
+  <data name="Active Leases" xml:space="preserve">
+    <value>Active Leases</value>
+  </data>
+  <data name="Total Payments" xml:space="preserve">
+    <value>Total Payments</value>
+  </data>
+  <data name="Pending Requests" xml:space="preserve">
+    <value>Pending Requests</value>
+  </data>
+  <data name="My Properties" xml:space="preserve">
+    <value>My Properties</value>
+  </data>
+  <data name="Lease Details" xml:space="preserve">
+    <value>Lease Details</value>
+  </data>
+  <data name="Unit Number:" xml:space="preserve">
+    <value>Unit Number:</value>
+  </data>
+  <data name="Monthly Rent:" xml:space="preserve">
+    <value>Monthly Rent:</value>
+  </data>
+  <data name="Security Deposit:" xml:space="preserve">
+    <value>Security Deposit:</value>
+  </data>
+  <data name="Lease Type:" xml:space="preserve">
+    <value>Lease Type:</value>
+  </data>
+  <data name="Start Date:" xml:space="preserve">
+    <value>Start Date:</value>
+  </data>
+  <data name="End Date:" xml:space="preserve">
+    <value>End Date:</value>
+  </data>
+  <data name="Days Remaining:" xml:space="preserve">
+    <value>Days Remaining:</value>
+  </data>
+  <data name="days" xml:space="preserve">
+    <value>days</value>
+  </data>
+  <data name="Payment Due Day:" xml:space="preserve">
+    <value>Payment Due Day:</value>
+  </data>
+  <data name="Day" xml:space="preserve">
+    <value>Day</value>
+  </data>
+  <data name="of each month" xml:space="preserve">
+    <value>of each month</value>
+  </data>
+  <data name="Late Fee:" xml:space="preserve">
+    <value>Late Fee:</value>
+  </data>
+  <data name="Grace Period:" xml:space="preserve">
+    <value>Grace Period:</value>
+  </data>
+  <data name="Lease Documents" xml:space="preserve">
+    <value>Lease Documents</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="No documents available" xml:space="preserve">
+    <value>No documents available</value>
+  </data>
+  <data name="No active leases found" xml:space="preserve">
+    <value>No active leases found</value>
+  </data>
+  <data name="Recent Payments" xml:space="preserve">
+    <value>Recent Payments</value>
+  </data>
+  <data name="View All" xml:space="preserve">
+    <value>View All</value>
+  </data>
+  <data name="Date" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="Property" xml:space="preserve">
+    <value>Property</value>
+  </data>
+  <data name="Amount" xml:space="preserve">
+    <value>Amount</value>
+  </data>
+  <data name="Method" xml:space="preserve">
+    <value>Method</value>
+  </data>
+  <data name="Action" xml:space="preserve">
+    <value>Action</value>
+  </data>
+  <data name="View Receipt" xml:space="preserve">
+    <value>View Receipt</value>
+  </data>
+  <data name="No payments found" xml:space="preserve">
+    <value>No payments found</value>
+  </data>
+  <data name="Maintenance Requests" xml:space="preserve">
+    <value>Maintenance Requests</value>
+  </data>
+  <data name="New Request" xml:space="preserve">
+    <value>New Request</value>
+  </data>
+  <data name="Requested on" xml:space="preserve">
+    <value>Requested on</value>
+  </data>
+  <data name="No pending maintenance requests" xml:space="preserve">
+    <value>No pending maintenance requests</value>
+  </data>
+  <data name="New Maintenance Request" xml:space="preserve">
+    <value>New Maintenance Request</value>
+  </data>
+  <data name="Property/Unit" xml:space="preserve">
+    <value>Property/Unit</value>
+  </data>
+  <data name="Select a property..." xml:space="preserve">
+    <value>Select a property...</value>
+  </data>
+  <data name="Category" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="Select a category..." xml:space="preserve">
+    <value>Select a category...</value>
+  </data>
+  <data name="Plumbing" xml:space="preserve">
+    <value>Plumbing</value>
+  </data>
+  <data name="Electrical" xml:space="preserve">
+    <value>Electrical</value>
+  </data>
+  <data name="HVAC" xml:space="preserve">
+    <value>HVAC</value>
+  </data>
+  <data name="Appliance" xml:space="preserve">
+    <value>Appliance</value>
+  </data>
+  <data name="Structural" xml:space="preserve">
+    <value>Structural</value>
+  </data>
+  <data name="Other" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="Priority" xml:space="preserve">
+    <value>Priority</value>
+  </data>
+  <data name="Select priority..." xml:space="preserve">
+    <value>Select priority...</value>
+  </data>
+  <data name="Low" xml:space="preserve">
+    <value>Low</value>
+  </data>
+  <data name="Medium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="High" xml:space="preserve">
+    <value>High</value>
+  </data>
+  <data name="Emergency" xml:space="preserve">
+    <value>Emergency</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Please describe the issue in detail..." xml:space="preserve">
+    <value>Please describe the issue in detail...</value>
+  </data>
+  <data name="Submit Request" xml:space="preserve">
+    <value>Submit Request</value>
+  </data>
+  <data name="Tenant Portal" xml:space="preserve">
+    <value>Tenant Portal</value>
+  </data>
+  <data name="Sign in with your Civil ID" xml:space="preserve">
+    <value>Sign in with your Civil ID</value>
+  </data>
+  <data name="Civil ID" xml:space="preserve">
+    <value>Civil ID</value>
+  </data>
+  <data name="Enter your Civil ID" xml:space="preserve">
+    <value>Enter your Civil ID</value>
+  </data>
+  <data name="Enter your 12-digit Civil ID number" xml:space="preserve">
+    <value>Enter your 12-digit Civil ID number</value>
+  </data>
+  <data name="Enter your password" xml:space="preserve">
+    <value>Enter your password</value>
+  </data>
+  <data name="Default password is &quot;Welcome@123&quot; - please change after login" xml:space="preserve">
+    <value>Default password is "Welcome@123" - please change after login</value>
+  </data>
+  <data name="Remember me for 30 days" xml:space="preserve">
+    <value>Remember me for 30 days</value>
+  </data>
+  <data name="Sign In" xml:space="preserve">
+    <value>Sign In</value>
+  </data>
+  <data name="Demo Login" xml:space="preserve">
+    <value>Demo Login</value>
+  </data>
+  <data name="Need help? Contact your property manager" xml:space="preserve">
+    <value>Need help? Contact your property manager</value>
+  </data>
+  <data name="Back to Main Site" xml:space="preserve">
+    <value>Back to Main Site</value>
+  </data>
+  <data name="View your personal information" xml:space="preserve">
+    <value>View your personal information</value>
+  </data>
+  <data name="Personal Information" xml:space="preserve">
+    <value>Personal Information</value>
+  </data>
+  <data name="Full Name" xml:space="preserve">
+    <value>Full Name</value>
+  </data>
+  <data name="Civil ID (PACI Number)" xml:space="preserve">
+    <value>Civil ID (PACI Number)</value>
+  </data>
+  <data name="Date of Birth" xml:space="preserve">
+    <value>Date of Birth</value>
+  </data>
+  <data name="Employment Status" xml:space="preserve">
+    <value>Employment Status</value>
+  </data>
+  <data name="Contact Information" xml:space="preserve">
+    <value>Contact Information</value>
+  </data>
+  <data name="Email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="Phone" xml:space="preserve">
+    <value>Phone</value>
+  </data>
+  <data name="Emergency Contact" xml:space="preserve">
+    <value>Emergency Contact</value>
+  </data>
+  <data name="Emergency Contact Name" xml:space="preserve">
+    <value>Emergency Contact Name</value>
+  </data>
+  <data name="Emergency Phone" xml:space="preserve">
+    <value>Emergency Phone</value>
+  </data>
+  <data name="Company Information" xml:space="preserve">
+    <value>Company Information</value>
+  </data>
+  <data name="Company" xml:space="preserve">
+    <value>Company</value>
+  </data>
+  <data name="Registered Since" xml:space="preserve">
+    <value>Registered Since</value>
+  </data>
+  <data name="View all your payment transactions" xml:space="preserve">
+    <value>View all your payment transactions</value>
+  </data>
+  <data name="Make New Payment" xml:space="preserve">
+    <value>Make New Payment</value>
+  </data>
+  <data name="Total Amount Paid" xml:space="preserve">
+    <value>Total Amount Paid</value>
+  </data>
+  <data name="Completed Payments" xml:space="preserve">
+    <value>Completed Payments</value>
+  </data>
+  <data name="Pending Payments" xml:space="preserve">
+    <value>Pending Payments</value>
+  </data>
+  <data name="All Payments" xml:space="preserve">
+    <value>All Payments</value>
+  </data>
+  <data name="Search payments..." xml:space="preserve">
+    <value>Search payments...</value>
+  </data>
+  <data name="Unit" xml:space="preserve">
+    <value>Unit</value>
+  </data>
+  <data name="Reference" xml:space="preserve">
+    <value>Reference</value>
+  </data>
+  <data name="No Payment History" xml:space="preserve">
+    <value>No Payment History</value>
+  </data>
+  <data name="You haven't made any payments yet. Start by making your first payment." xml:space="preserve">
+    <value>You haven't made any payments yet. Start by making your first payment.</value>
+  </data>
+  <data name="Make Your First Payment" xml:space="preserve">
+    <value>Make Your First Payment</value>
+  </data>
+  <data name="Choose your payment method below" xml:space="preserve">
+    <value>Choose your payment method below</value>
+  </data>
+  <data name="Select Invoice to Pay" xml:space="preserve">
+    <value>Select Invoice to Pay</value>
+  </data>
+  <data name="Pay oldest first." xml:space="preserve">
+    <value>Pay oldest first.</value>
+  </data>
+  <data name="Invoices must be paid in order. Once invoice" xml:space="preserve">
+    <value>Invoices must be paid in order. Once invoice</value>
+  </data>
+  <data name="is fully paid, the next one will unlock automatically." xml:space="preserve">
+    <value>is fully paid, the next one will unlock automatically.</value>
+  </data>
+  <data name="Invoice" xml:space="preserve">
+    <value>Invoice</value>
+  </data>
+  <data name="Due:" xml:space="preserve">
+    <value>Due:</value>
+  </data>
+  <data name="Select &amp; Pay" xml:space="preserve">
+    <value>Select &amp; Pay</value>
+  </data>
+  <data name="Pay invoice #" xml:space="preserve">
+    <value>Pay invoice #</value>
+  </data>
+  <data name="first to unlock this one" xml:space="preserve">
+    <value>first to unlock this one</value>
+  </data>
+  <data name="Pay #" xml:space="preserve">
+    <value>Pay #</value>
+  </data>
+  <data name="first" xml:space="preserve">
+    <value>first</value>
+  </data>
+  <data name="Download PDF" xml:space="preserve">
+    <value>Download PDF</value>
+  </data>
+  <data name="No Pending Invoices" xml:space="preserve">
+    <value>No Pending Invoices</value>
+  </data>
+  <data name="You don't have any unpaid invoices at the moment." xml:space="preserve">
+    <value>You don't have any unpaid invoices at the moment.</value>
+  </data>
+  <data name="Choose Payment Method" xml:space="preserve">
+    <value>Choose Payment Method</value>
+  </data>
+  <data name="Selected Invoice:" xml:space="preserve">
+    <value>Selected Invoice:</value>
+  </data>
+  <data name="Pay online instantly using KNET" xml:space="preserve">
+    <value>Pay online instantly using KNET</value>
+  </data>
+  <data name="Pay Now" xml:space="preserve">
+    <value>Pay Now</value>
+  </data>
+  <data name="Bank Transfer" xml:space="preserve">
+    <value>Bank Transfer</value>
+  </data>
+  <data name="Upload your transfer receipt" xml:space="preserve">
+    <value>Upload your transfer receipt</value>
+  </data>
+  <data name="Upload Receipt" xml:space="preserve">
+    <value>Upload Receipt</value>
+  </data>
+  <data name="Cash Payment" xml:space="preserve">
+    <value>Cash Payment</value>
+  </data>
+  <data name="Visit our office to pay" xml:space="preserve">
+    <value>Visit our office to pay</value>
+  </data>
+  <data name="Please visit our office during business hours (9 AM - 5 PM)" xml:space="preserve">
+    <value>Please visit our office during business hours (9 AM - 5 PM)</value>
+  </data>
+  <data name="Bank Transfer Instructions:" xml:space="preserve">
+    <value>Bank Transfer Instructions:</value>
+  </data>
+  <data name="Make the transfer to our bank account" xml:space="preserve">
+    <value>Make the transfer to our bank account</value>
+  </data>
+  <data name="Take a photo/screenshot of the transfer receipt" xml:space="preserve">
+    <value>Take a photo/screenshot of the transfer receipt</value>
+  </data>
+  <data name="Upload it here along with transfer details" xml:space="preserve">
+    <value>Upload it here along with transfer details</value>
+  </data>
+  <data name="Your payment will be verified by our team" xml:space="preserve">
+    <value>Your payment will be verified by our team</value>
+  </data>
+  <data name="Amount (KWD)" xml:space="preserve">
+    <value>Amount (KWD)</value>
+  </data>
+  <data name="Transfer Date" xml:space="preserve">
+    <value>Transfer Date</value>
+  </data>
+  <data name="Bank Name" xml:space="preserve">
+    <value>Bank Name</value>
+  </data>
+  <data name="-- Select Bank --" xml:space="preserve">
+    <value>-- Select Bank --</value>
+  </data>
+  <data name="Reference Number" xml:space="preserve">
+    <value>Reference Number</value>
+  </data>
+  <data name="Transaction reference (optional)" xml:space="preserve">
+    <value>Transaction reference (optional)</value>
+  </data>
+  <data name="Upload Transfer Receipt" xml:space="preserve">
+    <value>Upload Transfer Receipt</value>
+  </data>
+  <data name="(Max 5MB)" xml:space="preserve">
+    <value>(Max 5MB)</value>
+  </data>
+  <data name="Accepted formats: JPG, PNG, PDF" xml:space="preserve">
+    <value>Accepted formats: JPG, PNG, PDF</value>
+  </data>
+  <data name="Notes (Optional)" xml:space="preserve">
+    <value>Notes (Optional)</value>
+  </data>
+  <data name="Any additional information..." xml:space="preserve">
+    <value>Any additional information...</value>
+  </data>
+  <data name="Submit Transfer" xml:space="preserve">
+    <value>Submit Transfer</value>
+  </data>
+  <data name="active" xml:space="preserve">
+    <value>active</value>
+  </data>
+  <data name="With active leases" xml:space="preserve">
+    <value>With active leases</value>
+  </data>
+  <data name="currently leased" xml:space="preserve">
+    <value>currently leased</value>
+  </data>
+  <data name="In arrears" xml:space="preserve">
+    <value>In arrears</value>
+  </data>
+  <data name="balance outstanding" xml:space="preserve">
+    <value>balance outstanding</value>
+  </data>
+  <data name="Avg tenure" xml:space="preserve">
+    <value>Avg tenure</value>
+  </data>
+  <data name="months on file" xml:space="preserve">
+    <value>months on file</value>
+  </data>
+  <data name="Include soft-deleted tenants" xml:space="preserve">
+    <value>Include soft-deleted tenants</value>
+  </data>
+  <data name="Show archived" xml:space="preserve">
+    <value>Show archived</value>
+  </data>
+  <data name="Lease expiring" xml:space="preserve">
+    <value>Lease expiring</value>
+  </data>
+  <data name="Any" xml:space="preserve">
+    <value>Any</value>
+  </data>
+  <data name="≤ 30 days" xml:space="preserve">
+    <value>≤ 30 days</value>
+  </data>
+  <data name="≤ 60 days" xml:space="preserve">
+    <value>≤ 60 days</value>
+  </data>
+  <data name="≤ 90 days" xml:space="preserve">
+    <value>≤ 90 days</value>
+  </data>
+  <data name="Bulk import tenants from CSV or XLSX" xml:space="preserve">
+    <value>Bulk import tenants from CSV or XLSX</value>
+  </data>
+  <data name="Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Export filtered tenants as Excel" xml:space="preserve">
+    <value>Export filtered tenants as Excel</value>
+  </data>
+  <data name="Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="Search by name, email, phone, or PACI..." xml:space="preserve">
+    <value>Search by name, email, phone, or PACI...</value>
+  </data>
+  <data name="Property:" xml:space="preserve">
+    <value>Property:</value>
+  </data>
+  <data name="All Properties" xml:space="preserve">
+    <value>All Properties</value>
+  </data>
+  <data name="Status:" xml:space="preserve">
+    <value>Status:</value>
+  </data>
+  <data name="All Status" xml:space="preserve">
+    <value>All Status</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Inactive" xml:space="preserve">
+    <value>Inactive</value>
+  </data>
+  <data name="Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Select all tenants on page" xml:space="preserve">
+    <value>Select all tenants on page</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Contact" xml:space="preserve">
+    <value>Contact</value>
+  </data>
+  <data name="PACI" xml:space="preserve">
+    <value>PACI</value>
+  </data>
+  <data name="Outstanding" xml:space="preserve">
+    <value>Outstanding</value>
+  </data>
+  <data name="Last payment" xml:space="preserve">
+    <value>Last payment</value>
+  </data>
+  <data name="Health" xml:space="preserve">
+    <value>Health</value>
+  </data>
+  <data name="Archived" xml:space="preserve">
+    <value>Archived</value>
+  </data>
+  <data name="No property assigned" xml:space="preserve">
+    <value>No property assigned</value>
+  </data>
+  <data name="View invoices" xml:space="preserve">
+    <value>View invoices</value>
+  </data>
+  <data name="Payment health" xml:space="preserve">
+    <value>Payment health</value>
+  </data>
+  <data name="Toggle tenant status" xml:space="preserve">
+    <value>Toggle tenant status</value>
+  </data>
+  <data name="More actions" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="View" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="Statement PDF" xml:space="preserve">
+    <value>Statement PDF</value>
+  </data>
+  <data name="Create Lease" xml:space="preserve">
+    <value>Create Lease</value>
+  </data>
+  <data name="Record Payment" xml:space="preserve">
+    <value>Record Payment</value>
+  </data>
+  <data name="Resend login" xml:space="preserve">
+    <value>Resend login</value>
+  </data>
+  <data name="Restore" xml:space="preserve">
+    <value>Restore</value>
+  </data>
+  <data name="Forget (GDPR)" xml:space="preserve">
+    <value>Forget (GDPR)</value>
+  </data>
+  <data name="Bulk actions for selected tenants" xml:space="preserve">
+    <value>Bulk actions for selected tenants</value>
+  </data>
+  <data name="selected" xml:space="preserve">
+    <value>selected</value>
+  </data>
+  <data name="Activate" xml:space="preserve">
+    <value>Activate</value>
+  </data>
+  <data name="Deactivate" xml:space="preserve">
+    <value>Deactivate</value>
+  </data>
+  <data name="Archive" xml:space="preserve">
+    <value>Archive</value>
+  </data>
+  <data name="Clear selection" xml:space="preserve">
+    <value>Clear selection</value>
+  </data>
+  <data name="No matching tenants found" xml:space="preserve">
+    <value>No matching tenants found</value>
+  </data>
+  <data name="Try adjusting your search or filter criteria" xml:space="preserve">
+    <value>Try adjusting your search or filter criteria</value>
+  </data>
+  <data name="Clear filters" xml:space="preserve">
+    <value>Clear filters</value>
+  </data>
+  <data name="No Tenants Found" xml:space="preserve">
+    <value>No Tenants Found</value>
+  </data>
+  <data name="Start by adding your first tenant" xml:space="preserve">
+    <value>Start by adding your first tenant</value>
+  </data>
+  <data name="Add Tenant" xml:space="preserve">
+    <value>Add Tenant</value>
+  </data>
+  <data name="Create New Tenant" xml:space="preserve">
+    <value>Create New Tenant</value>
+  </data>
+  <data name="Add a new tenant. Only Essentials are required to save." xml:space="preserve">
+    <value>Add a new tenant. Only Essentials are required to save.</value>
+  </data>
+  <data name="Please fix the following before saving:" xml:space="preserve">
+    <value>Please fix the following before saving:</value>
+  </data>
+  <data name="Essentials" xml:space="preserve">
+    <value>Essentials</value>
+  </data>
+  <data name="Required to save. A valid Civil ID number auto-fills the date of birth." xml:space="preserve">
+    <value>Required to save. A valid Civil ID number auto-fills the date of birth.</value>
+  </data>
+  <data name="First Name" xml:space="preserve">
+    <value>First Name</value>
+  </data>
+  <data name="As shown on Civil ID" xml:space="preserve">
+    <value>As shown on Civil ID</value>
+  </data>
+  <data name="Last Name" xml:space="preserve">
+    <value>Last Name</value>
+  </data>
+  <data name="Optional. If set, the login is emailed; if not, it's shown to you on save." xml:space="preserve">
+    <value>Optional. If set, the login is emailed; if not, it's shown to you on save.</value>
+  </data>
+  <data name="Kuwait mobile format preferred (+965…)" xml:space="preserve">
+    <value>Kuwait mobile format preferred (+965…)</value>
+  </data>
+  <data name="Set password" xml:space="preserve">
+    <value>Set password</value>
+  </data>
+  <data name="Leave blank to auto-generate" xml:space="preserve">
+    <value>Leave blank to auto-generate</value>
+  </data>
+  <data name="You give this to the tenant. They can change it later in the app." xml:space="preserve">
+    <value>You give this to the tenant. They can change it later in the app.</value>
+  </data>
+  <data name="Client Civil ID (PACI)" xml:space="preserve">
+    <value>Client Civil ID (PACI)</value>
+  </data>
+  <data name="12-digit PACI number" xml:space="preserve">
+    <value>12-digit PACI number</value>
+  </data>
+  <data name="Building PACI" xml:space="preserve">
+    <value>Building PACI</value>
+  </data>
+  <data name="Property's PACI number" xml:space="preserve">
+    <value>Property's PACI number</value>
+  </data>
+  <data name="Tenant auto-linked to this building" xml:space="preserve">
+    <value>Tenant auto-linked to this building</value>
+  </data>
+  <data name="More details (DOB, employment, emergency contact, property assignment)" xml:space="preserve">
+    <value>More details (DOB, employment, emergency contact, property assignment)</value>
+  </data>
+  <data name="Personal" xml:space="preserve">
+    <value>Personal</value>
+  </data>
+  <data name="Pre-filled by Civil ID parser" xml:space="preserve">
+    <value>Pre-filled by Civil ID parser</value>
+  </data>
+  <data name="Government ID" xml:space="preserve">
+    <value>Government ID</value>
+  </data>
+  <data name="Passport / Iqama number" xml:space="preserve">
+    <value>Passport / Iqama number</value>
+  </data>
+  <data name="-- Select Status --" xml:space="preserve">
+    <value>-- Select Status --</value>
+  </data>
+  <data name="Employed" xml:space="preserve">
+    <value>Employed</value>
+  </data>
+  <data name="Self-Employed" xml:space="preserve">
+    <value>Self-Employed</value>
+  </data>
+  <data name="Unemployed" xml:space="preserve">
+    <value>Unemployed</value>
+  </data>
+  <data name="Retired" xml:space="preserve">
+    <value>Retired</value>
+  </data>
+  <data name="Student" xml:space="preserve">
+    <value>Student</value>
+  </data>
+  <data name="Contact Name" xml:space="preserve">
+    <value>Contact Name</value>
+  </data>
+  <data name="Contact Phone" xml:space="preserve">
+    <value>Contact Phone</value>
+  </data>
+  <data name="Property &amp; Unit (optional — can be set later via Lease)" xml:space="preserve">
+    <value>Property &amp; Unit (optional — can be set later via Lease)</value>
+  </data>
+  <data name="-- Select Property --" xml:space="preserve">
+    <value>-- Select Property --</value>
+  </data>
+  <data name="-- Select Property First --" xml:space="preserve">
+    <value>-- Select Property First --</value>
+  </data>
+  <data name="Civil ID, passport, insurance, etc. Each row = one file. Max 10MB." xml:space="preserve">
+    <value>Civil ID, passport, insurance, etc. Each row = one file. Max 10MB.</value>
+  </data>
+  <data name="Document Type" xml:space="preserve">
+    <value>Document Type</value>
+  </data>
+  <data name="-- Select Type --" xml:space="preserve">
+    <value>-- Select Type --</value>
+  </data>
+  <data name="Civil ID (PACI)" xml:space="preserve">
+    <value>Civil ID (PACI)</value>
+  </data>
+  <data name="Passport" xml:space="preserve">
+    <value>Passport</value>
+  </data>
+  <data name="Visa" xml:space="preserve">
+    <value>Visa</value>
+  </data>
+  <data name="Insurance" xml:space="preserve">
+    <value>Insurance</value>
+  </data>
+  <data name="Employment Letter" xml:space="preserve">
+    <value>Employment Letter</value>
+  </data>
+  <data name="Salary Certificate" xml:space="preserve">
+    <value>Salary Certificate</value>
+  </data>
+  <data name="Bank Statement" xml:space="preserve">
+    <value>Bank Statement</value>
+  </data>
+  <data name="Reference Letter" xml:space="preserve">
+    <value>Reference Letter</value>
+  </data>
+  <data name="File" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="PDF, JPG, PNG, DOC, DOCX — max 10MB" xml:space="preserve">
+    <value>PDF, JPG, PNG, DOC, DOCX — max 10MB</value>
+  </data>
+  <data name="Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Add another document" xml:space="preserve">
+    <value>Add another document</value>
+  </data>
+  <data name="Clear All" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="Save &amp; add another" xml:space="preserve">
+    <value>Save &amp; add another</value>
+  </data>
+  <data name="Create Tenant" xml:space="preserve">
+    <value>Create Tenant</value>
+  </data>
+  <data name="Unit:" xml:space="preserve">
+    <value>Unit:</value>
+  </data>
+  <data name="Edit Tenant" xml:space="preserve">
+    <value>Edit Tenant</value>
+  </data>
+  <data name="Update tenant information" xml:space="preserve">
+    <value>Update tenant information</value>
+  </data>
+  <data name="PACI Number" xml:space="preserve">
+    <value>PACI Number</value>
+  </data>
+  <data name="-- Select Employment Status --" xml:space="preserve">
+    <value>-- Select Employment Status --</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Save Changes" xml:space="preserve">
+    <value>Save Changes</value>
+  </data>
+  <data name="View Details" xml:space="preserve">
+    <value>View Details</value>
+  </data>
+  <data name="Tenant Details" xml:space="preserve">
+    <value>Tenant Details</value>
+  </data>
+  <data name="Complete tenant information" xml:space="preserve">
+    <value>Complete tenant information</value>
+  </data>
+  <data name="Phone Number" xml:space="preserve">
+    <value>Phone Number</value>
+  </data>
+  <data name="Current Lease" xml:space="preserve">
+    <value>Current Lease</value>
+  </data>
+  <data name="Monthly Rent" xml:space="preserve">
+    <value>Monthly Rent</value>
+  </data>
+  <data name="Lease Period" xml:space="preserve">
+    <value>Lease Period</value>
+  </data>
+  <data name="Payment Due Day" xml:space="preserve">
+    <value>Payment Due Day</value>
+  </data>
+  <data name="Company Name" xml:space="preserve">
+    <value>Company Name</value>
+  </data>
+  <data name="Company Email" xml:space="preserve">
+    <value>Company Email</value>
+  </data>
+  <data name="Lease History" xml:space="preserve">
+    <value>Lease History</value>
+  </data>
+  <data name="Start Date" xml:space="preserve">
+    <value>Start Date</value>
+  </data>
+  <data name="End Date" xml:space="preserve">
+    <value>End Date</value>
+  </data>
+  <data name="Expired" xml:space="preserve">
+    <value>Expired</value>
+  </data>
+  <data name="Payment Date" xml:space="preserve">
+    <value>Payment Date</value>
+  </data>
+  <data name="Completed" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="Pending" xml:space="preserve">
+    <value>Pending</value>
+  </data>
+  <data name="Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="Lease Agreements" xml:space="preserve">
+    <value>Lease Agreements</value>
+  </data>
+  <data name="New Lease" xml:space="preserve">
+    <value>New Lease</value>
+  </data>
+  <data name="Expiring Soon" xml:space="preserve">
+    <value>Expiring Soon</value>
+  </data>
+  <data name="Period" xml:space="preserve">
+    <value>Period</value>
+  </data>
+  <data name="Security Deposit" xml:space="preserve">
+    <value>Security Deposit</value>
+  </data>
+  <data name="Payment Due" xml:space="preserve">
+    <value>Payment Due</value>
+  </data>
+  <data name="Days Remaining" xml:space="preserve">
+    <value>Days Remaining</value>
+  </data>
+  <data name="Pay" xml:space="preserve">
+    <value>Pay</value>
+  </data>
+  <data name="Tenant Documents" xml:space="preserve">
+    <value>Tenant Documents</value>
+  </data>
+  <data name="Upload Document" xml:space="preserve">
+    <value>Upload Document</value>
+  </data>
+  <data name="No documents uploaded for this tenant" xml:space="preserve">
+    <value>No documents uploaded for this tenant</value>
+  </data>
+  <data name="Upload First Document" xml:space="preserve">
+    <value>Upload First Document</value>
+  </data>
+  <data name="Delete Tenant" xml:space="preserve">
+    <value>Delete Tenant</value>
+  </data>
+  <data name="Are you sure you want to delete this tenant?" xml:space="preserve">
+    <value>Are you sure you want to delete this tenant?</value>
+  </data>
+  <data name="Warning" xml:space="preserve">
+    <value>Warning</value>
+  </data>
+  <data name="This action cannot be undone. Deleting this tenant will remove all associated data." xml:space="preserve">
+    <value>This action cannot be undone. Deleting this tenant will remove all associated data.</value>
+  </data>
+  <data name="Tenant Information" xml:space="preserve">
+    <value>Tenant Information</value>
+  </data>
+  <data name="Total Leases" xml:space="preserve">
+    <value>Total Leases</value>
+  </data>
+  <data name="Active Leases Detected!" xml:space="preserve">
+    <value>Active Leases Detected!</value>
+  </data>
+  <data name="This tenant has active leases. Consider terminating or transferring leases before deletion." xml:space="preserve">
+    <value>This tenant has active leases. Consider terminating or transferring leases before deletion.</value>
+  </data>
+  <data name="Confirm Delete" xml:space="preserve">
+    <value>Confirm Delete</value>
+  </data>
+  <data name="Import Tenants" xml:space="preserve">
+    <value>Import Tenants</value>
+  </data>
+  <data name="Upload file" xml:space="preserve">
+    <value>Upload file</value>
+  </data>
+  <data name="Drop a file here, or click to browse" xml:space="preserve">
+    <value>Drop a file here, or click to browse</value>
+  </data>
+  <data name="Accepted:" xml:space="preserve">
+    <value>Accepted:</value>
+  </data>
+  <data name="max 10 MB" xml:space="preserve">
+    <value>max 10 MB</value>
+  </data>
+  <data name="Validate &amp; import" xml:space="preserve">
+    <value>Validate &amp; import</value>
+  </data>
+  <data name="How it works" xml:space="preserve">
+    <value>How it works</value>
+  </data>
+  <data name="Download the template" xml:space="preserve">
+    <value>Download the template</value>
+  </data>
+  <data name="Row" xml:space="preserve">
+    <value>Row</value>
+  </data>
+  <data name="Result" xml:space="preserve">
+    <value>Result</value>
+  </data>
+  <data name="Notes" xml:space="preserve">
+    <value>Notes</value>
+  </data>
+  <data name="Imported" xml:space="preserve">
+    <value>Imported</value>
+  </data>
+  <data name="Skipped" xml:space="preserve">
+    <value>Skipped</value>
+  </data>
+  <data name="Back to Tenants" xml:space="preserve">
+    <value>Back to Tenants</value>
+  </data>
+  <data name="Import another file" xml:space="preserve">
+    <value>Import another file</value>
+  </data>
+  <data name="New tenant login" xml:space="preserve">
+    <value>New tenant login</value>
+  </data>
+  <data name="give these to the tenant. Shown once only." xml:space="preserve">
+    <value>give these to the tenant. Shown once only.</value>
+  </data>
+  <data name="Civil ID:" xml:space="preserve">
+    <value>Civil ID:</value>
+  </data>
+  <data name="Temp password:" xml:space="preserve">
+    <value>Temp password:</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="The tenant enters the Civil ID + this password in the app, then sets their own password." xml:space="preserve">
+    <value>The tenant enters the Civil ID + this password in the app, then sets their own password.</value>
+  </data>
+  <data name="Select Report Period" xml:space="preserve">
+    <value>Select Report Period</value>
+  </data>
+  <data name="From Date" xml:space="preserve">
+    <value>From Date</value>
+  </data>
+  <data name="To Date" xml:space="preserve">
+    <value>To Date</value>
+  </data>
+  <data name="This Month" xml:space="preserve">
+    <value>This Month</value>
+  </data>
+  <data name="Last Month" xml:space="preserve">
+    <value>Last Month</value>
+  </data>
+  <data name="This Quarter" xml:space="preserve">
+    <value>This Quarter</value>
+  </data>
+  <data name="This Year" xml:space="preserve">
+    <value>This Year</value>
+  </data>
+  <data name="Loading snapshot…" xml:space="preserve">
+    <value>Loading snapshot…</value>
+  </data>
+  <data name="Refresh snapshot" xml:space="preserve">
+    <value>Refresh snapshot</value>
+  </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Revenue — last 12 months" xml:space="preserve">
+    <value>Revenue — last 12 months</value>
+  </data>
+  <data name="Revenue trend over the last 12 months" xml:space="preserve">
+    <value>Revenue trend over the last 12 months</value>
+  </data>
+  <data name="Invoices by status" xml:space="preserve">
+    <value>Invoices by status</value>
+  </data>
+  <data name="Breakdown of invoices by status" xml:space="preserve">
+    <value>Breakdown of invoices by status</value>
+  </data>
+  <data name="Top 5 properties" xml:space="preserve">
+    <value>Top 5 properties</value>
+  </data>
+  <data name="Top 5 properties by collected revenue" xml:space="preserve">
+    <value>Top 5 properties by collected revenue</value>
+  </data>
+  <data name="Month-end close" xml:space="preserve">
+    <value>Month-end close</value>
+  </data>
+  <data name="Guided 9-step checklist for the 1st-of-the-month sign-off" xml:space="preserve">
+    <value>Guided 9-step checklist for the 1st-of-the-month sign-off</value>
+  </data>
+  <data name="Invoice + lease + reconciliation status at a glance" xml:space="preserve">
+    <value>Invoice + lease + reconciliation status at a glance</value>
+  </data>
+  <data name="One-click &quot;Trigger now&quot; for any missed job" xml:space="preserve">
+    <value>One-click "Trigger now" for any missed job</value>
+  </data>
+  <data name="Snapshot saved when the period is closed" xml:space="preserve">
+    <value>Snapshot saved when the period is closed</value>
+  </data>
+  <data name="Open checklist" xml:space="preserve">
+    <value>Open checklist</value>
+  </data>
+  <data name="Executive Dashboard" xml:space="preserve">
+    <value>Executive Dashboard</value>
+  </data>
+  <data name="High-level portfolio overview with key business metrics" xml:space="preserve">
+    <value>High-level portfolio overview with key business metrics</value>
+  </data>
+  <data name="Portfolio occupancy &amp; financial summary" xml:space="preserve">
+    <value>Portfolio occupancy &amp; financial summary</value>
+  </data>
+  <data name="YTD revenue &amp; maintenance costs" xml:space="preserve">
+    <value>YTD revenue &amp; maintenance costs</value>
+  </data>
+  <data name="Month-over-month comparison" xml:space="preserve">
+    <value>Month-over-month comparison</value>
+  </data>
+  <data name="Download Executive Dashboard as PDF" xml:space="preserve">
+    <value>Download Executive Dashboard as PDF</value>
+  </data>
+  <data name="PDF" xml:space="preserve">
+    <value>PDF</value>
+  </data>
+  <data name="Property Performance" xml:space="preserve">
+    <value>Property Performance</value>
+  </data>
+  <data name="Property-by-property analysis and comparison" xml:space="preserve">
+    <value>Property-by-property analysis and comparison</value>
+  </data>
+  <data name="Occupancy &amp; rent collection by property" xml:space="preserve">
+    <value>Occupancy &amp; rent collection by property</value>
+  </data>
+  <data name="Maintenance costs &amp; net revenue" xml:space="preserve">
+    <value>Maintenance costs &amp; net revenue</value>
+  </data>
+  <data name="Revenue per square foot analysis" xml:space="preserve">
+    <value>Revenue per square foot analysis</value>
+  </data>
+  <data name="Tenant Payment Analysis" xml:space="preserve">
+    <value>Tenant Payment Analysis</value>
+  </data>
+  <data name="Monitor tenant payment behavior and identify issues" xml:space="preserve">
+    <value>Monitor tenant payment behavior and identify issues</value>
+  </data>
+  <data name="Payment rate &amp; outstanding amounts" xml:space="preserve">
+    <value>Payment rate &amp; outstanding amounts</value>
+  </data>
+  <data name="Average days to pay &amp; late payments" xml:space="preserve">
+    <value>Average days to pay &amp; late payments</value>
+  </data>
+  <data name="Payment score (Excellent/Good/Fair/Poor)" xml:space="preserve">
+    <value>Payment score (Excellent/Good/Fair/Poor)</value>
+  </data>
+  <data name="Invoice Status &amp; Aging" xml:space="preserve">
+    <value>Invoice Status &amp; Aging</value>
+  </data>
+  <data name="Track billing, collection rates, and aging analysis" xml:space="preserve">
+    <value>Track billing, collection rates, and aging analysis</value>
+  </data>
+  <data name="Invoice status summary (Paid/Pending/Overdue)" xml:space="preserve">
+    <value>Invoice status summary (Paid/Pending/Overdue)</value>
+  </data>
+  <data name="Aging analysis (0-30, 31-60, 61-90, 90+ days)" xml:space="preserve">
+    <value>Aging analysis (0-30, 31-60, 61-90, 90+ days)</value>
+  </data>
+  <data name="Collection rate tracking" xml:space="preserve">
+    <value>Collection rate tracking</value>
+  </data>
+  <data name="Payment Report (Grid View)" xml:space="preserve">
+    <value>Payment Report (Grid View)</value>
+  </data>
+  <data name="Detailed payment data with advanced filters and grid display" xml:space="preserve">
+    <value>Detailed payment data with advanced filters and grid display</value>
+  </data>
+  <data name="Filter by property, tenant, type, status" xml:space="preserve">
+    <value>Filter by property, tenant, type, status</value>
+  </data>
+  <data name="Interactive data grid with all payments" xml:space="preserve">
+    <value>Interactive data grid with all payments</value>
+  </data>
+  <data name="KNET, Cash &amp; Bank Transfer breakdown" xml:space="preserve">
+    <value>KNET, Cash &amp; Bank Transfer breakdown</value>
+  </data>
+  <data name="About These Reports" xml:space="preserve">
+    <value>About These Reports</value>
+  </data>
+  <data name="All reports display amounts in Kuwaiti Dinar (KWD) with 3 decimal places for accuracy. Excel exports include formatted cells, professional styling, and multiple sheets where applicable. Select a date range above to customize the reporting period for all reports." xml:space="preserve">
+    <value>All reports display amounts in Kuwaiti Dinar (KWD) with 3 decimal places for accuracy. Excel exports include formatted cells, professional styling, and multiple sheets where applicable. Select a date range above to customize the reporting period for all reports.</value>
+  </data>
+  <data name="Export Excel" xml:space="preserve">
+    <value>Export Excel</value>
+  </data>
+  <data name="Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="Date Range Filter" xml:space="preserve">
+    <value>Date Range Filter</value>
+  </data>
+  <data name="Apply Filter" xml:space="preserve">
+    <value>Apply Filter</value>
+  </data>
+  <data name="Total Properties" xml:space="preserve">
+    <value>Total Properties</value>
+  </data>
+  <data name="Total Units:" xml:space="preserve">
+    <value>Total Units:</value>
+  </data>
+  <data name="Occupancy Rate" xml:space="preserve">
+    <value>Occupancy Rate</value>
+  </data>
+  <data name="units" xml:space="preserve">
+    <value>units</value>
+  </data>
+  <data name="Collection Rate" xml:space="preserve">
+    <value>Collection Rate</value>
+  </data>
+  <data name="Of expected rent" xml:space="preserve">
+    <value>Of expected rent</value>
+  </data>
+  <data name="Outstanding Amount" xml:space="preserve">
+    <value>Outstanding Amount</value>
+  </data>
+  <data name="KWD - Unpaid invoices" xml:space="preserve">
+    <value>KWD - Unpaid invoices</value>
+  </data>
+  <data name="Financial Summary" xml:space="preserve">
+    <value>Financial Summary</value>
+  </data>
+  <data name="Metric" xml:space="preserve">
+    <value>Metric</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="Potential Monthly Rent" xml:space="preserve">
+    <value>Potential Monthly Rent</value>
+  </data>
+  <data name="If all units were occupied" xml:space="preserve">
+    <value>If all units were occupied</value>
+  </data>
+  <data name="Actual Monthly Rent" xml:space="preserve">
+    <value>Actual Monthly Rent</value>
+  </data>
+  <data name="Current occupied units" xml:space="preserve">
+    <value>Current occupied units</value>
+  </data>
+  <data name="YTD Revenue" xml:space="preserve">
+    <value>YTD Revenue</value>
+  </data>
+  <data name="Year-to-date collected payments" xml:space="preserve">
+    <value>Year-to-date collected payments</value>
+  </data>
+  <data name="YTD Maintenance Costs" xml:space="preserve">
+    <value>YTD Maintenance Costs</value>
+  </data>
+  <data name="completed requests" xml:space="preserve">
+    <value>completed requests</value>
+  </data>
+  <data name="Net Revenue (YTD)" xml:space="preserve">
+    <value>Net Revenue (YTD)</value>
+  </data>
+  <data name="Revenue minus maintenance costs" xml:space="preserve">
+    <value>Revenue minus maintenance costs</value>
+  </data>
+  <data name="Tenant Summary" xml:space="preserve">
+    <value>Tenant Summary</value>
+  </data>
+  <data name="Total Active Tenants" xml:space="preserve">
+    <value>Total Active Tenants</value>
+  </data>
+  <data name="Total Active Leases" xml:space="preserve">
+    <value>Total Active Leases</value>
+  </data>
+  <data name="Average Rent per Tenant" xml:space="preserve">
+    <value>Average Rent per Tenant</value>
+  </data>
+  <data name="Maintenance Summary" xml:space="preserve">
+    <value>Maintenance Summary</value>
+  </data>
+  <data name="Total Requests (Period)" xml:space="preserve">
+    <value>Total Requests (Period)</value>
+  </data>
+  <data name="Total Cost (Period)" xml:space="preserve">
+    <value>Total Cost (Period)</value>
+  </data>
+  <data name="Average Cost per Request" xml:space="preserve">
+    <value>Average Cost per Request</value>
+  </data>
+  <data name="Total Invoices" xml:space="preserve">
+    <value>Total Invoices</value>
+  </data>
+  <data name="In selected period" xml:space="preserve">
+    <value>In selected period</value>
+  </data>
+  <data name="Paid Invoices" xml:space="preserve">
+    <value>Paid Invoices</value>
+  </data>
+  <data name="Partial Invoices" xml:space="preserve">
+    <value>Partial Invoices</value>
+  </data>
+  <data name="outstanding" xml:space="preserve">
+    <value>outstanding</value>
+  </data>
+  <data name="Unpaid Invoices" xml:space="preserve">
+    <value>Unpaid Invoices</value>
+  </data>
+  <data name="Aging Summary" xml:space="preserve">
+    <value>Aging Summary</value>
+  </data>
+  <data name="Current (0-30 days)" xml:space="preserve">
+    <value>Current (0-30 days)</value>
+  </data>
+  <data name="invoices" xml:space="preserve">
+    <value>invoices</value>
+  </data>
+  <data name="31-60 days" xml:space="preserve">
+    <value>31-60 days</value>
+  </data>
+  <data name="61-90 days" xml:space="preserve">
+    <value>61-90 days</value>
+  </data>
+  <data name="Over 90 days" xml:space="preserve">
+    <value>Over 90 days</value>
+  </data>
+  <data name="Invoice Details" xml:space="preserve">
+    <value>Invoice Details</value>
+  </data>
+  <data name="Invoice Number" xml:space="preserve">
+    <value>Invoice Number</value>
+  </data>
+  <data name="Tenant Name" xml:space="preserve">
+    <value>Tenant Name</value>
+  </data>
+  <data name="Invoice Date" xml:space="preserve">
+    <value>Invoice Date</value>
+  </data>
+  <data name="Due Date" xml:space="preserve">
+    <value>Due Date</value>
+  </data>
+  <data name="Total Amount (KWD)" xml:space="preserve">
+    <value>Total Amount (KWD)</value>
+  </data>
+  <data name="Paid Amount (KWD)" xml:space="preserve">
+    <value>Paid Amount (KWD)</value>
+  </data>
+  <data name="Outstanding (KWD)" xml:space="preserve">
+    <value>Outstanding (KWD)</value>
+  </data>
+  <data name="Days Overdue" xml:space="preserve">
+    <value>Days Overdue</value>
+  </data>
+  <data name="Aging Bucket" xml:space="preserve">
+    <value>Aging Bucket</value>
+  </data>
+  <data name="Paid" xml:space="preserve">
+    <value>Paid</value>
+  </data>
+  <data name="Partial" xml:space="preserve">
+    <value>Partial</value>
+  </data>
+  <data name="Overdue" xml:space="preserve">
+    <value>Overdue</value>
+  </data>
+  <data name="Current" xml:space="preserve">
+    <value>Current</value>
+  </data>
+  <data name="TOTALS" xml:space="preserve">
+    <value>TOTALS</value>
+  </data>
+  <data name="No invoice data available for the selected date range." xml:space="preserve">
+    <value>No invoice data available for the selected date range.</value>
+  </data>
+  <data name="Property-by-Property Performance Analysis" xml:space="preserve">
+    <value>Property-by-Property Performance Analysis</value>
+  </data>
+  <data name="properties" xml:space="preserve">
+    <value>properties</value>
+  </data>
+  <data name="Property Name" xml:space="preserve">
+    <value>Property Name</value>
+  </data>
+  <data name="Location" xml:space="preserve">
+    <value>Location</value>
+  </data>
+  <data name="Total Units" xml:space="preserve">
+    <value>Total Units</value>
+  </data>
+  <data name="Occupied" xml:space="preserve">
+    <value>Occupied</value>
+  </data>
+  <data name="Vacant" xml:space="preserve">
+    <value>Vacant</value>
+  </data>
+  <data name="Occupancy %" xml:space="preserve">
+    <value>Occupancy %</value>
+  </data>
+  <data name="Potential Rent (KWD)" xml:space="preserve">
+    <value>Potential Rent (KWD)</value>
+  </data>
+  <data name="Actual Rent (KWD)" xml:space="preserve">
+    <value>Actual Rent (KWD)</value>
+  </data>
+  <data name="Collection %" xml:space="preserve">
+    <value>Collection %</value>
+  </data>
+  <data name="Maintenance Cost (KWD)" xml:space="preserve">
+    <value>Maintenance Cost (KWD)</value>
+  </data>
+  <data name="Maintenance Count" xml:space="preserve">
+    <value>Maintenance Count</value>
+  </data>
+  <data name="Net Revenue (KWD)" xml:space="preserve">
+    <value>Net Revenue (KWD)</value>
+  </data>
+  <data name="Revenue/SqFt (KWD)" xml:space="preserve">
+    <value>Revenue/SqFt (KWD)</value>
+  </data>
+  <data name="No property data available for the selected date range." xml:space="preserve">
+    <value>No property data available for the selected date range.</value>
+  </data>
+  <data name="Payment Analytics" xml:space="preserve">
+    <value>Payment Analytics</value>
+  </data>
+  <data name="Real-time payment tracking with advanced filtering" xml:space="preserve">
+    <value>Real-time payment tracking with advanced filtering</value>
+  </data>
+  <data name="Filters" xml:space="preserve">
+    <value>Filters</value>
+  </data>
+  <data name="Payment Type" xml:space="preserve">
+    <value>Payment Type</value>
+  </data>
+  <data name="All Types" xml:space="preserve">
+    <value>All Types</value>
+  </data>
+  <data name="Cash" xml:space="preserve">
+    <value>Cash</value>
+  </data>
+  <data name="All Statuses" xml:space="preserve">
+    <value>All Statuses</value>
+  </data>
+  <data name="Pending Verification" xml:space="preserve">
+    <value>Pending Verification</value>
+  </data>
+  <data name="Tenant" xml:space="preserve">
+    <value>Tenant</value>
+  </data>
+  <data name="All Tenants" xml:space="preserve">
+    <value>All Tenants</value>
+  </data>
+  <data name="Apply Filters" xml:space="preserve">
+    <value>Apply Filters</value>
+  </data>
+  <data name="Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="payments" xml:space="preserve">
+    <value>payments</value>
+  </data>
+  <data name="Payment Records" xml:space="preserve">
+    <value>Payment Records</value>
+  </data>
+  <data name="records" xml:space="preserve">
+    <value>records</value>
+  </data>
+  <data name="ID" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="No payments found matching the selected filters" xml:space="preserve">
+    <value>No payments found matching the selected filters</value>
+  </data>
+  <data name="Payment Score Legend:" xml:space="preserve">
+    <value>Payment Score Legend:</value>
+  </data>
+  <data name="Excellent (95-100%)" xml:space="preserve">
+    <value>Excellent (95-100%)</value>
+  </data>
+  <data name="Good (85-94%)" xml:space="preserve">
+    <value>Good (85-94%)</value>
+  </data>
+  <data name="Fair (70-84%)" xml:space="preserve">
+    <value>Fair (70-84%)</value>
+  </data>
+  <data name="Tenant Payment Behavior Analysis" xml:space="preserve">
+    <value>Tenant Payment Behavior Analysis</value>
+  </data>
+  <data name="tenants" xml:space="preserve">
+    <value>tenants</value>
+  </data>
+  <data name="Total Billed (KWD)" xml:space="preserve">
+    <value>Total Billed (KWD)</value>
+  </data>
+  <data name="Total Paid (KWD)" xml:space="preserve">
+    <value>Total Paid (KWD)</value>
+  </data>
+  <data name="Payment Rate %" xml:space="preserve">
+    <value>Payment Rate %</value>
+  </data>
+  <data name="Payment Score" xml:space="preserve">
+    <value>Payment Score</value>
+  </data>
+  <data name="Avg Days to Pay" xml:space="preserve">
+    <value>Avg Days to Pay</value>
+  </data>
+  <data name="Last Payment Date" xml:space="preserve">
+    <value>Last Payment Date</value>
+  </data>
+  <data name="Last Payment Amount" xml:space="preserve">
+    <value>Last Payment Amount</value>
+  </data>
+  <data name="No payments" xml:space="preserve">
+    <value>No payments</value>
+  </data>
+  <data name="Excellent Payers" xml:space="preserve">
+    <value>Excellent Payers</value>
+  </data>
+  <data name="Good Payers" xml:space="preserve">
+    <value>Good Payers</value>
+  </data>
+  <data name="Fair Payers" xml:space="preserve">
+    <value>Fair Payers</value>
+  </data>
+  <data name="Poor Payers" xml:space="preserve">
+    <value>Poor Payers</value>
+  </data>
+  <data name="No tenant payment data available for the selected date range." xml:space="preserve">
+    <value>No tenant payment data available for the selected date range.</value>
+  </data>
+  <data name="Previous period" xml:space="preserve">
+    <value>Previous period</value>
+  </data>
+  <data name="Prev" xml:space="preserve">
+    <value>Prev</value>
+  </data>
+  <data name="Next period" xml:space="preserve">
+    <value>Next period</value>
+  </data>
+  <data name="Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="green" xml:space="preserve">
+    <value>green</value>
+  </data>
+  <data name="amber" xml:space="preserve">
+    <value>amber</value>
+  </data>
+  <data name="red" xml:space="preserve">
+    <value>red</value>
+  </data>
+  <data name="not yet" xml:space="preserve">
+    <value>not yet</value>
+  </data>
+  <data name="Period closed." xml:space="preserve">
+    <value>Period closed.</value>
+  </data>
+  <data name="Close this period" xml:space="preserve">
+    <value>Close this period</value>
+  </data>
+  <data name="Closes the books for the current period. The close action is irreversible. Snapshot of the current checklist state is saved for audit. Re-running the monthly invoice job for a closed period will be blocked." xml:space="preserve">
+    <value>Closes the books for the current period. The close action is irreversible. Snapshot of the current checklist state is saved for audit. Re-running the monthly invoice job for a closed period will be blocked.</value>
+  </data>
+  <data name="Optional close-out note (e.g. 'all items addressed, ready for end-of-month sign-off')…" xml:space="preserve">
+    <value>Optional close-out note (e.g. 'all items addressed, ready for end-of-month sign-off')…</value>
+  </data>
+  <data name="Mark period closed" xml:space="preserve">
+    <value>Mark period closed</value>
+  </data>
+  <data name="Advanced Reports Dashboard" xml:space="preserve">
+    <value>Advanced Reports Dashboard</value>
+  </data>
+  <data name="Generate customized reports with date ranges and export to Excel" xml:space="preserve">
+    <value>Generate customized reports with date ranges and export to Excel</value>
+  </data>
+  <data name="Report Configuration" xml:space="preserve">
+    <value>Report Configuration</value>
+  </data>
+  <data name="Report Type" xml:space="preserve">
+    <value>Report Type</value>
+  </data>
+  <data name="-- Select Report Type --" xml:space="preserve">
+    <value>-- Select Report Type --</value>
+  </data>
+  <data name="Tenant Report" xml:space="preserve">
+    <value>Tenant Report</value>
+  </data>
+  <data name="Property Report" xml:space="preserve">
+    <value>Property Report</value>
+  </data>
+  <data name="Lease Report" xml:space="preserve">
+    <value>Lease Report</value>
+  </data>
+  <data name="Payment Report" xml:space="preserve">
+    <value>Payment Report</value>
+  </data>
+  <data name="Maintenance Report" xml:space="preserve">
+    <value>Maintenance Report</value>
+  </data>
+  <data name="Invoice Report" xml:space="preserve">
+    <value>Invoice Report</value>
+  </data>
+  <data name="Revenue Summary" xml:space="preserve">
+    <value>Revenue Summary</value>
+  </data>
+  <data name="Date Range" xml:space="preserve">
+    <value>Date Range</value>
+  </data>
+  <data name="Generate Report" xml:space="preserve">
+    <value>Generate Report</value>
+  </data>
+  <data name="Export to Excel" xml:space="preserve">
+    <value>Export to Excel</value>
+  </data>
+  <data name="Report Results" xml:space="preserve">
+    <value>Report Results</value>
+  </data>
+  <data name="No data available for the selected criteria." xml:space="preserve">
+    <value>No data available for the selected criteria.</value>
+  </data>
+  <data name="Quick Exports" xml:space="preserve">
+    <value>Quick Exports</value>
+  </data>
+  <data name="Tenants Report" xml:space="preserve">
+    <value>Tenants Report</value>
+  </data>
+  <data name="Complete tenant information with contact details" xml:space="preserve">
+    <value>Complete tenant information with contact details</value>
+  </data>
+  <data name="Properties Report" xml:space="preserve">
+    <value>Properties Report</value>
+  </data>
+  <data name="Property listings with location and values" xml:space="preserve">
+    <value>Property listings with location and values</value>
+  </data>
+  <data name="Leases Report" xml:space="preserve">
+    <value>Leases Report</value>
+  </data>
+  <data name="All lease agreements with terms and amounts" xml:space="preserve">
+    <value>All lease agreements with terms and amounts</value>
+  </data>
+  <data name="Payments Report" xml:space="preserve">
+    <value>Payments Report</value>
+  </data>
+  <data name="Complete payment history with amounts in KWD" xml:space="preserve">
+    <value>Complete payment history with amounts in KWD</value>
+  </data>
+  <data name="Maintenance requests with status and costs" xml:space="preserve">
+    <value>Maintenance requests with status and costs</value>
+  </data>
+  <data name="Invoices Report" xml:space="preserve">
+    <value>Invoices Report</value>
+  </data>
+  <data name="All invoices with payment status and amounts" xml:space="preserve">
+    <value>All invoices with payment status and amounts</value>
+  </data>
+  <data name="Financial overview with income and outstanding" xml:space="preserve">
+    <value>Financial overview with income and outstanding</value>
+  </data>
+  <data name="About Reports" xml:space="preserve">
+    <value>About Reports</value>
+  </data>
+  <data name="All reports are generated in Microsoft Excel format (.xlsx) with proper formatting. Currency amounts are shown in Kuwaiti Dinar (KWD) with 3 decimal places for accuracy." xml:space="preserve">
+    <value>All reports are generated in Microsoft Excel format (.xlsx) with proper formatting. Currency amounts are shown in Kuwaiti Dinar (KWD) with 3 decimal places for accuracy.</value>
+  </data>
+  <data name="Access Denied" xml:space="preserve">
+    <value>Access Denied</value>
+  </data>
+  <data name="You don't have permission to access this page." xml:space="preserve">
+    <value>You don't have permission to access this page.</value>
+  </data>
+  <data name="Go to Home" xml:space="preserve">
+    <value>Go to Home</value>
+  </data>
+  <data name="Go Back" xml:space="preserve">
+    <value>Go Back</value>
+  </data>
+  <data name="Create Account" xml:space="preserve">
+    <value>Create Account</value>
+  </data>
+  <data name="Join the Rent Collection System" xml:space="preserve">
+    <value>Join the Rent Collection System</value>
+  </data>
+  <data name="John" xml:space="preserve">
+    <value>John</value>
+  </data>
+  <data name="Doe" xml:space="preserve">
+    <value>Doe</value>
+  </data>
+  <data name="-- Select Company (Optional) --" xml:space="preserve">
+    <value>-- Select Company (Optional) --</value>
+  </data>
+  <data name="Enter strong password" xml:space="preserve">
+    <value>Enter strong password</value>
+  </data>
+  <data name="Must contain: 8+ characters, uppercase, lowercase, number, special character" xml:space="preserve">
+    <value>Must contain: 8+ characters, uppercase, lowercase, number, special character</value>
+  </data>
+  <data name="Confirm Password" xml:space="preserve">
+    <value>Confirm Password</value>
+  </data>
+  <data name="Confirm your password" xml:space="preserve">
+    <value>Confirm your password</value>
+  </data>
+  <data name="Already have an account?" xml:space="preserve">
+    <value>Already have an account?</value>
+  </data>
+  <data name="Check Your Email" xml:space="preserve">
+    <value>Check Your Email</value>
+  </data>
+  <data name="If an account with that email exists, we've sent you a password reset code. Please check your email and use the code to reset your password." xml:space="preserve">
+    <value>If an account with that email exists, we've sent you a password reset code. Please check your email and use the code to reset your password.</value>
+  </data>
+  <data name="The reset code expires in 24 hours. If you don't see the email, check your spam folder." xml:space="preserve">
+    <value>The reset code expires in 24 hours. If you don't see the email, check your spam folder.</value>
+  </data>
+  <data name="Back to Login" xml:space="preserve">
+    <value>Back to Login</value>
+  </data>
+  <data name="Password Reset Successful" xml:space="preserve">
+    <value>Password Reset Successful</value>
+  </data>
+  <data name="Your password has been successfully reset. You can now use your new password to log in to your account." xml:space="preserve">
+    <value>Your password has been successfully reset. You can now use your new password to log in to your account.</value>
+  </data>
+  <data name="Go to Login" xml:space="preserve">
+    <value>Go to Login</value>
+  </data>
+  <data name="Reset Password" xml:space="preserve">
+    <value>Reset Password</value>
+  </data>
+  <data name="Enter your email to receive a reset code" xml:space="preserve">
+    <value>Enter your email to receive a reset code</value>
+  </data>
+  <data name="Email Address" xml:space="preserve">
+    <value>Email Address</value>
+  </data>
+  <data name="Enter your registered email" xml:space="preserve">
+    <value>Enter your registered email</value>
+  </data>
+  <data name="Send Reset Code" xml:space="preserve">
+    <value>Send Reset Code</value>
+  </data>
+  <data name="Reset Your Password" xml:space="preserve">
+    <value>Reset Your Password</value>
+  </data>
+  <data name="Enter your new password" xml:space="preserve">
+    <value>Enter your new password</value>
+  </data>
+  <data name="Enter your email" xml:space="preserve">
+    <value>Enter your email</value>
+  </data>
+  <data name="New Password" xml:space="preserve">
+    <value>New Password</value>
+  </data>
+  <data name="Enter new password" xml:space="preserve">
+    <value>Enter new password</value>
+  </data>
+  <data name="Confirm new password" xml:space="preserve">
+    <value>Confirm new password</value>
+  </data>
+  <data name="Your account details and password" xml:space="preserve">
+    <value>Your account details and password</value>
+  </data>
+  <data name="Admin" xml:space="preserve">
+    <value>Admin</value>
+  </data>
+  <data name="My profile" xml:space="preserve">
+    <value>My profile</value>
+  </data>
+  <data name="Account details" xml:space="preserve">
+    <value>Account details</value>
+  </data>
+  <data name="(login)" xml:space="preserve">
+    <value>(login)</value>
+  </data>
+  <data name="Email change requires admin re-verification" xml:space="preserve">
+    <value>Email change requires admin re-verification</value>
+  </data>
+  <data name="read-only" xml:space="preserve">
+    <value>read-only</value>
+  </data>
+  <data name="Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="Only an Admin can change your role" xml:space="preserve">
+    <value>Only an Admin can change your role</value>
+  </data>
+  <data name="admin-only" xml:space="preserve">
+    <value>admin-only</value>
+  </data>
+  <data name="Account created" xml:space="preserve">
+    <value>Account created</value>
+  </data>
+  <data name="Last login" xml:space="preserve">
+    <value>Last login</value>
+  </data>
+  <data name="Never" xml:space="preserve">
+    <value>Never</value>
+  </data>
+  <data name="Editable info" xml:space="preserve">
+    <value>Editable info</value>
+  </data>
+  <data name="First name" xml:space="preserve">
+    <value>First name</value>
+  </data>
+  <data name="Last name" xml:space="preserve">
+    <value>Last name</value>
+  </data>
+  <data name="Phone number" xml:space="preserve">
+    <value>Phone number</value>
+  </data>
+  <data name="Optional" xml:space="preserve">
+    <value>Optional</value>
+  </data>
+  <data name="Save changes" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="Change password" xml:space="preserve">
+    <value>Change password</value>
+  </data>
+  <data name="Current password" xml:space="preserve">
+    <value>Current password</value>
+  </data>
+  <data name="New password" xml:space="preserve">
+    <value>New password</value>
+  </data>
+  <data name="(min 8)" xml:space="preserve">
+    <value>(min 8)</value>
+  </data>
+  <data name="Update password" xml:space="preserve">
+    <value>Update password</value>
+  </data>
+  <data name="Staff sign-in" xml:space="preserve">
+    <value>Staff sign-in</value>
+  </data>
+  <data name="Enter your username or email" xml:space="preserve">
+    <value>Enter your username or email</value>
+  </data>
+  <data name="Show password" xml:space="preserve">
+    <value>Show password</value>
+  </data>
+  <data name="Remember me on this device" xml:space="preserve">
+    <value>Remember me on this device</value>
+  </data>
+  <data name="Fill demo credentials" xml:space="preserve">
+    <value>Fill demo credentials</value>
+  </data>
+  <data name="or" xml:space="preserve">
+    <value>or</value>
+  </data>
+  <data name="Are you a tenant?" xml:space="preserve">
+    <value>Are you a tenant?</value>
+  </data>
+  <data name="Tenant portal login" xml:space="preserve">
+    <value>Tenant portal login</value>
+  </data>
+  <data name="Manage tenant lease agreements by property" xml:space="preserve">
+    <value>Manage tenant lease agreements by property</value>
+  </data>
+  <data name="Total leases" xml:space="preserve">
+    <value>Total leases</value>
+  </data>
+  <data name="all statuses" xml:space="preserve">
+    <value>all statuses</value>
+  </data>
+  <data name="in force" xml:space="preserve">
+    <value>in force</value>
+  </data>
+  <data name="Expiring ≤ 30d" xml:space="preserve">
+    <value>Expiring ≤ 30d</value>
+  </data>
+  <data name="renew or terminate" xml:space="preserve">
+    <value>renew or terminate</value>
+  </data>
+  <data name="Past end date" xml:space="preserve">
+    <value>Past end date</value>
+  </data>
+  <data name="still Active" xml:space="preserve">
+    <value>still Active</value>
+  </data>
+  <data name="Monthly rent roll" xml:space="preserve">
+    <value>Monthly rent roll</value>
+  </data>
+  <data name="from Active leases" xml:space="preserve">
+    <value>from Active leases</value>
+  </data>
+  <data name="Expiring" xml:space="preserve">
+    <value>Expiring</value>
+  </data>
+  <data name="Export filtered leases as Excel" xml:space="preserve">
+    <value>Export filtered leases as Excel</value>
+  </data>
+  <data name="Active filters" xml:space="preserve">
+    <value>Active filters</value>
+  </data>
+  <data name="Search by tenant name, email, or PACI..." xml:space="preserve">
+    <value>Search by tenant name, email, or PACI...</value>
+  </data>
+  <data name="Building:" xml:space="preserve">
+    <value>Building:</value>
+  </data>
+  <data name="All Buildings" xml:space="preserve">
+    <value>All Buildings</value>
+  </data>
+  <data name="Terminated" xml:space="preserve">
+    <value>Terminated</value>
+  </data>
+  <data name="Showing all leases" xml:space="preserve">
+    <value>Showing all leases</value>
+  </data>
+  <data name="Active Tenants" xml:space="preserve">
+    <value>Active Tenants</value>
+  </data>
+  <data name="Monthly Income" xml:space="preserve">
+    <value>Monthly Income</value>
+  </data>
+  <data name="View Property" xml:space="preserve">
+    <value>View Property</value>
+  </data>
+  <data name="Collection" xml:space="preserve">
+    <value>Collection</value>
+  </data>
+  <data name="to" xml:space="preserve">
+    <value>to</value>
+  </data>
+  <data name="Past end" xml:space="preserve">
+    <value>Past end</value>
+  </data>
+  <data name="d ago" xml:space="preserve">
+    <value>d ago</value>
+  </data>
+  <data name="days left" xml:space="preserve">
+    <value>days left</value>
+  </data>
+  <data name="View invoices for this lease" xml:space="preserve">
+    <value>View invoices for this lease</value>
+  </data>
+  <data name="History" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="View tenant" xml:space="preserve">
+    <value>View tenant</value>
+  </data>
+  <data name="Record payment" xml:space="preserve">
+    <value>Record payment</value>
+  </data>
+  <data name="Renew" xml:space="preserve">
+    <value>Renew</value>
+  </data>
+  <data name="Terminate" xml:space="preserve">
+    <value>Terminate</value>
+  </data>
+  <data name="No matching results found" xml:space="preserve">
+    <value>No matching results found</value>
+  </data>
+  <data name="No Leases Found" xml:space="preserve">
+    <value>No Leases Found</value>
+  </data>
+  <data name="Start by creating a lease agreement for your tenants" xml:space="preserve">
+    <value>Start by creating a lease agreement for your tenants</value>
+  </data>
+  <data name="Create New Lease" xml:space="preserve">
+    <value>Create New Lease</value>
+  </data>
+  <data name="Pick a unit + tenant, set dates + rent. Everything else is optional." xml:space="preserve">
+    <value>Pick a unit + tenant, set dates + rent. Everything else is optional.</value>
+  </data>
+  <data name="Lease" xml:space="preserve">
+    <value>Lease</value>
+  </data>
+  <data name="saved. Add another below." xml:space="preserve">
+    <value>saved. Add another below.</value>
+  </data>
+  <data name="Required to save. Picking a Building filters Units." xml:space="preserve">
+    <value>Required to save. Picking a Building filters Units.</value>
+  </data>
+  <data name="Building" xml:space="preserve">
+    <value>Building</value>
+  </data>
+  <data name="-- Select Building --" xml:space="preserve">
+    <value>-- Select Building --</value>
+  </data>
+  <data name="Pick this first to narrow the Unit list" xml:space="preserve">
+    <value>Pick this first to narrow the Unit list</value>
+  </data>
+  <data name="-- Select Unit --" xml:space="preserve">
+    <value>-- Select Unit --</value>
+  </data>
+  <data name="-- Select Tenant --" xml:space="preserve">
+    <value>-- Select Tenant --</value>
+  </data>
+  <data name="&gt; 0 ⇒ lease starts Pending until deposit invoice is collected" xml:space="preserve">
+    <value>&gt; 0 ⇒ lease starts Pending until deposit invoice is collected</value>
+  </data>
+  <data name="More details (late fees, lease type, insurance)" xml:space="preserve">
+    <value>More details (late fees, lease type, insurance)</value>
+  </data>
+  <data name="Payment &amp; Late Fees" xml:space="preserve">
+    <value>Payment &amp; Late Fees</value>
+  </data>
+  <data name="Due Day" xml:space="preserve">
+    <value>Due Day</value>
+  </data>
+  <data name="Day of month" xml:space="preserve">
+    <value>Day of month</value>
+  </data>
+  <data name="Late Fee" xml:space="preserve">
+    <value>Late Fee</value>
+  </data>
+  <data name="Grace Period" xml:space="preserve">
+    <value>Grace Period</value>
+  </data>
+  <data name="Lease Settings" xml:space="preserve">
+    <value>Lease Settings</value>
+  </data>
+  <data name="Lease Type" xml:space="preserve">
+    <value>Lease Type</value>
+  </data>
+  <data name="Fixed Term" xml:space="preserve">
+    <value>Fixed Term</value>
+  </data>
+  <data name="Month-to-Month" xml:space="preserve">
+    <value>Month-to-Month</value>
+  </data>
+  <data name="Annual" xml:space="preserve">
+    <value>Annual</value>
+  </data>
+  <data name="Set Frequency = None if this lease doesn't include insurance. Insurance invoices bill separately from rent." xml:space="preserve">
+    <value>Set Frequency = None if this lease doesn't include insurance. Insurance invoices bill separately from rent.</value>
+  </data>
+  <data name="Frequency" xml:space="preserve">
+    <value>Frequency</value>
+  </data>
+  <data name="None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="Monthly" xml:space="preserve">
+    <value>Monthly</value>
+  </data>
+  <data name="One-time (at lease start)" xml:space="preserve">
+    <value>One-time (at lease start)</value>
+  </data>
+  <data name="Start" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="Defaults to lease start" xml:space="preserve">
+    <value>Defaults to lease start</value>
+  </data>
+  <data name="Signed lease, deposit receipt, insurance certificate, etc. Max 5MB per file." xml:space="preserve">
+    <value>Signed lease, deposit receipt, insurance certificate, etc. Max 5MB per file.</value>
+  </data>
+  <data name="Signed Lease Agreement" xml:space="preserve">
+    <value>Signed Lease Agreement</value>
+  </data>
+  <data name="Security Deposit Receipt" xml:space="preserve">
+    <value>Security Deposit Receipt</value>
+  </data>
+  <data name="Insurance Document" xml:space="preserve">
+    <value>Insurance Document</value>
+  </data>
+  <data name="Lease Addendum" xml:space="preserve">
+    <value>Lease Addendum</value>
+  </data>
+  <data name="Termination Notice" xml:space="preserve">
+    <value>Termination Notice</value>
+  </data>
+  <data name="Unit Handover Form" xml:space="preserve">
+    <value>Unit Handover Form</value>
+  </data>
+  <data name="Inspection Report" xml:space="preserve">
+    <value>Inspection Report</value>
+  </data>
+  <data name="PDF, JPG, PNG, DOC, DOCX — max 5MB" xml:space="preserve">
+    <value>PDF, JPG, PNG, DOC, DOCX — max 5MB</value>
+  </data>
+  <data name="Edit Lease" xml:space="preserve">
+    <value>Edit Lease</value>
+  </data>
+  <data name="Update lease agreement details" xml:space="preserve">
+    <value>Update lease agreement details</value>
+  </data>
+  <data name="This lease is" xml:space="preserve">
+    <value>This lease is</value>
+  </data>
+  <data name="Closed leases preserve financial history and cannot be edited." xml:space="preserve">
+    <value>Closed leases preserve financial history and cannot be edited.</value>
+  </data>
+  <data name="Open the lease detail page" xml:space="preserve">
+    <value>Open the lease detail page</value>
+  </data>
+  <data name="to renew or view the audit trail." xml:space="preserve">
+    <value>to renew or view the audit trail.</value>
+  </data>
+  <data name="Building, Unit &amp; Tenant" xml:space="preserve">
+    <value>Building, Unit &amp; Tenant</value>
+  </data>
+  <data name="Picking a building filters the Unit list below." xml:space="preserve">
+    <value>Picking a building filters the Unit list below.</value>
+  </data>
+  <data name="Lease Duration" xml:space="preserve">
+    <value>Lease Duration</value>
+  </data>
+  <data name="Financial Details" xml:space="preserve">
+    <value>Financial Details</value>
+  </data>
+  <data name="(optional)" xml:space="preserve">
+    <value>(optional)</value>
+  </data>
+  <data name="Payment Due Date" xml:space="preserve">
+    <value>Payment Due Date</value>
+  </data>
+  <data name="Day of month (1-31)" xml:space="preserve">
+    <value>Day of month (1-31)</value>
+  </data>
+  <data name="Late Fee Amount (Optional)" xml:space="preserve">
+    <value>Late Fee Amount (Optional)</value>
+  </data>
+  <data name="Late Fee Grace Period (Days)" xml:space="preserve">
+    <value>Late Fee Grace Period (Days)</value>
+  </data>
+  <data name="Grace period in days" xml:space="preserve">
+    <value>Grace period in days</value>
+  </data>
+  <data name="Lease Status" xml:space="preserve">
+    <value>Lease Status</value>
+  </data>
+  <data name="Use the Details page to renew, terminate, or transfer." xml:space="preserve">
+    <value>Use the Details page to renew, terminate, or transfer.</value>
+  </data>
+  <data name="Insurance (optional)" xml:space="preserve">
+    <value>Insurance (optional)</value>
+  </data>
+  <data name="Insurance Amount" xml:space="preserve">
+    <value>Insurance Amount</value>
+  </data>
+  <data name="One-time" xml:space="preserve">
+    <value>One-time</value>
+  </data>
+  <data name="Start Date (optional)" xml:space="preserve">
+    <value>Start Date (optional)</value>
+  </data>
+  <data name="Complete lease agreement information" xml:space="preserve">
+    <value>Complete lease agreement information</value>
+  </data>
+  <data name="Lease Expired!" xml:space="preserve">
+    <value>Lease Expired!</value>
+  </data>
+  <data name="This lease expired" xml:space="preserve">
+    <value>This lease expired</value>
+  </data>
+  <data name="days ago. Consider renewing or terminating the lease." xml:space="preserve">
+    <value>days ago. Consider renewing or terminating the lease.</value>
+  </data>
+  <data name="Lease Expiring Soon!" xml:space="preserve">
+    <value>Lease Expiring Soon!</value>
+  </data>
+  <data name="This lease will expire in" xml:space="preserve">
+    <value>This lease will expire in</value>
+  </data>
+  <data name="days. Consider initiating renewal discussions." xml:space="preserve">
+    <value>days. Consider initiating renewal discussions.</value>
+  </data>
+  <data name="Property &amp; Unit" xml:space="preserve">
+    <value>Property &amp; Unit</value>
+  </data>
+  <data name="Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="Unit Number" xml:space="preserve">
+    <value>Unit Number</value>
+  </data>
+  <data name="Unit Type" xml:space="preserve">
+    <value>Unit Type</value>
+  </data>
+  <data name="Bedrooms" xml:space="preserve">
+    <value>Bedrooms</value>
+  </data>
+  <data name="Bathrooms" xml:space="preserve">
+    <value>Bathrooms</value>
+  </data>
+  <data name="Duration" xml:space="preserve">
+    <value>Duration</value>
+  </data>
+  <data name="Expired (" xml:space="preserve">
+    <value>Expired (</value>
+  </data>
+  <data name="days ago)" xml:space="preserve">
+    <value>days ago)</value>
+  </data>
+  <data name="Refunded" xml:space="preserve">
+    <value>Refunded</value>
+  </data>
+  <data name="Invoiced" xml:space="preserve">
+    <value>Invoiced</value>
+  </data>
+  <data name="Not yet invoiced" xml:space="preserve">
+    <value>Not yet invoiced</value>
+  </data>
+  <data name="Insurance Premium" xml:space="preserve">
+    <value>Insurance Premium</value>
+  </data>
+  <data name="Insurance Start" xml:space="preserve">
+    <value>Insurance Start</value>
+  </data>
+  <data name="Late Fee Amount" xml:space="preserve">
+    <value>Late Fee Amount</value>
+  </data>
+  <data name="Late Fee Grace Period" xml:space="preserve">
+    <value>Late Fee Grace Period</value>
+  </data>
+  <data name="Created Date" xml:space="preserve">
+    <value>Created Date</value>
+  </data>
+  <data name="Last Modified" xml:space="preserve">
+    <value>Last Modified</value>
+  </data>
+  <data name="Total Payments:" xml:space="preserve">
+    <value>Total Payments:</value>
+  </data>
+  <data name="Total Amount Paid:" xml:space="preserve">
+    <value>Total Amount Paid:</value>
+  </data>
+  <data name="Invoice History" xml:space="preserve">
+    <value>Invoice History</value>
+  </data>
+  <data name="Invoice ID" xml:space="preserve">
+    <value>Invoice ID</value>
+  </data>
+  <data name="Issue Date" xml:space="preserve">
+    <value>Issue Date</value>
+  </data>
+  <data name="Recent activity" xml:space="preserve">
+    <value>Recent activity</value>
+  </data>
+  <data name="Full history" xml:space="preserve">
+    <value>Full history</value>
+  </data>
+  <data name="by" xml:space="preserve">
+    <value>by</value>
+  </data>
+  <data name="Activate lease" xml:space="preserve">
+    <value>Activate lease</value>
+  </data>
+  <data name="Flips this lease from" xml:space="preserve">
+    <value>Flips this lease from</value>
+  </data>
+  <data name="A" xml:space="preserve">
+    <value>A</value>
+  </data>
+  <data name="Deposit invoice" xml:space="preserve">
+    <value>Deposit invoice</value>
+  </data>
+  <data name="for" xml:space="preserve">
+    <value>for</value>
+  </data>
+  <data name="KWD is issued at the same time." xml:space="preserve">
+    <value>KWD is issued at the same time.</value>
+  </data>
+  <data name="The deposit invoice has already been issued; activation will only flip the status." xml:space="preserve">
+    <value>The deposit invoice has already been issued; activation will only flip the status.</value>
+  </data>
+  <data name="Activate this lease and issue the deposit invoice (if not already done)?" xml:space="preserve">
+    <value>Activate this lease and issue the deposit invoice (if not already done)?</value>
+  </data>
+  <data name="Renew lease" xml:space="preserve">
+    <value>Renew lease</value>
+  </data>
+  <data name="New end date" xml:space="preserve">
+    <value>New end date</value>
+  </data>
+  <data name="New start date" xml:space="preserve">
+    <value>New start date</value>
+  </data>
+  <data name="(optional — default: day after current end, or today if past)" xml:space="preserve">
+    <value>(optional — default: day after current end, or today if past)</value>
+  </data>
+  <data name="New monthly rent" xml:space="preserve">
+    <value>New monthly rent</value>
+  </data>
+  <data name="(optional — keeps current rent if blank)" xml:space="preserve">
+    <value>(optional — keeps current rent if blank)</value>
+  </data>
+  <data name="Terminate lease" xml:space="preserve">
+    <value>Terminate lease</value>
+  </data>
+  <data name="Terminate this lease and free its unit? This is irreversible — the lease becomes a closed historical record." xml:space="preserve">
+    <value>Terminate this lease and free its unit? This is irreversible — the lease becomes a closed historical record.</value>
+  </data>
+  <data name="Termination date" xml:space="preserve">
+    <value>Termination date</value>
+  </data>
+  <data name="Reason" xml:space="preserve">
+    <value>Reason</value>
+  </data>
+  <data name="e.g. tenant moved out, breach of contract…" xml:space="preserve">
+    <value>e.g. tenant moved out, breach of contract…</value>
+  </data>
+  <data name="Deposit refunded amount" xml:space="preserve">
+    <value>Deposit refunded amount</value>
+  </data>
+  <data name="(0 if no refund)" xml:space="preserve">
+    <value>(0 if no refund)</value>
+  </data>
+  <data name="Transfer to another unit" xml:space="preserve">
+    <value>Transfer to another unit</value>
+  </data>
+  <data name="Transfer this tenant to the new unit? Old lease will be terminated; a new Active lease is opened on the target unit." xml:space="preserve">
+    <value>Transfer this tenant to the new unit? Old lease will be terminated; a new Active lease is opened on the target unit.</value>
+  </data>
+  <data name="Target unit" xml:space="preserve">
+    <value>Target unit</value>
+  </data>
+  <data name="-- Select a vacant unit --" xml:space="preserve">
+    <value>-- Select a vacant unit --</value>
+  </data>
+  <data name="Effective date" xml:space="preserve">
+    <value>Effective date</value>
+  </data>
+  <data name="Transfer" xml:space="preserve">
+    <value>Transfer</value>
+  </data>
+  <data name="Admin only." xml:space="preserve">
+    <value>Admin only.</value>
+  </data>
+  <data name="Renew / Terminate / Transfer actions require Admin role." xml:space="preserve">
+    <value>Renew / Terminate / Transfer actions require Admin role.</value>
+  </data>
+  <data name="Operational managers can view leases but not run lifecycle transitions." xml:space="preserve">
+    <value>Operational managers can view leases but not run lifecycle transitions.</value>
+  </data>
+  <data name="Delete Lease" xml:space="preserve">
+    <value>Delete Lease</value>
+  </data>
+  <data name="Are you sure you want to delete this lease?" xml:space="preserve">
+    <value>Are you sure you want to delete this lease?</value>
+  </data>
+  <data name="This action cannot be undone. Deleting this lease will remove all associated data including payment history and invoices." xml:space="preserve">
+    <value>This action cannot be undone. Deleting this lease will remove all associated data including payment history and invoices.</value>
+  </data>
+  <data name="Lease Information" xml:space="preserve">
+    <value>Lease Information</value>
+  </data>
+  <data name="Tenant Email" xml:space="preserve">
+    <value>Tenant Email</value>
+  </data>
+  <data name="payment(s)" xml:space="preserve">
+    <value>payment(s)</value>
+  </data>
+  <data name="invoice(s)" xml:space="preserve">
+    <value>invoice(s)</value>
+  </data>
+  <data name="Active Lease Detected!" xml:space="preserve">
+    <value>Active Lease Detected!</value>
+  </data>
+  <data name="This is an active lease. Consider terminating the lease and updating the unit status before deletion." xml:space="preserve">
+    <value>This is an active lease. Consider terminating the lease and updating the unit status before deletion.</value>
+  </data>
+  <data name="Renewal chain link!" xml:space="preserve">
+    <value>Renewal chain link!</value>
+  </data>
+  <data name="This lease was renewed as lease" xml:space="preserve">
+    <value>This lease was renewed as lease</value>
+  </data>
+  <data name="Deleting it will orphan the successor's" xml:space="preserve">
+    <value>Deleting it will orphan the successor's</value>
+  </data>
+  <data name="back-link." xml:space="preserve">
+    <value>back-link.</value>
+  </data>
+  <data name="Deletion will fail." xml:space="preserve">
+    <value>Deletion will fail.</value>
+  </data>
+  <data name="This lease has" xml:space="preserve">
+    <value>This lease has</value>
+  </data>
+  <data name="invoice(s). Terminate it instead — financial history must be preserved." xml:space="preserve">
+    <value>invoice(s). Terminate it instead — financial history must be preserved.</value>
+  </data>
+  <data name="Payment History Will Be Lost!" xml:space="preserve">
+    <value>Payment History Will Be Lost!</value>
+  </data>
+  <data name="payment record(s) that will be permanently deleted." xml:space="preserve">
+    <value>payment record(s) that will be permanently deleted.</value>
+  </data>
+  <data name="Back to lease detail" xml:space="preserve">
+    <value>Back to lease detail</value>
+  </data>
+  <data name="Renewal chain" xml:space="preserve">
+    <value>Renewal chain</value>
+  </data>
+  <data name="All events" xml:space="preserve">
+    <value>All events</value>
+  </data>
+  <data name="Lifecycle only" xml:space="preserve">
+    <value>Lifecycle only</value>
+  </data>
+  <data name="Edits only" xml:space="preserve">
+    <value>Edits only</value>
+  </data>
+  <data name="event" xml:space="preserve">
+    <value>event</value>
+  </data>
+  <data name="events" xml:space="preserve">
+    <value>events</value>
+  </data>
+  <data name="on lease #" xml:space="preserve">
+    <value>on lease #</value>
+  </data>
+  <data name="Reconstructed from row stamps during backfill" xml:space="preserve">
+    <value>Reconstructed from row stamps during backfill</value>
+  </data>
+  <data name="synthesised" xml:space="preserve">
+    <value>synthesised</value>
+  </data>
+  <data name="Payload" xml:space="preserve">
+    <value>Payload</value>
+  </data>
+  <data name="No history yet" xml:space="preserve">
+    <value>No history yet</value>
+  </data>
+  <data name="Once this lease is renewed, terminated, transferred, or edited, the events will appear here." xml:space="preserve">
+    <value>Once this lease is renewed, terminated, transferred, or edited, the events will appear here.</value>
+  </data>
+  <data name="Add Unit" xml:space="preserve">
+    <value>Add Unit</value>
+  </data>
+  <data name="Total units" xml:space="preserve">
+    <value>Total units</value>
+  </data>
+  <data name="Avg rent" xml:space="preserve">
+    <value>Avg rent</value>
+  </data>
+  <data name="Unit # or property name…" xml:space="preserve">
+    <value>Unit # or property name…</value>
+  </data>
+  <data name="All properties" xml:space="preserve">
+    <value>All properties</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Reserved" xml:space="preserve">
+    <value>Reserved</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Studio" xml:space="preserve">
+    <value>Studio</value>
+  </data>
+  <data name="Commercial" xml:space="preserve">
+    <value>Commercial</value>
+  </data>
+  <data name="Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Floor" xml:space="preserve">
+    <value>Floor</value>
+  </data>
+  <data name="/month" xml:space="preserve">
+    <value>/month</value>
+  </data>
+  <data name="Available from" xml:space="preserve">
+    <value>Available from</value>
+  </data>
+  <data name="No units match these filters" xml:space="preserve">
+    <value>No units match these filters</value>
+  </data>
+  <data name="to see the whole portfolio." xml:space="preserve">
+    <value>to see the whole portfolio.</value>
+  </data>
+  <data name="Create a new physical unit on a property" xml:space="preserve">
+    <value>Create a new physical unit on a property</value>
+  </data>
+  <data name="-- Pick a property --" xml:space="preserve">
+    <value>-- Pick a property --</value>
+  </data>
+  <data name="Unit number" xml:space="preserve">
+    <value>Unit number</value>
+  </data>
+  <data name="e.g. A101" xml:space="preserve">
+    <value>e.g. A101</value>
+  </data>
+  <data name="-- Type --" xml:space="preserve">
+    <value>-- Type --</value>
+  </data>
+  <data name="Floor (optional)" xml:space="preserve">
+    <value>Floor (optional)</value>
+  </data>
+  <data name="Square feet" xml:space="preserve">
+    <value>Square feet</value>
+  </data>
+  <data name="Monthly rent (KWD)" xml:space="preserve">
+    <value>Monthly rent (KWD)</value>
+  </data>
+  <data name="Leave 0 if the unit's rent will be set later on the lease." xml:space="preserve">
+    <value>Leave 0 if the unit's rent will be set later on the lease.</value>
+  </data>
+  <data name="Create unit" xml:space="preserve">
+    <value>Create unit</value>
+  </data>
+  <data name="Specs only — status changes go through the Details page" xml:space="preserve">
+    <value>Specs only — status changes go through the Details page</value>
+  </data>
+  <data name="Edit unit" xml:space="preserve">
+    <value>Edit unit</value>
+  </data>
+  <data name="Hold:" xml:space="preserve">
+    <value>Hold:</value>
+  </data>
+  <data name="Lifetime tenants" xml:space="preserve">
+    <value>Lifetime tenants</value>
+  </data>
+  <data name="Months occupied" xml:space="preserve">
+    <value>Months occupied</value>
+  </data>
+  <data name="Current rent" xml:space="preserve">
+    <value>Current rent</value>
+  </data>
+  <data name="Specs" xml:space="preserve">
+    <value>Specs</value>
+  </data>
+  <data name="Size band" xml:space="preserve">
+    <value>Size band</value>
+  </data>
+  <data name="Current tenant" xml:space="preserve">
+    <value>Current tenant</value>
+  </data>
+  <data name="Lease #" xml:space="preserve">
+    <value>Lease #</value>
+  </data>
+  <data name="KWD/mo" xml:space="preserve">
+    <value>KWD/mo</value>
+  </data>
+  <data name="No active lease. The unit is currently" xml:space="preserve">
+    <value>No active lease. The unit is currently</value>
+  </data>
+  <data name="Open new lease" xml:space="preserve">
+    <value>Open new lease</value>
+  </data>
+  <data name="Recent past tenants" xml:space="preserve">
+    <value>Recent past tenants</value>
+  </data>
+  <data name="Rent" xml:space="preserve">
+    <value>Rent</value>
+  </data>
+  <data name="Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Recent maintenance" xml:space="preserve">
+    <value>Recent maintenance</value>
+  </data>
+  <data name="Distinct tenants" xml:space="preserve">
+    <value>Distinct tenants</value>
+  </data>
+  <data name="Tenancies" xml:space="preserve">
+    <value>Tenancies</value>
+  </data>
+  <data name="Occupied days" xml:space="preserve">
+    <value>Occupied days</value>
+  </data>
+  <data name="Vacant days" xml:space="preserve">
+    <value>Vacant days</value>
+  </data>
+  <data name="This unit has never been leased." xml:space="preserve">
+    <value>This unit has never been leased.</value>
+  </data>
+  <data name="day" xml:space="preserve">
+    <value>day</value>
+  </data>
+  <data name="KWD / month" xml:space="preserve">
+    <value>KWD / month</value>
+  </data>
+  <data name="Welcome back! Here's an overview of your rental properties." xml:space="preserve">
+    <value>Welcome back! Here's an overview of your rental properties.</value>
+  </data>
+  <data name="Needs your attention today" xml:space="preserve">
+    <value>Needs your attention today</value>
+  </data>
+  <data name="Overdue invoices" xml:space="preserve">
+    <value>Overdue invoices</value>
+  </data>
+  <data name="KWD outstanding" xml:space="preserve">
+    <value>KWD outstanding</value>
+  </data>
+  <data name="Leases to activate" xml:space="preserve">
+    <value>Leases to activate</value>
+  </data>
+  <data name="Deposit invoice will be issued" xml:space="preserve">
+    <value>Deposit invoice will be issued</value>
+  </data>
+  <data name="Bank transfers to approve" xml:space="preserve">
+    <value>Bank transfers to approve</value>
+  </data>
+  <data name="Awaiting your review" xml:space="preserve">
+    <value>Awaiting your review</value>
+  </data>
+  <data name="Leases expiring ≤30d" xml:space="preserve">
+    <value>Leases expiring ≤30d</value>
+  </data>
+  <data name="Renew or terminate soon" xml:space="preserve">
+    <value>Renew or terminate soon</value>
+  </data>
+  <data name="Deposits unpaid" xml:space="preserve">
+    <value>Deposits unpaid</value>
+  </data>
+  <data name="Issued, awaiting receipt" xml:space="preserve">
+    <value>Issued, awaiting receipt</value>
+  </data>
+  <data name="Vacant units" xml:space="preserve">
+    <value>Vacant units</value>
+  </data>
+  <data name="Available now or within 30d" xml:space="preserve">
+    <value>Available now or within 30d</value>
+  </data>
+  <data name="Recent system activity" xml:space="preserve">
+    <value>Recent system activity</value>
+  </data>
+  <data name="View all →" xml:space="preserve">
+    <value>View all →</value>
+  </data>
+  <data name="Occupied Units" xml:space="preserve">
+    <value>Occupied Units</value>
+  </data>
+  <data name="Occupancy" xml:space="preserve">
+    <value>Occupancy</value>
+  </data>
+  <data name="Revenue (This Month)" xml:space="preserve">
+    <value>Revenue (This Month)</value>
+  </data>
+  <data name="Open Maintenance" xml:space="preserve">
+    <value>Open Maintenance</value>
+  </data>
+  <data name="No recent payments" xml:space="preserve">
+    <value>No recent payments</value>
+  </data>
+  <data name="Upcoming Lease Expirations" xml:space="preserve">
+    <value>Upcoming Lease Expirations</value>
+  </data>
+  <data name="No expiring leases in the next 30 days" xml:space="preserve">
+    <value>No expiring leases in the next 30 days</value>
+  </data>
+  <data name="Quick Actions" xml:space="preserve">
+    <value>Quick Actions</value>
+  </data>
+  <data name="Add Property" xml:space="preserve">
+    <value>Add Property</value>
+  </data>
+  <data name="New Maintenance" xml:space="preserve">
+    <value>New Maintenance</value>
+  </data>
+  <data name="View Reports" xml:space="preserve">
+    <value>View Reports</value>
+  </data>
+  <data name="Welcome" xml:space="preserve">
+    <value>Welcome</value>
+  </data>
+  <data name="Learn about" xml:space="preserve">
+    <value>Learn about</value>
+  </data>
+  <data name="building Web apps with ASP.NET Core" xml:space="preserve">
+    <value>building Web apps with ASP.NET Core</value>
+  </data>
+  <data name="Use this page to detail your site's privacy policy." xml:space="preserve">
+    <value>Use this page to detail your site's privacy policy.</value>
+  </data>
+  <data name="Create New Property" xml:space="preserve">
+    <value>Create New Property</value>
+  </data>
+  <data name="Required fields are in Essentials. Address &amp; management can be filled later." xml:space="preserve">
+    <value>Required fields are in Essentials. Address &amp; management can be filled later.</value>
+  </data>
+  <data name="Required to save. PACI is the building's unique PACI ID." xml:space="preserve">
+    <value>Required to save. PACI is the building's unique PACI ID.</value>
+  </data>
+  <data name="Building PACI number" xml:space="preserve">
+    <value>Building PACI number</value>
+  </data>
+  <data name="Unique PACI identifier for the building" xml:space="preserve">
+    <value>Unique PACI identifier for the building</value>
+  </data>
+  <data name="Property Type" xml:space="preserve">
+    <value>Property Type</value>
+  </data>
+  <data name="Apartment" xml:space="preserve">
+    <value>Apartment</value>
+  </data>
+  <data name="House" xml:space="preserve">
+    <value>House</value>
+  </data>
+  <data name="Condo" xml:space="preserve">
+    <value>Condo</value>
+  </data>
+  <data name="Governorate" xml:space="preserve">
+    <value>Governorate</value>
+  </data>
+  <data name="-- Select Governorate --" xml:space="preserve">
+    <value>-- Select Governorate --</value>
+  </data>
+  <data name="Al Asimah" xml:space="preserve">
+    <value>Al Asimah</value>
+  </data>
+  <data name="Hawalli" xml:space="preserve">
+    <value>Hawalli</value>
+  </data>
+  <data name="Farwaniya" xml:space="preserve">
+    <value>Farwaniya</value>
+  </data>
+  <data name="Ahmadi" xml:space="preserve">
+    <value>Ahmadi</value>
+  </data>
+  <data name="Jahra" xml:space="preserve">
+    <value>Jahra</value>
+  </data>
+  <data name="Mubarak Al Kabeer" xml:space="preserve">
+    <value>Mubarak Al Kabeer</value>
+  </data>
+  <data name="Number of Units" xml:space="preserve">
+    <value>Number of Units</value>
+  </data>
+  <data name="-- Select Company --" xml:space="preserve">
+    <value>-- Select Company --</value>
+  </data>
+  <data name="More details (address, valuation, manager)" xml:space="preserve">
+    <value>More details (address, valuation, manager)</value>
+  </data>
+  <data name="Full Address" xml:space="preserve">
+    <value>Full Address</value>
+  </data>
+  <data name="Street address" xml:space="preserve">
+    <value>Street address</value>
+  </data>
+  <data name="Area" xml:space="preserve">
+    <value>Area</value>
+  </data>
+  <data name="Block" xml:space="preserve">
+    <value>Block</value>
+  </data>
+  <data name="Street" xml:space="preserve">
+    <value>Street</value>
+  </data>
+  <data name="Building Number" xml:space="preserve">
+    <value>Building Number</value>
+  </data>
+  <data name="Valuation &amp; Acquisition" xml:space="preserve">
+    <value>Valuation &amp; Acquisition</value>
+  </data>
+  <data name="Purchase Date" xml:space="preserve">
+    <value>Purchase Date</value>
+  </data>
+  <data name="Property Value" xml:space="preserve">
+    <value>Property Value</value>
+  </data>
+  <data name="Management" xml:space="preserve">
+    <value>Management</value>
+  </data>
+  <data name="Property Manager" xml:space="preserve">
+    <value>Property Manager</value>
+  </data>
+  <data name="-- Select Manager --" xml:space="preserve">
+    <value>-- Select Manager --</value>
+  </data>
+  <data name="Can be assigned later" xml:space="preserve">
+    <value>Can be assigned later</value>
+  </data>
+  <data name="Deed, permits, certificates, insurance, floor plans. Max 10MB per file." xml:space="preserve">
+    <value>Deed, permits, certificates, insurance, floor plans. Max 10MB per file.</value>
+  </data>
+  <data name="Property Deed" xml:space="preserve">
+    <value>Property Deed</value>
+  </data>
+  <data name="Title Document" xml:space="preserve">
+    <value>Title Document</value>
+  </data>
+  <data name="Building Permit" xml:space="preserve">
+    <value>Building Permit</value>
+  </data>
+  <data name="Occupancy Certificate" xml:space="preserve">
+    <value>Occupancy Certificate</value>
+  </data>
+  <data name="Insurance Policy" xml:space="preserve">
+    <value>Insurance Policy</value>
+  </data>
+  <data name="Fire Safety Certificate" xml:space="preserve">
+    <value>Fire Safety Certificate</value>
+  </data>
+  <data name="Electrical Certificate" xml:space="preserve">
+    <value>Electrical Certificate</value>
+  </data>
+  <data name="Plumbing Certificate" xml:space="preserve">
+    <value>Plumbing Certificate</value>
+  </data>
+  <data name="Municipality License" xml:space="preserve">
+    <value>Municipality License</value>
+  </data>
+  <data name="Property Survey" xml:space="preserve">
+    <value>Property Survey</value>
+  </data>
+  <data name="Floor Plan" xml:space="preserve">
+    <value>Floor Plan</value>
+  </data>
+  <data name="PDF, JPG, PNG, DOC, DOCX, DWG — max 10MB" xml:space="preserve">
+    <value>PDF, JPG, PNG, DOC, DOCX, DWG — max 10MB</value>
+  </data>
+  <data name="Create Property" xml:space="preserve">
+    <value>Create Property</value>
+  </data>
+  <data name="Delete Property" xml:space="preserve">
+    <value>Delete Property</value>
+  </data>
+  <data name="Are you sure you want to delete this property?" xml:space="preserve">
+    <value>Are you sure you want to delete this property?</value>
+  </data>
+  <data name="This action cannot be undone. Deleting this property will remove all associated units, leases, and data." xml:space="preserve">
+    <value>This action cannot be undone. Deleting this property will remove all associated units, leases, and data.</value>
+  </data>
+  <data name="Property Information" xml:space="preserve">
+    <value>Property Information</value>
+  </data>
+  <data name="Manager" xml:space="preserve">
+    <value>Manager</value>
+  </data>
+  <data name="Active Tenants Detected!" xml:space="preserve">
+    <value>Active Tenants Detected!</value>
+  </data>
+  <data name="This property has" xml:space="preserve">
+    <value>This property has</value>
+  </data>
+  <data name="occupied unit(s). You should terminate or transfer leases before deleting this property." xml:space="preserve">
+    <value>occupied unit(s). You should terminate or transfer leases before deleting this property.</value>
+  </data>
+  <data name="Units Will Be Deleted" xml:space="preserve">
+    <value>Units Will Be Deleted</value>
+  </data>
+  <data name="This property contains" xml:space="preserve">
+    <value>This property contains</value>
+  </data>
+  <data name="unit(s). All units and their associated data will be permanently deleted." xml:space="preserve">
+    <value>unit(s). All units and their associated data will be permanently deleted.</value>
+  </data>
+  <data name="Property Details" xml:space="preserve">
+    <value>Property Details</value>
+  </data>
+  <data name="Complete property information" xml:space="preserve">
+    <value>Complete property information</value>
+  </data>
+  <data name="Number Of Units" xml:space="preserve">
+    <value>Number Of Units</value>
+  </data>
+  <data name="Address Information" xml:space="preserve">
+    <value>Address Information</value>
+  </data>
+  <data name="Manager Name" xml:space="preserve">
+    <value>Manager Name</value>
+  </data>
+  <data name="All units" xml:space="preserve">
+    <value>All units</value>
+  </data>
+  <data name="Add unit" xml:space="preserve">
+    <value>Add unit</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>Total</value>
+  </data>
+  <data name="Current Tenants" xml:space="preserve">
+    <value>Current Tenants</value>
+  </data>
+  <data name="Lease Start" xml:space="preserve">
+    <value>Lease Start</value>
+  </data>
+  <data name="Lease End" xml:space="preserve">
+    <value>Lease End</value>
+  </data>
+  <data name="Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Type (e.g. Contract, ID)" xml:space="preserve">
+    <value>Type (e.g. Contract, ID)</value>
+  </data>
+  <data name="Description (optional)" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="Upload &amp; link" xml:space="preserve">
+    <value>Upload &amp; link</value>
+  </data>
+  <data name="No documents linked to this property yet." xml:space="preserve">
+    <value>No documents linked to this property yet.</value>
+  </data>
+  <data name="Edit Property" xml:space="preserve">
+    <value>Edit Property</value>
+  </data>
+  <data name="Update property information" xml:space="preserve">
+    <value>Update property information</value>
+  </data>
+  <data name="Basic Information" xml:space="preserve">
+    <value>Basic Information</value>
+  </data>
+  <data name="Property PACI Number" xml:space="preserve">
+    <value>Property PACI Number</value>
+  </data>
+  <data name="-- Select Manager (Optional) --" xml:space="preserve">
+    <value>-- Select Manager (Optional) --</value>
+  </data>
+  <data name="Payment Gateway Configuration" xml:space="preserve">
+    <value>Payment Gateway Configuration</value>
+  </data>
+  <data name="Accept KNET Payments" xml:space="preserve">
+    <value>Accept KNET Payments</value>
+  </data>
+  <data name="Accept Bank Transfer" xml:space="preserve">
+    <value>Accept Bank Transfer</value>
+  </data>
+  <data name="Accept Cash" xml:space="preserve">
+    <value>Accept Cash</value>
+  </data>
+  <data name="KNET Gateway Settings" xml:space="preserve">
+    <value>KNET Gateway Settings</value>
+  </data>
+  <data name="KNET Account ID" xml:space="preserve">
+    <value>KNET Account ID</value>
+  </data>
+  <data name="e.g., KNET_ACC_001" xml:space="preserve">
+    <value>e.g., KNET_ACC_001</value>
+  </data>
+  <data name="Unique identifier for this property's KNET account" xml:space="preserve">
+    <value>Unique identifier for this property's KNET account</value>
+  </data>
+  <data name="KNET Merchant ID (MID)" xml:space="preserve">
+    <value>KNET Merchant ID (MID)</value>
+  </data>
+  <data name="e.g., MID_BUILDING_001" xml:space="preserve">
+    <value>e.g., MID_BUILDING_001</value>
+  </data>
+  <data name="Merchant ID assigned by KNET for this property" xml:space="preserve">
+    <value>Merchant ID assigned by KNET for this property</value>
+  </data>
+  <data name="KNET Tranportal ID" xml:space="preserve">
+    <value>KNET Tranportal ID</value>
+  </data>
+  <data name="Merchant Tranportal ID" xml:space="preserve">
+    <value>Merchant Tranportal ID</value>
+  </data>
+  <data name="KNET Tranportal Password" xml:space="preserve">
+    <value>KNET Tranportal Password</value>
+  </data>
+  <data name="Tranportal password" xml:space="preserve">
+    <value>Tranportal password</value>
+  </data>
+  <data name="KNET Terminal Resource Key" xml:space="preserve">
+    <value>KNET Terminal Resource Key</value>
+  </data>
+  <data name="AES encryption key" xml:space="preserve">
+    <value>AES encryption key</value>
+  </data>
+  <data name="Bank Settlement Details" xml:space="preserve">
+    <value>Bank Settlement Details</value>
+  </data>
+  <data name="Bank Account Number (IBAN)" xml:space="preserve">
+    <value>Bank Account Number (IBAN)</value>
+  </data>
+  <data name="IBAN for receiving KNET settlements" xml:space="preserve">
+    <value>IBAN for receiving KNET settlements</value>
+  </data>
+  <data name="occupied" xml:space="preserve">
+    <value>occupied</value>
+  </data>
+  <data name="portfolio-wide" xml:space="preserve">
+    <value>portfolio-wide</value>
+  </data>
+  <data name="Potential rent" xml:space="preserve">
+    <value>Potential rent</value>
+  </data>
+  <data name="per month, all units" xml:space="preserve">
+    <value>per month, all units</value>
+  </data>
+  <data name="available now" xml:space="preserve">
+    <value>available now</value>
+  </data>
+  <data name="Sort" xml:space="preserve">
+    <value>Sort</value>
+  </data>
+  <data name="Newest first" xml:space="preserve">
+    <value>Newest first</value>
+  </data>
+  <data name="Name A → Z" xml:space="preserve">
+    <value>Name A → Z</value>
+  </data>
+  <data name="Name Z → A" xml:space="preserve">
+    <value>Name Z → A</value>
+  </data>
+  <data name="Value (high → low)" xml:space="preserve">
+    <value>Value (high → low)</value>
+  </data>
+  <data name="Units (most first)" xml:space="preserve">
+    <value>Units (most first)</value>
+  </data>
+  <data name="Occupancy (high → low)" xml:space="preserve">
+    <value>Occupancy (high → low)</value>
+  </data>
+  <data name="View mode" xml:space="preserve">
+    <value>View mode</value>
+  </data>
+  <data name="Grid view" xml:space="preserve">
+    <value>Grid view</value>
+  </data>
+  <data name="Table view" xml:space="preserve">
+    <value>Table view</value>
+  </data>
+  <data name="Export filtered list as Excel" xml:space="preserve">
+    <value>Export filtered list as Excel</value>
+  </data>
+  <data name="Search by property name, PACI number, address, or area..." xml:space="preserve">
+    <value>Search by property name, PACI number, address, or area...</value>
+  </data>
+  <data name="Type:" xml:space="preserve">
+    <value>Type:</value>
+  </data>
+  <data name="Governorate:" xml:space="preserve">
+    <value>Governorate:</value>
+  </data>
+  <data name="All Governorates" xml:space="preserve">
+    <value>All Governorates</value>
+  </data>
+  <data name="Showing all" xml:space="preserve">
+    <value>Showing all</value>
+  </data>
+  <data name="PACI:" xml:space="preserve">
+    <value>PACI:</value>
+  </data>
+  <data name="Toggle property status" xml:space="preserve">
+    <value>Toggle property status</value>
+  </data>
+  <data name="View Units" xml:space="preserve">
+    <value>View Units</value>
+  </data>
+  <data name="View Tenants" xml:space="preserve">
+    <value>View Tenants</value>
+  </data>
+  <data name="View Invoices" xml:space="preserve">
+    <value>View Invoices</value>
+  </data>
+  <data name="Performance" xml:space="preserve">
+    <value>Performance</value>
+  </data>
+  <data name="MTD" xml:space="preserve">
+    <value>MTD</value>
+  </data>
+  <data name="Open units" xml:space="preserve">
+    <value>Open units</value>
+  </data>
+  <data name="Value" xml:space="preserve">
+    <value>Value</value>
+  </data>
+  <data name="vacant" xml:space="preserve">
+    <value>vacant</value>
+  </data>
+  <data name="Governorate · Area" xml:space="preserve">
+    <value>Governorate · Area</value>
+  </data>
+  <data name="Value (KWD)" xml:space="preserve">
+    <value>Value (KWD)</value>
+  </data>
+  <data name="No matching properties found" xml:space="preserve">
+    <value>No matching properties found</value>
+  </data>
+  <data name="No Properties Found" xml:space="preserve">
+    <value>No Properties Found</value>
+  </data>
+  <data name="Start by adding your first property" xml:space="preserve">
+    <value>Start by adding your first property</value>
+  </data>
+  <data name="Record Cash Payment" xml:space="preserve">
+    <value>Record Cash Payment</value>
+  </data>
+  <data name="Log cash collected at the office. It will require verification by an approver before the invoice is settled." xml:space="preserve">
+    <value>Log cash collected at the office. It will require verification by an approver before the invoice is settled.</value>
+  </data>
+  <data name="Back to Approvals" xml:space="preserve">
+    <value>Back to Approvals</value>
+  </data>
+  <data name="-- Select an outstanding invoice --" xml:space="preserve">
+    <value>-- Select an outstanding invoice --</value>
+  </data>
+  <data name="Tenant &amp; property are taken from the invoice automatically." xml:space="preserve">
+    <value>Tenant &amp; property are taken from the invoice automatically.</value>
+  </data>
+  <data name="Partial payments are allowed." xml:space="preserve">
+    <value>Partial payments are allowed.</value>
+  </data>
+  <data name="Payment date" xml:space="preserve">
+    <value>Payment date</value>
+  </data>
+  <data name="Notes (optional)" xml:space="preserve">
+    <value>Notes (optional)</value>
+  </data>
+  <data name="Denominations, payer name at counter, etc." xml:space="preserve">
+    <value>Denominations, payer name at counter, etc.</value>
+  </data>
+  <data name="Delete Invoice" xml:space="preserve">
+    <value>Delete Invoice</value>
+  </data>
+  <data name="Confirm deletion of invoice" xml:space="preserve">
+    <value>Confirm deletion of invoice</value>
+  </data>
+  <data name="Warning: This action cannot be undone!" xml:space="preserve">
+    <value>Warning: This action cannot be undone!</value>
+  </data>
+  <data name="You are about to permanently delete this invoice. All invoice data will be removed from the system." xml:space="preserve">
+    <value>You are about to permanently delete this invoice. All invoice data will be removed from the system.</value>
+  </data>
+  <data name="Invoice Summary" xml:space="preserve">
+    <value>Invoice Summary</value>
+  </data>
+  <data name="Invoice Date:" xml:space="preserve">
+    <value>Invoice Date:</value>
+  </data>
+  <data name="Due Date:" xml:space="preserve">
+    <value>Due Date:</value>
+  </data>
+  <data name="Cancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+  <data name="Invoice Type:" xml:space="preserve">
+    <value>Invoice Type:</value>
+  </data>
+  <data name="Total Amount:" xml:space="preserve">
+    <value>Total Amount:</value>
+  </data>
+  <data name="Paid Amount:" xml:space="preserve">
+    <value>Paid Amount:</value>
+  </data>
+  <data name="Balance:" xml:space="preserve">
+    <value>Balance:</value>
+  </data>
+  <data name="Name:" xml:space="preserve">
+    <value>Name:</value>
+  </data>
+  <data name="Email:" xml:space="preserve">
+    <value>Email:</value>
+  </data>
+  <data name="Phone:" xml:space="preserve">
+    <value>Phone:</value>
+  </data>
+  <data name="Address:" xml:space="preserve">
+    <value>Address:</value>
+  </data>
+  <data name="Print" xml:space="preserve">
+    <value>Print</value>
+  </data>
+  <data name="Mark as Paid" xml:space="preserve">
+    <value>Mark as Paid</value>
+  </data>
+  <data name="INVOICE" xml:space="preserve">
+    <value>INVOICE</value>
+  </data>
+  <data name="Property &amp; Unit Information" xml:space="preserve">
+    <value>Property &amp; Unit Information</value>
+  </data>
+  <data name="PACI Number:" xml:space="preserve">
+    <value>PACI Number:</value>
+  </data>
+  <data name="Invoice Items" xml:space="preserve">
+    <value>Invoice Items</value>
+  </data>
+  <data name="Monthly rent payment" xml:space="preserve">
+    <value>Monthly rent payment</value>
+  </data>
+  <data name="Subtotal:" xml:space="preserve">
+    <value>Subtotal:</value>
+  </data>
+  <data name="Tax:" xml:space="preserve">
+    <value>Tax:</value>
+  </data>
+  <data name="Balance Due:" xml:space="preserve">
+    <value>Balance Due:</value>
+  </data>
+  <data name="Pending Amount" xml:space="preserve">
+    <value>Pending Amount</value>
+  </data>
+  <data name="Paid Amount" xml:space="preserve">
+    <value>Paid Amount</value>
+  </data>
+  <data name="Overdue Count" xml:space="preserve">
+    <value>Overdue Count</value>
+  </data>
+  <data name="Search by invoice #, tenant name, email, or property..." xml:space="preserve">
+    <value>Search by invoice #, tenant name, email, or property...</value>
+  </data>
+  <data name="All Invoices" xml:space="preserve">
+    <value>All Invoices</value>
+  </data>
+  <data name="Deposit" xml:space="preserve">
+    <value>Deposit</value>
+  </data>
+  <data name="Invoice #" xml:space="preserve">
+    <value>Invoice #</value>
+  </data>
+  <data name="Mark as Overdue" xml:space="preserve">
+    <value>Mark as Overdue</value>
+  </data>
+  <data name="No invoices found" xml:space="preserve">
+    <value>No invoices found</value>
+  </data>
+  <data name="Try adjusting your search criteria or filters" xml:space="preserve">
+    <value>Try adjusting your search criteria or filters</value>
+  </data>
+  <data name="Reset Filters" xml:space="preserve">
+    <value>Reset Filters</value>
+  </data>
+  <data name="Total Received" xml:space="preserve">
+    <value>Total Received</value>
+  </data>
+  <data name="Total Transactions" xml:space="preserve">
+    <value>Total Transactions</value>
+  </data>
+  <data name="Mismatches Detected" xml:space="preserve">
+    <value>Mismatches Detected</value>
+  </data>
+  <data name="Search by Civil ID..." xml:space="preserve">
+    <value>Search by Civil ID...</value>
+  </data>
+  <data name="Mismatch:" xml:space="preserve">
+    <value>Mismatch:</value>
+  </data>
+  <data name="Has Mismatch" xml:space="preserve">
+    <value>Has Mismatch</value>
+  </data>
+  <data name="No Mismatch" xml:space="preserve">
+    <value>No Mismatch</value>
+  </data>
+  <data name="Filter" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Showing" xml:space="preserve">
+    <value>Showing</value>
+  </data>
+  <data name="Tenant / Civil ID" xml:space="preserve">
+    <value>Tenant / Civil ID</value>
+  </data>
+  <data name="Property / Unit" xml:space="preserve">
+    <value>Property / Unit</value>
+  </data>
+  <data name="KNET Info" xml:space="preserve">
+    <value>KNET Info</value>
+  </data>
+  <data name="Civil ID Mismatch" xml:space="preserve">
+    <value>Civil ID Mismatch</value>
+  </data>
+  <data name="Building Mismatch" xml:space="preserve">
+    <value>Building Mismatch</value>
+  </data>
+  <data name="Wrong MID" xml:space="preserve">
+    <value>Wrong MID</value>
+  </data>
+  <data name="No Payments Found" xml:space="preserve">
+    <value>No Payments Found</value>
+  </data>
+  <data name="Start recording payments when tenants pay rent" xml:space="preserve">
+    <value>Start recording payments when tenants pay rent</value>
+  </data>
+  <data name="Payment Review" xml:space="preserve">
+    <value>Payment Review</value>
+  </data>
+  <data name="Review payment details before approval" xml:space="preserve">
+    <value>Review payment details before approval</value>
+  </data>
+  <data name="Payment Information" xml:space="preserve">
+    <value>Payment Information</value>
+  </data>
+  <data name="Payment ID" xml:space="preserve">
+    <value>Payment ID</value>
+  </data>
+  <data name="Transaction Reference" xml:space="preserve">
+    <value>Transaction Reference</value>
+  </data>
+  <data name="Receipt Number" xml:space="preserve">
+    <value>Receipt Number</value>
+  </data>
+  <data name="Not available" xml:space="preserve">
+    <value>Not available</value>
+  </data>
+  <data name="Bank Transfer Details" xml:space="preserve">
+    <value>Bank Transfer Details</value>
+  </data>
+  <data name="Transfer Proof" xml:space="preserve">
+    <value>Transfer Proof</value>
+  </data>
+  <data name="View Document" xml:space="preserve">
+    <value>View Document</value>
+  </data>
+  <data name="Cash Payment Details" xml:space="preserve">
+    <value>Cash Payment Details</value>
+  </data>
+  <data name="Collected By" xml:space="preserve">
+    <value>Collected By</value>
+  </data>
+  <data name="Invoice Information" xml:space="preserve">
+    <value>Invoice Information</value>
+  </data>
+  <data name="Total Amount" xml:space="preserve">
+    <value>Total Amount</value>
+  </data>
+  <data name="Approval Actions" xml:space="preserve">
+    <value>Approval Actions</value>
+  </data>
+  <data name="Approve Payment" xml:space="preserve">
+    <value>Approve Payment</value>
+  </data>
+  <data name="Reject Payment" xml:space="preserve">
+    <value>Reject Payment</value>
+  </data>
+  <data name="Confirm Approval" xml:space="preserve">
+    <value>Confirm Approval</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Are you sure you want to approve this payment?" xml:space="preserve">
+    <value>Are you sure you want to approve this payment?</value>
+  </data>
+  <data name="Payment ID:" xml:space="preserve">
+    <value>Payment ID:</value>
+  </data>
+  <data name="Tenant:" xml:space="preserve">
+    <value>Tenant:</value>
+  </data>
+  <data name="Please provide a reason for rejecting this payment:" xml:space="preserve">
+    <value>Please provide a reason for rejecting this payment:</value>
+  </data>
+  <data name="Rejection Reason" xml:space="preserve">
+    <value>Rejection Reason</value>
+  </data>
+  <data name="Enter the reason for rejection..." xml:space="preserve">
+    <value>Enter the reason for rejection...</value>
+  </data>
+  <data name="Approval History" xml:space="preserve">
+    <value>Approval History</value>
+  </data>
+  <data name="Back to Pending Approvals" xml:space="preserve">
+    <value>Back to Pending Approvals</value>
+  </data>
+  <data name="Filter History" xml:space="preserve">
+    <value>Filter History</value>
+  </data>
+  <data name="Approved" xml:space="preserve">
+    <value>Approved</value>
+  </data>
+  <data name="Rejected" xml:space="preserve">
+    <value>Rejected</value>
+  </data>
+  <data name="Approved/Rejected By" xml:space="preserve">
+    <value>Approved/Rejected By</value>
+  </data>
+  <data name="Approval/Rejection Date" xml:space="preserve">
+    <value>Approval/Rejection Date</value>
+  </data>
+  <data name="record(s)" xml:space="preserve">
+    <value>record(s)</value>
+  </data>
+  <data name="No History Found" xml:space="preserve">
+    <value>No History Found</value>
+  </data>
+  <data name="There are no approved or rejected payments matching your criteria." xml:space="preserve">
+    <value>There are no approved or rejected payments matching your criteria.</value>
+  </data>
+  <data name="Pending Approvals" xml:space="preserve">
+    <value>Pending Approvals</value>
+  </data>
+  <data name="Approved Today" xml:space="preserve">
+    <value>Approved Today</value>
+  </data>
+  <data name="Rejected Today" xml:space="preserve">
+    <value>Rejected Today</value>
+  </data>
+  <data name="Submitted Date" xml:space="preserve">
+    <value>Submitted Date</value>
+  </data>
+  <data name="Approve" xml:space="preserve">
+    <value>Approve</value>
+  </data>
+  <data name="Reject" xml:space="preserve">
+    <value>Reject</value>
+  </data>
+  <data name="No Pending Approvals" xml:space="preserve">
+    <value>No Pending Approvals</value>
+  </data>
+  <data name="All payments have been reviewed. Check back later for new submissions." xml:space="preserve">
+    <value>All payments have been reviewed. Check back later for new submissions.</value>
+  </data>
+  <data name="View Approval History" xml:space="preserve">
+    <value>View Approval History</value>
+  </data>
+  <data name="Create New User" xml:space="preserve">
+    <value>Create New User</value>
+  </data>
+  <data name="Add a new user to the system" xml:space="preserve">
+    <value>Add a new user to the system</value>
+  </data>
+  <data name="Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Enter username" xml:space="preserve">
+    <value>Enter username</value>
+  </data>
+  <data name="Enter first name" xml:space="preserve">
+    <value>Enter first name</value>
+  </data>
+  <data name="Enter last name" xml:space="preserve">
+    <value>Enter last name</value>
+  </data>
+  <data name="Phone Number (Optional)" xml:space="preserve">
+    <value>Phone Number (Optional)</value>
+  </data>
+  <data name="Security" xml:space="preserve">
+    <value>Security</value>
+  </data>
+  <data name="Enter password" xml:space="preserve">
+    <value>Enter password</value>
+  </data>
+  <data name="Password will be securely hashed before storage" xml:space="preserve">
+    <value>Password will be securely hashed before storage</value>
+  </data>
+  <data name="Role &amp; Permissions" xml:space="preserve">
+    <value>Role &amp; Permissions</value>
+  </data>
+  <data name="Select Role" xml:space="preserve">
+    <value>Select Role</value>
+  </data>
+  <data name="User - Basic access" xml:space="preserve">
+    <value>User - Basic access</value>
+  </data>
+  <data name="Accountant - Financial operations" xml:space="preserve">
+    <value>Accountant - Financial operations</value>
+  </data>
+  <data name="Manager - Manage properties and tenants" xml:space="preserve">
+    <value>Manager - Manage properties and tenants</value>
+  </data>
+  <data name="Admin - Full system access" xml:space="preserve">
+    <value>Admin - Full system access</value>
+  </data>
+  <data name="Account Settings" xml:space="preserve">
+    <value>Account Settings</value>
+  </data>
+  <data name="Is Active" xml:space="preserve">
+    <value>Is Active</value>
+  </data>
+  <data name="Email Verified" xml:space="preserve">
+    <value>Email Verified</value>
+  </data>
+  <data name="Create User" xml:space="preserve">
+    <value>Create User</value>
+  </data>
+  <data name="Information" xml:space="preserve">
+    <value>Information</value>
+  </data>
+  <data name="Required Fields:" xml:space="preserve">
+    <value>Required Fields:</value>
+  </data>
+  <data name="Password Security:" xml:space="preserve">
+    <value>Password Security:</value>
+  </data>
+  <data name="Passwords are hashed using PBKDF2" xml:space="preserve">
+    <value>Passwords are hashed using PBKDF2</value>
+  </data>
+  <data name="SHA256 with 10,000 iterations" xml:space="preserve">
+    <value>SHA256 with 10,000 iterations</value>
+  </data>
+  <data name="16-byte salt for each password" xml:space="preserve">
+    <value>16-byte salt for each password</value>
+  </data>
+  <data name="Default Settings:" xml:space="preserve">
+    <value>Default Settings:</value>
+  </data>
+  <data name="Account will be active by default" xml:space="preserve">
+    <value>Account will be active by default</value>
+  </data>
+  <data name="Email verification is optional" xml:space="preserve">
+    <value>Email verification is optional</value>
+  </data>
+  <data name="Created date is set automatically" xml:space="preserve">
+    <value>Created date is set automatically</value>
+  </data>
+  <data name="Delete User" xml:space="preserve">
+    <value>Delete User</value>
+  </data>
+  <data name="Are you sure you want to delete this user?" xml:space="preserve">
+    <value>Are you sure you want to delete this user?</value>
+  </data>
+  <data name="Warning: This action cannot be undone" xml:space="preserve">
+    <value>Warning: This action cannot be undone</value>
+  </data>
+  <data name="Important:" xml:space="preserve">
+    <value>Important:</value>
+  </data>
+  <data name="Deleting this user will permanently remove all their data from the system. This action cannot be reversed." xml:space="preserve">
+    <value>Deleting this user will permanently remove all their data from the system. This action cannot be reversed.</value>
+  </data>
+  <data name="User Information" xml:space="preserve">
+    <value>User Information</value>
+  </data>
+  <data name="Last Login" xml:space="preserve">
+    <value>Last Login</value>
+  </data>
+  <data name="Yes, Delete This User" xml:space="preserve">
+    <value>Yes, Delete This User</value>
+  </data>
+  <data name="Edit User" xml:space="preserve">
+    <value>Edit User</value>
+  </data>
+  <data name="Update user information and roles" xml:space="preserve">
+    <value>Update user information and roles</value>
+  </data>
+  <data name="New Password (Optional)" xml:space="preserve">
+    <value>New Password (Optional)</value>
+  </data>
+  <data name="Leave blank to keep current password" xml:space="preserve">
+    <value>Leave blank to keep current password</value>
+  </data>
+  <data name="Only enter a value if you want to change the password" xml:space="preserve">
+    <value>Only enter a value if you want to change the password</value>
+  </data>
+  <data name="Password Update:" xml:space="preserve">
+    <value>Password Update:</value>
+  </data>
+  <data name="Password field is optional" xml:space="preserve">
+    <value>Password field is optional</value>
+  </data>
+  <data name="New passwords are hashed securely" xml:space="preserve">
+    <value>New passwords are hashed securely</value>
+  </data>
+  <data name="Current Status:" xml:space="preserve">
+    <value>Current Status:</value>
+  </data>
+  <data name="Verified" xml:space="preserve">
+    <value>Verified</value>
+  </data>
+  <data name="Not Verified" xml:space="preserve">
+    <value>Not Verified</value>
+  </data>
+  <data name="User Details" xml:space="preserve">
+    <value>User Details</value>
+  </data>
+  <data name="View user information and activity" xml:space="preserve">
+    <value>View user information and activity</value>
+  </data>
+  <data name="Activity Information" xml:space="preserve">
+    <value>Activity Information</value>
+  </data>
+  <data name="Never logged in" xml:space="preserve">
+    <value>Never logged in</value>
+  </data>
+  <data name="Account Status" xml:space="preserve">
+    <value>Account Status</value>
+  </data>
+  <data name="Account Status:" xml:space="preserve">
+    <value>Account Status:</value>
+  </data>
+  <data name="Email Status:" xml:space="preserve">
+    <value>Email Status:</value>
+  </data>
+  <data name="User Management" xml:space="preserve">
+    <value>User Management</value>
+  </data>
+  <data name="Manage system users and their roles" xml:space="preserve">
+    <value>Manage system users and their roles</value>
+  </data>
+  <data name="Add New User" xml:space="preserve">
+    <value>Add New User</value>
+  </data>
+  <data name="View role permissions" xml:space="preserve">
+    <value>View role permissions</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="Name or email..." xml:space="preserve">
+    <value>Name or email...</value>
+  </data>
+  <data name="All Roles" xml:space="preserve">
+    <value>All Roles</value>
+  </data>
+  <data name="Change role" xml:space="preserve">
+    <value>Change role</value>
+  </data>
+  <data name="No users found matching your criteria." xml:space="preserve">
+    <value>No users found matching your criteria.</value>
+  </data>
+  <data name="Role Permissions" xml:space="preserve">
+    <value>Role Permissions</value>
+  </data>
+  <data name="What each role can do across the system" xml:space="preserve">
+    <value>What each role can do across the system</value>
+  </data>
+  <data name="Permissions" xml:space="preserve">
+    <value>Permissions</value>
+  </data>
+  <data name="= full access" xml:space="preserve">
+    <value>= full access</value>
+  </data>
+  <data name="= read-only" xml:space="preserve">
+    <value>= read-only</value>
+  </data>
+  <data name="= no access" xml:space="preserve">
+    <value>= no access</value>
+  </data>
+  <data name="Capability" xml:space="preserve">
+    <value>Capability</value>
+  </data>
+  <data name="SMTP credentials used for all outbound email — invoices, receipts, tenant credentials." xml:space="preserve">
+    <value>SMTP credentials used for all outbound email — invoices, receipts, tenant credentials.</value>
+  </data>
+  <data name="Last test:" xml:space="preserve">
+    <value>Last test:</value>
+  </data>
+  <data name="SMTP Server" xml:space="preserve">
+    <value>SMTP Server</value>
+  </data>
+  <data name="Get these from your email provider. For Gmail use an" xml:space="preserve">
+    <value>Get these from your email provider. For Gmail use an</value>
+  </data>
+  <data name="App Password" xml:space="preserve">
+    <value>App Password</value>
+  </data>
+  <data name="regular Google passwords are rejected by SMTP." xml:space="preserve">
+    <value>regular Google passwords are rejected by SMTP.</value>
+  </data>
+  <data name="Host" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="Server hostname" xml:space="preserve">
+    <value>Server hostname</value>
+  </data>
+  <data name="Port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="587 (STARTTLS) or 465 (SMTPS)" xml:space="preserve">
+    <value>587 (STARTTLS) or 465 (SMTPS)</value>
+  </data>
+  <data name="Usually your full email address" xml:space="preserve">
+    <value>Usually your full email address</value>
+  </data>
+  <data name="(leave blank to keep stored value)" xml:space="preserve">
+    <value>(leave blank to keep stored value)</value>
+  </data>
+  <data name="App Password recommended for Gmail / Outlook 2FA accounts" xml:space="preserve">
+    <value>App Password recommended for Gmail / Outlook 2FA accounts</value>
+  </data>
+  <data name="Enable TLS / SSL" xml:space="preserve">
+    <value>Enable TLS / SSL</value>
+  </data>
+  <data name="Required by almost every modern SMTP provider" xml:space="preserve">
+    <value>Required by almost every modern SMTP provider</value>
+  </data>
+  <data name="From Address" xml:space="preserve">
+    <value>From Address</value>
+  </data>
+  <data name="From Email" xml:space="preserve">
+    <value>From Email</value>
+  </data>
+  <data name="Many SMTP servers reject if this doesn't match Username" xml:space="preserve">
+    <value>Many SMTP servers reject if this doesn't match Username</value>
+  </data>
+  <data name="Display Name" xml:space="preserve">
+    <value>Display Name</value>
+  </data>
+  <data name="ALRTAM Company" xml:space="preserve">
+    <value>ALRTAM Company</value>
+  </data>
+  <data name="Shown in the recipient's inbox" xml:space="preserve">
+    <value>Shown in the recipient's inbox</value>
+  </data>
+  <data name="Mode" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="Dry Run (log messages, don't actually send)" xml:space="preserve">
+    <value>Dry Run (log messages, don't actually send)</value>
+  </data>
+  <data name="Leave ON until you've successfully tested. With Dry Run on, the rest of the app runs normally but no real emails go out — useful for staging or while you provision credentials." xml:space="preserve">
+    <value>Leave ON until you've successfully tested. With Dry Run on, the rest of the app runs normally but no real emails go out — useful for staging or while you provision credentials.</value>
+  </data>
+  <data name="Test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="Send a test email using the values currently in the form (no need to Save first). Dry Run must be off for the test to actually contact your SMTP server." xml:space="preserve">
+    <value>Send a test email using the values currently in the form (no need to Save first). Dry Run must be off for the test to actually contact your SMTP server.</value>
+  </data>
+  <data name="Test Recipient" xml:space="preserve">
+    <value>Test Recipient</value>
+  </data>
+  <data name="Where to send the test message" xml:space="preserve">
+    <value>Where to send the test message</value>
+  </data>
+  <data name="Send Test Email" xml:space="preserve">
+    <value>Send Test Email</value>
+  </data>
+  <data name="Save Settings" xml:space="preserve">
+    <value>Save Settings</value>
+  </data>
+  <data name="Every recorded action across the system — last" xml:space="preserve">
+    <value>Every recorded action across the system — last</value>
+  </data>
+  <data name="entries" xml:space="preserve">
+    <value>entries</value>
+  </data>
+  <data name="Entity" xml:space="preserve">
+    <value>Entity</value>
+  </data>
+  <data name="Filter by user (e.g. admin@example.com)" xml:space="preserve">
+    <value>Filter by user (e.g. admin@example.com)</value>
+  </data>
+  <data name="No audit events match these filters" xml:space="preserve">
+    <value>No audit events match these filters</value>
+  </data>
+  <data name="First seen" xml:space="preserve">
+    <value>First seen</value>
+  </data>
+  <data name="Last activity" xml:space="preserve">
+    <value>Last activity</value>
+  </data>
+  <data name="No audit events recorded for this" xml:space="preserve">
+    <value>No audit events recorded for this</value>
+  </data>
+  <data name="Create Maintenance Request" xml:space="preserve">
+    <value>Create Maintenance Request</value>
+  </data>
+  <data name="Add a new maintenance request to the system" xml:space="preserve">
+    <value>Add a new maintenance request to the system</value>
+  </data>
+  <data name="Select a property" xml:space="preserve">
+    <value>Select a property</value>
+  </data>
+  <data name="Unit (Optional)" xml:space="preserve">
+    <value>Unit (Optional)</value>
+  </data>
+  <data name="Select a unit" xml:space="preserve">
+    <value>Select a unit</value>
+  </data>
+  <data name="Tenant (Optional)" xml:space="preserve">
+    <value>Tenant (Optional)</value>
+  </data>
+  <data name="Select a tenant" xml:space="preserve">
+    <value>Select a tenant</value>
+  </data>
+  <data name="Request Details" xml:space="preserve">
+    <value>Request Details</value>
+  </data>
+  <data name="Request Type" xml:space="preserve">
+    <value>Request Type</value>
+  </data>
+  <data name="Select type" xml:space="preserve">
+    <value>Select type</value>
+  </data>
+  <data name="Estimated Cost (Optional)" xml:space="preserve">
+    <value>Estimated Cost (Optional)</value>
+  </data>
+  <data name="0.000 KWD" xml:space="preserve">
+    <value>0.000 KWD</value>
+  </data>
+  <data name="Describe the maintenance issue in detail..." xml:space="preserve">
+    <value>Describe the maintenance issue in detail...</value>
+  </data>
+  <data name="Assign To (Optional)" xml:space="preserve">
+    <value>Assign To (Optional)</value>
+  </data>
+  <data name="Assign later" xml:space="preserve">
+    <value>Assign later</value>
+  </data>
+  <data name="Create Request" xml:space="preserve">
+    <value>Create Request</value>
+  </data>
+  <data name="Delete Maintenance Request" xml:space="preserve">
+    <value>Delete Maintenance Request</value>
+  </data>
+  <data name="Confirm deletion of maintenance request" xml:space="preserve">
+    <value>Confirm deletion of maintenance request</value>
+  </data>
+  <data name="Are you sure you want to delete this maintenance request? This action cannot be undone." xml:space="preserve">
+    <value>Are you sure you want to delete this maintenance request? This action cannot be undone.</value>
+  </data>
+  <data name="Request Information" xml:space="preserve">
+    <value>Request Information</value>
+  </data>
+  <data name="Request ID" xml:space="preserve">
+    <value>Request ID</value>
+  </data>
+  <data name="Request Date" xml:space="preserve">
+    <value>Request Date</value>
+  </data>
+  <data name="Assigned To" xml:space="preserve">
+    <value>Assigned To</value>
+  </data>
+  <data name="Cost" xml:space="preserve">
+    <value>Cost</value>
+  </data>
+  <data name="Yes, Delete Request" xml:space="preserve">
+    <value>Yes, Delete Request</value>
+  </data>
+  <data name="Maintenance Request" xml:space="preserve">
+    <value>Maintenance Request</value>
+  </data>
+  <data name="View maintenance request details" xml:space="preserve">
+    <value>View maintenance request details</value>
+  </data>
+  <data name="Close Request" xml:space="preserve">
+    <value>Close Request</value>
+  </data>
+  <data name="Unassigned" xml:space="preserve">
+    <value>Unassigned</value>
+  </data>
+  <data name="Completion Details" xml:space="preserve">
+    <value>Completion Details</value>
+  </data>
+  <data name="Completed Date" xml:space="preserve">
+    <value>Completed Date</value>
+  </data>
+  <data name="Duration:" xml:space="preserve">
+    <value>Duration:</value>
+  </data>
+  <data name="Audit Information" xml:space="preserve">
+    <value>Audit Information</value>
+  </data>
+  <data name="Edit Request" xml:space="preserve">
+    <value>Edit Request</value>
+  </data>
+  <data name="Delete Request" xml:space="preserve">
+    <value>Delete Request</value>
+  </data>
+  <data name="Edit Maintenance Request" xml:space="preserve">
+    <value>Edit Maintenance Request</value>
+  </data>
+  <data name="Update maintenance request details" xml:space="preserve">
+    <value>Update maintenance request details</value>
+  </data>
+  <data name="Assign To" xml:space="preserve">
+    <value>Assign To</value>
+  </data>
+  <data name="Completion Date" xml:space="preserve">
+    <value>Completion Date</value>
+  </data>
+  <data name="Cost (KWD)" xml:space="preserve">
+    <value>Cost (KWD)</value>
+  </data>
+  <data name="Add any additional notes or comments..." xml:space="preserve">
+    <value>Add any additional notes or comments...</value>
+  </data>
+  <data name="No Maintenance Requests" xml:space="preserve">
+    <value>No Maintenance Requests</value>
+  </data>
+  <data name="Start by creating your first maintenance request" xml:space="preserve">
+    <value>Start by creating your first maintenance request</value>
+  </data>
+  <data name="Mark this maintenance request as completed." xml:space="preserve">
+    <value>Mark this maintenance request as completed.</value>
+  </data>
+  <data name="Back to Details" xml:space="preserve">
+    <value>Back to Details</value>
+  </data>
+  <data name="Requested" xml:space="preserve">
+    <value>Requested</value>
+  </data>
+  <data name="Actual Cost (KWD)" xml:space="preserve">
+    <value>Actual Cost (KWD)</value>
+  </data>
+  <data name="Optional. Defaults to the estimated cost if you leave it blank." xml:space="preserve">
+    <value>Optional. Defaults to the estimated cost if you leave it blank.</value>
+  </data>
+  <data name="Completion Notes" xml:space="preserve">
+    <value>Completion Notes</value>
+  </data>
+  <data name="What was done, parts replaced, follow-up needed..." xml:space="preserve">
+    <value>What was done, parts replaced, follow-up needed...</value>
+  </data>
+  <data name="Appended to the existing notes — old notes are preserved." xml:space="preserve">
+    <value>Appended to the existing notes — old notes are preserved.</value>
+  </data>
+  <data name="Upload a new document to the system" xml:space="preserve">
+    <value>Upload a new document to the system</value>
+  </data>
+  <data name="Back to Documents" xml:space="preserve">
+    <value>Back to Documents</value>
+  </data>
+  <data name="File Selection" xml:space="preserve">
+    <value>File Selection</value>
+  </data>
+  <data name="Click to select file or drag and drop" xml:space="preserve">
+    <value>Click to select file or drag and drop</value>
+  </data>
+  <data name="Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, and more" xml:space="preserve">
+    <value>Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, and more</value>
+  </data>
+  <data name="Maximum file size: 50 MB" xml:space="preserve">
+    <value>Maximum file size: 50 MB</value>
+  </data>
+  <data name="Choose File" xml:space="preserve">
+    <value>Choose File</value>
+  </data>
+  <data name="Document Information" xml:space="preserve">
+    <value>Document Information</value>
+  </data>
+  <data name="Select document type" xml:space="preserve">
+    <value>Select document type</value>
+  </data>
+  <data name="Lease Agreement" xml:space="preserve">
+    <value>Lease Agreement</value>
+  </data>
+  <data name="Receipt" xml:space="preserve">
+    <value>Receipt</value>
+  </data>
+  <data name="ID Document" xml:space="preserve">
+    <value>ID Document</value>
+  </data>
+  <data name="Contract" xml:space="preserve">
+    <value>Contract</value>
+  </data>
+  <data name="Report" xml:space="preserve">
+    <value>Report</value>
+  </data>
+  <data name="Description (Optional)" xml:space="preserve">
+    <value>Description (Optional)</value>
+  </data>
+  <data name="Add any additional notes or description about this document..." xml:space="preserve">
+    <value>Add any additional notes or description about this document...</value>
+  </data>
+  <data name="Link to Entity (Optional)" xml:space="preserve">
+    <value>Link to Entity (Optional)</value>
+  </data>
+  <data name="Entity Type" xml:space="preserve">
+    <value>Entity Type</value>
+  </data>
+  <data name="-- None --" xml:space="preserve">
+    <value>-- None --</value>
+  </data>
+  <data name="Select Entity" xml:space="preserve">
+    <value>Select Entity</value>
+  </data>
+  <data name="-- Select Lease --" xml:space="preserve">
+    <value>-- Select Lease --</value>
+  </data>
+  <data name="-- Select Maintenance Request --" xml:space="preserve">
+    <value>-- Select Maintenance Request --</value>
+  </data>
+  <data name="Search by name, description, or linked entity…" xml:space="preserve">
+    <value>Search by name, description, or linked entity…</value>
+  </data>
+  <data name="Search documents" xml:space="preserve">
+    <value>Search documents</value>
+  </data>
+  <data name="Clear search" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="Linked to" xml:space="preserve">
+    <value>Linked to</value>
+  </data>
+  <data name="Linked entity no longer exists" xml:space="preserve">
+    <value>Linked entity no longer exists</value>
+  </data>
+  <data name="Unlinked" xml:space="preserve">
+    <value>Unlinked</value>
+  </data>
+  <data name="Not attached to any entity" xml:space="preserve">
+    <value>Not attached to any entity</value>
+  </data>
+  <data name="Open linked" xml:space="preserve">
+    <value>Open linked</value>
+  </data>
+  <data name="No Documents Found" xml:space="preserve">
+    <value>No Documents Found</value>
+  </data>
+  <data name="Start by uploading your first document" xml:space="preserve">
+    <value>Start by uploading your first document</value>
+  </data>
+  <data name="Error." xml:space="preserve">
+    <value>Error.</value>
+  </data>
+  <data name="An error occurred while processing your request." xml:space="preserve">
+    <value>An error occurred while processing your request.</value>
+  </data>
+  <data name="Request ID:" xml:space="preserve">
+    <value>Request ID:</value>
+  </data>
+  <data name="Development Mode" xml:space="preserve">
+    <value>Development Mode</value>
+  </data>
+  <data name="Swapping to" xml:space="preserve">
+    <value>Swapping to</value>
+  </data>
+  <data name="Development" xml:space="preserve">
+    <value>Development</value>
+  </data>
+  <data name="environment will display more detailed information about the error that occurred." xml:space="preserve">
+    <value>environment will display more detailed information about the error that occurred.</value>
+  </data>
+  <data name="The Development environment shouldn't be enabled for deployed applications." xml:space="preserve">
+    <value>The Development environment shouldn't be enabled for deployed applications.</value>
+  </data>
+  <data name="It can result in displaying sensitive information from exceptions to end users." xml:space="preserve">
+    <value>It can result in displaying sensitive information from exceptions to end users.</value>
+  </data>
+  <data name="For local debugging, enable the" xml:space="preserve">
+    <value>For local debugging, enable the</value>
+  </data>
+  <data name="environment by setting the" xml:space="preserve">
+    <value>environment by setting the</value>
+  </data>
+  <data name="environment variable to" xml:space="preserve">
+    <value>environment variable to</value>
+  </data>
+  <data name="and restarting the app." xml:space="preserve">
+    <value>and restarting the app.</value>
+  </data>
+  <data name="Success!" xml:space="preserve">
+    <value>Success!</value>
+  </data>
+  <data name="Error!" xml:space="preserve">
+    <value>Error!</value>
+  </data>
+  <data name="Info:" xml:space="preserve">
+    <value>Info:</value>
+  </data>
+  <data name="Warning!" xml:space="preserve">
+    <value>Warning!</value>
+  </data>
+  <data name="All active tenants across companies" xml:space="preserve">
+    <value>All active tenants across companies</value>
+  </data>
+  <data name="Comprehensive analytics and reporting for your rent collection system" xml:space="preserve">
+    <value>Comprehensive analytics and reporting for your rent collection system</value>
+  </data>
+  <data name="Database Connection Test" xml:space="preserve">
+    <value>Database Connection Test</value>
+  </data>
+  <data name="Did everything that should have happened on the 1st actually happen?" xml:space="preserve">
+    <value>Did everything that should have happened on the 1st actually happen?</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Forgot Password" xml:space="preserve">
+    <value>Forgot Password</value>
+  </data>
+  <data name="Home Page" xml:space="preserve">
+    <value>Home Page</value>
+  </data>
+  <data name="Import complete" xml:space="preserve">
+    <value>Import complete</value>
+  </data>
+  <data name="Import results" xml:space="preserve">
+    <value>Import results</value>
+  </data>
+  <data name="Invoice Management" xml:space="preserve">
+    <value>Invoice Management</value>
+  </data>
+  <data name="Invoice Status Report" xml:space="preserve">
+    <value>Invoice Status Report</value>
+  </data>
+  <data name="Job Health" xml:space="preserve">
+    <value>Job Health</value>
+  </data>
+  <data name="KNET Payment - Test Mode" xml:space="preserve">
+    <value>KNET Payment - Test Mode</value>
+  </data>
+  <data name="Login" xml:space="preserve">
+    <value>Login</value>
+  </data>
+  <data name="Maintenance Request Details" xml:space="preserve">
+    <value>Maintenance Request Details</value>
+  </data>
+  <data name="Manage and track all invoices for your properties" xml:space="preserve">
+    <value>Manage and track all invoices for your properties</value>
+  </data>
+  <data name="New Tenant" xml:space="preserve">
+    <value>New Tenant</value>
+  </data>
+  <data name="Password Reset Requested" xml:space="preserve">
+    <value>Password Reset Requested</value>
+  </data>
+  <data name="Payment Approvals" xml:space="preserve">
+    <value>Payment Approvals</value>
+  </data>
+  <data name="Payment Receipt" xml:space="preserve">
+    <value>Payment Receipt</value>
+  </data>
+  <data name="Payment Successful" xml:space="preserve">
+    <value>Payment Successful</value>
+  </data>
+  <data name="Privacy Policy" xml:space="preserve">
+    <value>Privacy Policy</value>
+  </data>
+  <data name="Property Performance Report" xml:space="preserve">
+    <value>Property Performance Report</value>
+  </data>
+  <data name="Register" xml:space="preserve">
+    <value>Register</value>
+  </data>
+  <data name="Reports Dashboard" xml:space="preserve">
+    <value>Reports Dashboard</value>
+  </data>
+  <data name="Results" xml:space="preserve">
+    <value>Results</value>
+  </data>
+  <data name="Review and approve Cash and Bank Transfer payments" xml:space="preserve">
+    <value>Review and approve Cash and Bank Transfer payments</value>
+  </data>
+  <data name="Tenant Dashboard" xml:space="preserve">
+    <value>Tenant Dashboard</value>
+  </data>
+  <data name="Tenant Login" xml:space="preserve">
+    <value>Tenant Login</value>
+  </data>
+  <data name="Test Bank Transfer" xml:space="preserve">
+    <value>Test Bank Transfer</value>
+  </data>
+  <data name="Track and manage rent payments with mismatch detection" xml:space="preserve">
+    <value>Track and manage rent payments with mismatch detection</value>
+  </data>
+  <data name="Upload a CSV or XLSX to bulk-create tenants" xml:space="preserve">
+    <value>Upload a CSV or XLSX to bulk-create tenants</value>
+  </data>
+  <data name="Users Management" xml:space="preserve">
+    <value>Users Management</value>
+  </data>
+  <data name="New User" xml:space="preserve">
+    <value>New User</value>
+  </data>
+  <data name="Manage your rental properties ({0} properties total)" xml:space="preserve">
+    <value>Manage your rental properties ({0} properties total)</value>
+  </data>
+  <data name="Manage your tenants ({0} total)" xml:space="preserve">
+    <value>Manage your tenants ({0} total)</value>
+  </data>
+  <data name="Track and manage property maintenance ({0} requests total)" xml:space="preserve">
+    <value>Track and manage property maintenance ({0} requests total)</value>
+  </data>
+  <data name="Manage all your documents in one place ({0} documents)" xml:space="preserve">
+    <value>Manage all your documents in one place ({0} documents)</value>
+  </data>
+  <data name="{0} units matching current filters" xml:space="preserve">
+    <value>{0} units matching current filters</value>
+  </data>
+  <data name="12-digit Civil ID" xml:space="preserve">
+    <value>12-digit Civil ID</value>
+  </data>
+  <data name="This is the tenant's app login." xml:space="preserve">
+    <value>This is the tenant's app login.</value>
+  </data>
+  <data name="More details (DOB, employment, emergency contact)" xml:space="preserve">
+    <value>More details (DOB, employment, emergency contact)</value>
+  </data>
+  <data name="DOB pre-filled from Civil ID" xml:space="preserve">
+    <value>DOB pre-filled from Civil ID</value>
+  </data>
+  <data name="Invalid format" xml:space="preserve">
+    <value>Invalid format</value>
+  </data>
+</root>

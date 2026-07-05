@@ -1,0 +1,16 @@
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/.git
+**/node_modules
+**/*.user
+**/TestResults
+**/publish
+**/Migrations/*.Designer.cs
+**/RentCollection.Tests.Playwright/test-results
+**/RentCollection.Tests.Playwright/playwright-report
+**/RentCollection.Tests.Playwright/node_modules
+Dockerfile
+.dockerignore
+*.md

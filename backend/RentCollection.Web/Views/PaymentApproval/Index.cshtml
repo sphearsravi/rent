@@ -1,0 +1,515 @@
+@model IEnumerable<RentCollection.Core.Entities.Payment>
+@{
+    ViewData["Title"] = "Payment Approvals";
+    var pendingPayments = Model.Where(p => p.Status == RentCollection.Core.Enums.PaymentStatus.PendingVerification || p.Status == RentCollection.Core.Enums.PaymentStatus.Pending).ToList();
+    var approvedToday = Model.Count(p => p.Status == RentCollection.Core.Enums.PaymentStatus.Approved && p.ApprovedDate.HasValue && p.ApprovedDate.Value.Date == DateTime.UtcNow.Date);
+    var rejectedToday = Model.Count(p => p.Status == RentCollection.Core.Enums.PaymentStatus.Rejected && p.ModifiedDate.HasValue && p.ModifiedDate.Value.Date == DateTime.UtcNow.Date);
+    var pendingCount = pendingPayments.Count;
+}
+
+@section Styles {
+    <style>
+        .page-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .pending-badge {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        /* Sprint 25 — was near-white on white page, making the icon/label
+           invisible until hover. Now a soft slate fill + stronger indigo
+           border so the button reads as "secondary action available"
+           without a mouseover. */
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #1e293b;
+            border: 1.5px solid #6366f1;
+        }
+        .btn-secondary i { color: #4338ca; }
+
+        .btn-secondary:hover {
+            background: #ffffff;
+            border-color: #4338ca;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 56, 202, 0.18);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 0.875rem;
+            font-size: 0.75rem;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.75rem;
+        }
+
+        .stat-icon-orange {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .stat-icon-green {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .stat-icon-red {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .stat-details h3 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .stat-details p {
+            margin: 0.25rem 0 0 0;
+            color: #475569;
+            font-size: 0.875rem;
+        }
+
+        .table-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .modern-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .modern-table thead {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .modern-table thead th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #334155;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .modern-table tbody td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .modern-table tbody tr:hover {
+            background: rgba(99, 102, 241, 0.04);
+        }
+
+        .tenant-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tenant-avatar-sm {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .d-block {
+            display: block;
+        }
+
+        .text-success {
+            color: #10b981;
+        }
+
+        .amount-display strong {
+            font-size: 1.125rem;
+        }
+
+        .payment-type-badge {
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .badge-cash {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-bank-transfer {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .reference-code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #cbd5e1;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            color: #1e293b;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #6366f1;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+            color: #334155;
+        }
+
+        .empty-state p {
+            color: #475569;
+            margin-bottom: 1.5rem;
+        }
+
+        @@media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+
+            .table-card {
+                overflow-x: auto;
+            }
+
+            .modern-table {
+                min-width: 1200px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+}
+
+<div class="page-container">
+    @{
+        var recordUrl = Url.Action("Record", "CashPayment");
+        var historyUrl = Url.Action("History", "PaymentApproval");
+        var approvalActionsHtml =
+            "<a href=\"" + recordUrl + "\" class=\"btn btn-success\">" +
+            "<i class=\"fas fa-money-bill-wave\"></i> Record Cash" +
+            "</a>" +
+            "<a href=\"" + historyUrl + "\" class=\"btn btn-secondary\">" +
+            "<i class=\"fas fa-history\"></i> View History" +
+            "</a>";
+    }
+    @if (pendingCount > 0)
+    {
+        <div class="page-header-left" style="margin-bottom: 0.5rem;">
+            <span class="pending-badge">
+                <i class="fas fa-clock"></i> @pendingCount @L["Pending"]
+            </span>
+        </div>
+    }
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = "Payment Approvals",
+        ["Subtitle"] = "Review and approve Cash and Bank Transfer payments",
+        ["ActionsHtml"] = new Microsoft.AspNetCore.Html.HtmlString(approvalActionsHtml)
+    })
+
+    <!-- Stats Cards -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-orange">
+                <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="stat-details">
+                <h3>@pendingCount</h3>
+                <p>@L["Pending Approvals"]</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-green">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-details">
+                <h3>@approvedToday</h3>
+                <p>@L["Approved Today"]</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-red">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stat-details">
+                <h3>@rejectedToday</h3>
+                <p>@L["Rejected Today"]</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payments Table -->
+    @if (pendingPayments.Any())
+    {
+        <div class="table-card">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>@L["Payment Date"]</th>
+                        <th>@L["Tenant Name"]</th>
+                        <th>@L["Property / Unit"]</th>
+                        <th>@L["Amount (KWD)"]</th>
+                        <th>@L["Payment Type"]</th>
+                        <th>@L["Transaction Reference"]</th>
+                        <th>@L["Submitted Date"]</th>
+                        <th>@L["Actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var payment in pendingPayments.OrderByDescending(p => p.CreatedDate))
+                    {
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong>@payment.PaymentDate.ToString("MMM dd, yyyy")</strong>
+                                    <small class="text-muted d-block">@payment.PaymentDate.ToString("hh:mm tt")</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="tenant-info">
+                                    <div class="tenant-avatar-sm">
+                                        @payment.Tenant.FirstName[0]@payment.Tenant.LastName[0]
+                                    </div>
+                                    <div>
+                                        <strong>@payment.Tenant.FirstName @payment.Tenant.LastName</strong>
+                                        <small class="text-muted d-block">@payment.Tenant.Email</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>@payment.Property.PropertyName</strong>
+                                    @if (payment.Lease?.Unit != null)
+                                    {
+                                        <small class="text-muted d-block">@L["Unit"] @payment.Lease.Unit.UnitNumber</small>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <div class="amount-display">
+                                    <strong class="text-success">@("KWD " + payment.AmountPaid.ToString("N3"))</strong>
+                                </div>
+                            </td>
+                            <td>
+                                @if (payment.PaymentType == RentCollection.Core.Enums.PaymentType.Cash)
+                                {
+                                    <span class="payment-type-badge badge-cash">
+                                        <i class="fas fa-money-bill-wave"></i> @L["Cash"]
+                                    </span>
+                                }
+                                else if (payment.PaymentType == RentCollection.Core.Enums.PaymentType.BankTransfer)
+                                {
+                                    <span class="payment-type-badge badge-bank-transfer">
+                                        <i class="fas fa-university"></i> @L["Bank Transfer"]
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(payment.TransactionReference))
+                                {
+                                    <code class="reference-code">@payment.TransactionReference</code>
+                                }
+                                else if (payment.BankTransfer != null && !string.IsNullOrEmpty(payment.BankTransfer.ReferenceNumber))
+                                {
+                                    <code class="reference-code">@payment.BankTransfer.ReferenceNumber</code>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>@payment.CreatedDate.ToString("MMM dd, yyyy")</strong>
+                                    <small class="text-muted d-block">@payment.CreatedDate.ToString("hh:mm tt")</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="@Url.Action("Details", "PaymentApproval", new { id = payment.PaymentId })" class="btn btn-primary btn-sm" title="@(L["View Details"].Value)">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <form asp-action="Approve" asp-route-id="@payment.PaymentId" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-success btn-sm" title="@(L["Approve"].Value)" onclick="return confirm('Are you sure you want to approve this payment?');">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                    <form asp-action="Reject" asp-route-id="@payment.PaymentId" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-danger btn-sm" title="@(L["Reject"].Value)" onclick="return confirm('Are you sure you want to reject this payment?');">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="fas fa-clipboard-check"></i>
+            <h3>@L["No Pending Approvals"]</h3>
+            <p>@L["All payments have been reviewed. Check back later for new submissions."]</p>
+            <a href="@Url.Action("History", "PaymentApproval")" class="btn btn-primary">
+                <i class="fas fa-history"></i> @L["View Approval History"]
+            </a>
+        </div>
+    }
+</div>

@@ -1,0 +1,34 @@
+# Backend dependency updates — Sprint 5 D3.
+# Groups patch + minor bumps into one weekly PR per ecosystem to keep
+# the review queue manageable; majors get their own PR each.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kuwait
+    open-pull-requests-limit: 5
+    groups:
+      ms-aspnetcore:
+        patterns: ["Microsoft.AspNetCore.*", "Microsoft.Extensions.*"]
+        update-types: [patch, minor]
+      ef-core:
+        patterns: ["Microsoft.EntityFrameworkCore*"]
+        update-types: [patch, minor]
+      otel:
+        patterns: ["OpenTelemetry.*"]
+        update-types: [patch, minor]
+      serilog:
+        patterns: ["Serilog*"]
+        update-types: [patch, minor]
+      test-stack:
+        patterns: ["xunit*", "FluentAssertions*", "Moq*", "coverlet.*", "Microsoft.NET.Test.Sdk", "Testcontainers*", "Microsoft.AspNetCore.Mvc.Testing"]
+        update-types: [patch, minor]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

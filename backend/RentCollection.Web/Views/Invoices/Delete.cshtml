@@ -1,0 +1,480 @@
+@model RentCollection.Core.Entities.Invoice
+
+@{
+    ViewData["Title"] = "Delete Invoice";
+}
+
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1>@L["Delete Invoice"]</h1>
+            <p class="text-muted">@L["Confirm deletion of invoice"] #@Model.InvoiceId.ToString("D5")</p>
+        </div>
+    </div>
+
+    <!-- Warning Banner -->
+    <div class="alert alert-danger">
+        <div class="alert-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="alert-content">
+            <h4>@L["Warning: This action cannot be undone!"]</h4>
+            <p>@L["You are about to permanently delete this invoice. All invoice data will be removed from the system."]</p>
+        </div>
+    </div>
+
+    <div class="delete-container">
+        <!-- Invoice Summary -->
+        <div class="summary-section">
+            <h3>@L["Invoice Summary"]</h3>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="summary-label">@L["Invoice Number:"]</span>
+                    <span class="summary-value">#@Model.InvoiceId.ToString("D5")</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">@L["Invoice Date:"]</span>
+                    <span class="summary-value">@Model.InvoiceDate.ToString("dd MMMM yyyy")</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">@L["Due Date:"]</span>
+                    <span class="summary-value">@Model.DueDate.ToString("dd MMMM yyyy")</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">@L["Status:"]</span>
+                    <span class="summary-value">
+                        @if (Model.Status == "Pending")
+                        {
+                            <span class="badge badge-warning">
+                                <i class="fas fa-clock"></i> @L["Pending"]
+                            </span>
+                        }
+                        else if (Model.Status == "Paid")
+                        {
+                            <span class="badge badge-success">
+                                <i class="fas fa-check-circle"></i> @L["Paid"]
+                            </span>
+                        }
+                        else if (Model.Status == "Overdue")
+                        {
+                            <span class="badge badge-danger">
+                                <i class="fas fa-exclamation-circle"></i> @L["Overdue"]
+                            </span>
+                        }
+                        else if (Model.Status == "Cancelled")
+                        {
+                            <span class="badge badge-secondary">
+                                <i class="fas fa-ban"></i> @L["Cancelled"]
+                            </span>
+                        }
+                    </span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">@L["Invoice Type:"]</span>
+                    <span class="summary-value">@Model.InvoiceType</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">@L["Total Amount:"]</span>
+                    <span class="summary-value amount">KWD @Model.TotalAmount.ToString("N3")</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">@L["Paid Amount:"]</span>
+                    <span class="summary-value paid">KWD @Model.PaidAmount.ToString("N3")</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">@L["Balance:"]</span>
+                    <span class="summary-value balance">KWD @((Model.TotalAmount - Model.PaidAmount).ToString("N3"))</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tenant Information -->
+        <div class="info-section">
+            <div class="info-card">
+                <div class="card-header">
+                    <i class="fas fa-user"></i> @L["Tenant Information"]
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <span class="info-label">@L["Name:"]</span>
+                        <span class="info-value">@Model.Tenant.FirstName @Model.Tenant.LastName</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">@L["Email:"]</span>
+                        <span class="info-value">@Model.Tenant.Email</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">@L["Phone:"]</span>
+                        <span class="info-value">@Model.Tenant.Phone</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="card-header">
+                    <i class="fas fa-building"></i> @L["Property Information"]
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <span class="info-label">@L["Property:"]</span>
+                        <span class="info-value">@Model.Lease.Unit.Property.PropertyName</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">@L["Unit:"]</span>
+                        <span class="info-value">@L["Unit"] @Model.Lease.Unit.UnitNumber</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">@L["Address:"]</span>
+                        <span class="info-value">@Model.Lease.Unit.Property.Address</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">@L["Governorate:"]</span>
+                        <span class="info-value">@Model.Lease.Unit.Property.Governorate</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.Notes))
+        {
+            <div class="notes-section">
+                <h3>@L["Notes"]</h3>
+                <p>@Model.Notes</p>
+            </div>
+        }
+
+        <!-- Action Buttons -->
+        <div class="action-section">
+            <form asp-action="Delete" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="InvoiceId" />
+                <div class="button-group">
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> @L["Cancel"]
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> @L["Confirm Delete"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        .page-container {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #334155;
+        }
+
+        .text-muted {
+            color: #475569;
+            margin: 0.5rem 0 0 0;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .alert {
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .alert-danger {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            border-left: 4px solid #ef4444;
+        }
+
+        .alert-icon {
+            flex-shrink: 0;
+        }
+
+        .alert-icon i {
+            font-size: 2rem;
+            color: #dc2626;
+        }
+
+        .alert-content h4 {
+            margin: 0 0 0.5rem 0;
+            color: #991b1b;
+            font-size: 1.125rem;
+            font-weight: 700;
+        }
+
+        .alert-content p {
+            margin: 0;
+            color: #7f1d1d;
+            line-height: 1.6;
+        }
+
+        .delete-container {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .summary-section {
+            padding: 2rem;
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .summary-section h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 1.5rem 0;
+            color: #334155;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .summary-label {
+            font-size: 0.875rem;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .summary-value {
+            font-size: 1.125rem;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .summary-value.amount {
+            color: #3b82f6;
+        }
+
+        .summary-value.paid {
+            color: #10b981;
+        }
+
+        .summary-value.balance {
+            color: #ef4444;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .info-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #1e293b;
+            text-align: right;
+        }
+
+        .notes-section {
+            padding: 2rem;
+            background: #fffbeb;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .notes-section h3 {
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin: 0 0 1rem 0;
+            color: #334155;
+        }
+
+        .notes-section p {
+            margin: 0;
+            color: #374151;
+            line-height: 1.6;
+        }
+
+        .action-section {
+            padding: 2rem;
+            background: #f9fafb;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        @@media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .info-section {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column-reverse;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+}

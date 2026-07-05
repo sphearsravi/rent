@@ -1,0 +1,95 @@
+@model RentCollection.Core.Entities.Unit
+@{
+    ViewData["Title"] = $"Edit Unit {Model.UnitNumber}";
+}
+<div class="page-container" style="padding:2rem; max-width:720px; margin:0 auto;">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = $"Edit Unit {Model.UnitNumber}",
+        ["Subtitle"] = L["Specs only — status changes go through the Details page"].Value,
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            (L["Admin"].Value, "/Dashboard"),
+            (L["Units"].Value, "/Units"),
+            ($"Unit {Model.UnitNumber}", $"/Units/Details/{Model.UnitId}"),
+            (L["Edit"].Value, null),
+        }
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <form asp-action="Edit" method="post" class="form-card">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="UnitId" />
+        <input type="hidden" asp-for="CreatedDate" />
+        <input type="hidden" asp-for="RowVersion" />
+        <input type="hidden" asp-for="Status" />
+        <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="PropertyId">@L["Property"]</label>
+                <select asp-for="PropertyId" asp-items="ViewBag.PropertyId" required></select>
+            </div>
+            <div class="form-field">
+                <label asp-for="UnitNumber">@L["Unit number"]</label>
+                <input asp-for="UnitNumber" required maxlength="50" />
+            </div>
+            <div class="form-field">
+                <label asp-for="UnitType">@L["Type"]</label>
+                <select asp-for="UnitType" asp-items="ViewBag.UnitTypes"></select>
+            </div>
+            <div class="form-field">
+                <label asp-for="FloorNumber">@L["Floor"]</label>
+                <input asp-for="FloorNumber" type="number" min="0" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Bedrooms">@L["Bedrooms"]</label>
+                <input asp-for="Bedrooms" type="number" min="0" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Bathrooms">@L["Bathrooms"]</label>
+                <input asp-for="Bathrooms" type="number" min="0" />
+            </div>
+            <div class="form-field">
+                <label asp-for="SquareFeet">@L["Square feet"]</label>
+                <input asp-for="SquareFeet" type="number" min="0" />
+            </div>
+            <div class="form-field">
+                <label asp-for="MonthlyRent">
+                    @L["Monthly rent (KWD)"] <span style="font-weight:400; color:#94a3b8; font-size:0.78rem;">@L["(optional)"]</span>
+                </label>
+                <input asp-for="MonthlyRent" type="number" step="0.001" min="0"
+                       data-val-required="false" />
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a asp-action="Details" asp-route-id="@Model.UnitId" class="btn-secondary">@L["Cancel"]</a>
+            <button type="submit" class="btn-primary"><i class="fas fa-save"></i> @L["Save changes"]</button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .form-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-field { display: flex; flex-direction: column; gap: 0.3rem; }
+    .form-field label { font-size: 0.85rem; font-weight: 600; color: #334155; }
+    .form-field input, .form-field select {
+        padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px;
+        background: white; font-size: 0.9rem;
+    }
+    .form-field input:focus, .form-field select:focus {
+        outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    }
+    .form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+    .btn-primary { display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.6rem 1.1rem; background: linear-gradient(135deg,#6366f1,#8b5cf6);
+        color: white; border-radius: 8px; border: 0; cursor: pointer; font-weight: 500; }
+    .btn-secondary { padding: 0.6rem 1.1rem; background: #f1f5f9; color: #475569;
+        border-radius: 8px; text-decoration: none; font-weight: 500; }
+    .alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+        padding: 0.7rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; }
+</style>

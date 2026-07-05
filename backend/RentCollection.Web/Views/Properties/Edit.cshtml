@@ -1,0 +1,640 @@
+﻿@model RentCollection.Core.Entities.Property
+
+@{
+    ViewData["Title"] = "Edit Property";
+}
+
+<div class="container-fluid">
+    <div class="page-header">
+        <div>
+            <h1>@L["Edit Property"]</h1>
+            <p class="text-muted">@L["Update property information"]</p>
+        </div>
+        <div>
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> @L["Back to List"]
+            </a>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <form asp-action="Edit" method="post">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+            <input type="hidden" asp-for="PropertyId" />
+            <input type="hidden" asp-for="Status" />
+            <input type="hidden" asp-for="CreatedDate" />
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Basic Information"]</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="PropertyName" class="control-label"></label>
+                            <input asp-for="PropertyName" class="form-control" />
+                            <span asp-validation-for="PropertyName" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="PACINumber" class="control-label">@L["Property PACI Number"]</label>
+                            <input asp-for="PACINumber" class="form-control" />
+                            <span asp-validation-for="PACINumber" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="PropertyType" class="control-label"></label>
+                            <select asp-for="PropertyType" class="form-control">
+                                <option value="Apartment">@L["Apartment"]</option>
+                                <option value="House">@L["House"]</option>
+                                <option value="Commercial">@L["Commercial"]</option>
+                                <option value="Condo">@L["Condo"]</option>
+                            </select>
+                            <span asp-validation-for="PropertyType" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="NumberOfUnits" class="control-label"></label>
+                            <input asp-for="NumberOfUnits" class="form-control" type="number" min="1" />
+                            <span asp-validation-for="NumberOfUnits" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="PurchaseDate" class="control-label"></label>
+                            <input asp-for="PurchaseDate" class="form-control" type="date" />
+                            <span asp-validation-for="PurchaseDate" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label asp-for="PropertyValue" class="control-label"></label>
+                            <input asp-for="PropertyValue" class="form-control" type="number" step="0.01" min="0" />
+                            <span asp-validation-for="PropertyValue" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Address Information"]</h3>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label asp-for="Address" class="control-label"></label>
+                            <input asp-for="Address" class="form-control" />
+                            <span asp-validation-for="Address" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Governorate" class="control-label"></label>
+                            <select asp-for="Governorate" class="form-control">
+                                <option value="Al Asimah">Al Asimah (Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â§Ã˜ÂµÃ™…Ã˜©)</option>
+                                <option value="Hawalli">Hawalli (Ã˜Â­Ã™Ë†Ã™â€žÃ™Å )</option>
+                                <option value="Farwaniya">Farwaniya (Ã˜Â§Ã™â€žÃ™ÂÃ˜Â±Ã™Ë†Ã˜Â§Ã™â€ Ã™Å Ã˜©)</option>
+                                <option value="Ahmadi">Ahmadi (Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â­Ã™…Ã˜Â¯Ã™Å )</option>
+                                <option value="Jahra">Jahra (Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€¡Ã˜Â±Ã˜Â§Ã˜Â¡)</option>
+                                <option value="Mubarak Al Kabeer">Mubarak Al Kabeer (Ã™…Ã˜Â¨Ã˜Â§Ã˜Â±Ã™Æ’ Ã˜Â§Ã™â€žÃ™Æ’Ã˜Â¨Ã™Å Ã˜Â±)</option>
+                            </select>
+                            <span asp-validation-for="Governorate" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label asp-for="Area" class="control-label"></label>
+                            <input asp-for="Area" class="form-control" />
+                            <span asp-validation-for="Area" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label asp-for="Block" class="control-label"></label>
+                            <input asp-for="Block" class="form-control" />
+                            <span asp-validation-for="Block" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="BuildingNumber" class="control-label"></label>
+                            <input asp-for="BuildingNumber" class="form-control" />
+                            <span asp-validation-for="BuildingNumber" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Street" class="control-label"></label>
+                            <input asp-for="Street" class="form-control" />
+                            <span asp-validation-for="Street" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title">@L["Management"]</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="CompanyId" class="control-label">@L["Company"]</label>
+                            <select asp-for="CompanyId" class="form-control" asp-items="ViewBag.CompanyId">
+                            </select>
+                            <span asp-validation-for="CompanyId" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="ManagerId" class="control-label">@L["Property Manager"]</label>
+                            <select asp-for="ManagerId" class="form-control" asp-items="ViewBag.ManagerId">
+                                <option value="">@L["-- Select Manager (Optional) --"]</option>
+                            </select>
+                            <span asp-validation-for="ManagerId" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title"><i class="fas fa-credit-card"></i> @L["Payment Gateway Configuration"]</h3>
+                <div class="payment-methods-row">
+                    <div class="payment-method-toggle">
+                        <label class="toggle-switch">
+                            <input type="checkbox" asp-for="AcceptKNET" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">@L["Accept KNET Payments"]</span>
+                    </div>
+                    <div class="payment-method-toggle">
+                        <label class="toggle-switch">
+                            <input type="checkbox" asp-for="AcceptBankTransfer" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">@L["Accept Bank Transfer"]</span>
+                    </div>
+                    <div class="payment-method-toggle">
+                        <label class="toggle-switch">
+                            <input type="checkbox" asp-for="AcceptCash" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">@L["Accept Cash"]</span>
+                    </div>
+                </div>
+
+                <div class="knet-config-section" id="knetConfigSection">
+                    <h4 class="subsection-title">@L["KNET Gateway Settings"]</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="KNETAccountID" class="control-label">@L["KNET Account ID"]</label>
+                                <input asp-for="KNETAccountID" class="form-control" placeholder="@(L["e.g., KNET_ACC_001"].Value)" />
+                                <span asp-validation-for="KNETAccountID" class="text-danger"></span>
+                                <small class="form-text text-muted">@L["Unique identifier for this property's KNET account"]</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="KNETMID" class="control-label">@L["KNET Merchant ID (MID)"]</label>
+                                <input asp-for="KNETMID" class="form-control" placeholder="@(L["e.g., MID_BUILDING_001"].Value)" />
+                                <span asp-validation-for="KNETMID" class="text-danger"></span>
+                                <small class="form-text text-muted">@L["Merchant ID assigned by KNET for this property"]</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label asp-for="KnetTranportalId" class="control-label">@L["KNET Tranportal ID"]</label>
+                                <input asp-for="KnetTranportalId" class="form-control" placeholder="@(L["Merchant Tranportal ID"].Value)" />
+                                <span asp-validation-for="KnetTranportalId" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label asp-for="KnetTranportalPwd" class="control-label">@L["KNET Tranportal Password"]</label>
+                                <div class="input-with-icon">
+                                    <input asp-for="KnetTranportalPwd" class="form-control" type="password" id="secretKey" placeholder="@(L["Tranportal password"].Value)" />
+                                    <button type="button" class="btn-toggle-visibility" onclick="toggleVisibility('secretKey')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="KnetTranportalPwd" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label asp-for="KnetTerminalResourceKey" class="control-label">@L["KNET Terminal Resource Key"]</label>
+                                <div class="input-with-icon">
+                                    <input asp-for="KnetTerminalResourceKey" class="form-control" type="password" id="resourceKey" placeholder="@(L["AES encryption key"].Value)" />
+                                    <button type="button" class="btn-toggle-visibility" onclick="toggleVisibility('resourceKey')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="KnetTerminalResourceKey" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 class="subsection-title">@L["Bank Settlement Details"]</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="KNETBankName" class="control-label">@L["Bank Name"]</label>
+                                <select asp-for="KNETBankName" class="form-control">
+                                    <option value="">@L["-- Select Bank --"]</option>
+                                    <option value="National Bank of Kuwait">National Bank of Kuwait (NBK)</option>
+                                    <option value="Gulf Bank">Gulf Bank</option>
+                                    <option value="Commercial Bank of Kuwait">Commercial Bank of Kuwait (CBK)</option>
+                                    <option value="Al Ahli Bank of Kuwait">Al Ahli Bank of Kuwait (ABK)</option>
+                                    <option value="Kuwait Finance House">Kuwait Finance House (KFH)</option>
+                                    <option value="Burgan Bank">Burgan Bank</option>
+                                    <option value="Boubyan Bank">Boubyan Bank</option>
+                                    <option value="Warba Bank">Warba Bank</option>
+                                </select>
+                                <span asp-validation-for="KNETBankName" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="KNETBankAccountNumber" class="control-label">@L["Bank Account Number (IBAN)"]</label>
+                                <input asp-for="KNETBankAccountNumber" class="form-control" placeholder="KW00XXXX0000000000000000000000" />
+                                <span asp-validation-for="KNETBankAccountNumber" class="text-danger"></span>
+                                <small class="form-text text-muted">@L["IBAN for receiving KNET settlements"]</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> @L["Save Changes"]
+                </button>
+                <a asp-action="Index" class="btn btn-secondary">@L["Cancel"]</a>
+                <a asp-action="Details" asp-route-id="@Model.PropertyId" class="btn btn-info">
+                    <i class="fas fa-info-circle"></i> @L["View Details"]
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        function toggleVisibility(inputId) {
+            var input = document.getElementById(inputId);
+            var icon = input.nextElementSibling.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // Show/hide KNET config based on AcceptKNET checkbox
+        document.addEventListener('DOMContentLoaded', function() {
+            var acceptKnetCheckbox = document.getElementById('AcceptKNET');
+            var knetConfigSection = document.getElementById('knetConfigSection');
+
+            function toggleKnetConfig() {
+                if (acceptKnetCheckbox.checked) {
+                    knetConfigSection.style.display = 'block';
+                } else {
+                    knetConfigSection.style.display = 'none';
+                }
+            }
+
+            if (acceptKnetCheckbox && knetConfigSection) {
+                toggleKnetConfig();
+                acceptKnetCheckbox.addEventListener('change', toggleKnetConfig);
+            }
+        });
+    </script>
+}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        color: #1e293b;
+        min-height: 100vh;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    .form-card {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+        padding-bottom: 2rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .form-section:last-of-type {
+        border-bottom: none;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #6366f1;
+        display: inline-block;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #475569;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 1rem;
+        color: #1e293b;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+
+    .btn-info {
+        background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+        color: white;
+    }
+
+    .btn-info:hover {
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    }
+
+    .text-danger {
+        color: #ef4444;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .alert-danger {
+        background-color: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Payment Gateway Styles */
+    .payment-methods-row {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: rgba(99, 102, 241, 0.05);
+        border-radius: 8px;
+    }
+
+    .payment-method-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #cbd5e1;
+        transition: 0.3s;
+        border-radius: 26px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(24px);
+    }
+
+    .toggle-label {
+        font-weight: 500;
+        color: #475569;
+    }
+
+    .knet-config-section {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .subsection-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #475569;
+        margin: 1.5rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px dashed #cbd5e1;
+    }
+
+    .subsection-title:first-child {
+        margin-top: 0;
+    }
+
+    .form-text {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    .input-with-icon {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .input-with-icon input {
+        padding-right: 40px;
+    }
+
+    .btn-toggle-visibility {
+        position: absolute;
+        right: 10px;
+        background: none;
+        border: none;
+        color: #64748b;
+        cursor: pointer;
+        padding: 0.25rem;
+    }
+
+    .btn-toggle-visibility:hover {
+        color: #6366f1;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #334155;
+        margin: 0;
+    }
+
+    .page-header .text-muted {
+        color: #475569;
+        margin: 0.5rem 0 0 0;
+    }
+
+    @@media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .form-card {
+            padding: 1rem;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+    }
+</style>

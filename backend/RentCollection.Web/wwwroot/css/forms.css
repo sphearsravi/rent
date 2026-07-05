@@ -1,0 +1,327 @@
+/* ===========================================================================
+ * forms.css — Sprint 23 forms revamp.
+ * Single source of truth for the look of the Tenant / Lease / Property
+ * create forms. Loaded after layout-shell.css (which already defines the
+ * page-header gradient + button), so values here can reference the same
+ * colour palette without re-importing it.
+ *
+ * Selectors are prefixed `.form-revamp` so they don't bleed into the
+ * legacy admin pages — opt-in by adding the class on the form's wrapper.
+ * =========================================================================== */
+
+.form-revamp {
+    --fr-bg:        #ffffff;
+    --fr-border:    #e2e8f0;
+    --fr-border-fc: #6366f1;    /* focus ring */
+    --fr-text:      #1e293b;
+    --fr-muted:     #64748b;
+    --fr-label:     #334155;
+    --fr-required:  #dc2626;
+    --fr-success:   #16a34a;
+    --fr-warn:      #d97706;
+    --fr-error:     #dc2626;
+    --fr-section:   #f8fafc;
+    --fr-radius:    10px;
+
+    color: var(--fr-text);
+}
+
+/* ── Zones ─────────────────────────────────────────────────────────────── */
+.form-revamp .fr-zone {
+    background: var(--fr-bg);
+    border: 1px solid var(--fr-border);
+    border-radius: var(--fr-radius);
+    padding: 1.25rem 1.5rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.form-revamp .fr-zone-essentials {
+    /* lift the primary zone visually */
+    box-shadow: 0 4px 12px rgba(99,102,241,0.08);
+    border-color: #c7d2fe;
+}
+.form-revamp .fr-zone-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--fr-label);
+    margin: 0 0 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: 0.01em;
+}
+.form-revamp .fr-zone-title i { color: var(--fr-border-fc); font-size: 0.85rem; }
+.form-revamp .fr-zone-hint {
+    font-size: 0.78rem;
+    color: var(--fr-muted);
+    margin: -0.5rem 0 0.85rem;
+}
+
+/* ── Collapsible "More details" ────────────────────────────────────────── */
+.form-revamp .fr-toggle-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.9rem;
+    margin-bottom: 1rem;
+    background: transparent;
+    border: 1px dashed var(--fr-border);
+    border-radius: 6px;
+    color: var(--fr-muted);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.form-revamp .fr-toggle-more:hover {
+    border-color: var(--fr-border-fc);
+    color: var(--fr-border-fc);
+}
+.form-revamp .fr-toggle-more.is-open i.fas { transform: rotate(180deg); }
+.form-revamp .fr-toggle-more i.fas { transition: transform 0.15s ease; font-size: 0.7rem; }
+.form-revamp [data-fr-collapsible] {
+    display: none;
+}
+.form-revamp [data-fr-collapsible].is-open { display: block; }
+
+/* ── Field rows ────────────────────────────────────────────────────────── */
+.form-revamp .fr-row {
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 0.65rem;
+}
+.form-revamp .fr-row-3 { grid-template-columns: repeat(3, 1fr); }
+.form-revamp .fr-row-1 { grid-template-columns: 1fr; }
+@media (max-width: 640px) {
+    .form-revamp .fr-row,
+    .form-revamp .fr-row-3 { grid-template-columns: 1fr; }
+}
+
+.form-revamp .fr-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.form-revamp .fr-field label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--fr-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.form-revamp .fr-field label .required {
+    color: var(--fr-required);
+    margin-left: 0.15rem;
+}
+.form-revamp .fr-field label .optional {
+    color: var(--fr-muted);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 0.35rem;
+    font-size: 0.74rem;
+}
+
+.form-revamp .fr-field input,
+.form-revamp .fr-field select,
+.form-revamp .fr-field textarea {
+    padding: 0.55rem 0.75rem;
+    border: 1.5px solid var(--fr-border);
+    border-radius: 7px;
+    background: var(--fr-bg);
+    font-size: 0.92rem;
+    color: var(--fr-text);
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.form-revamp .fr-field input:focus,
+.form-revamp .fr-field select:focus,
+.form-revamp .fr-field textarea:focus {
+    outline: none;
+    border-color: var(--fr-border-fc);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+.form-revamp .fr-field input[readonly] {
+    background: var(--fr-section);
+    color: var(--fr-muted);
+}
+
+/* Currency prefix */
+.form-revamp .fr-currency {
+    display: flex;
+    align-items: stretch;
+}
+.form-revamp .fr-currency .fr-prefix {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.7rem;
+    background: var(--fr-section);
+    border: 1.5px solid var(--fr-border);
+    border-right: 0;
+    border-radius: 7px 0 0 7px;
+    color: var(--fr-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.form-revamp .fr-currency input {
+    border-radius: 0 7px 7px 0;
+    flex: 1;
+}
+
+/* Field validation hint chip */
+.form-revamp .fr-hint {
+    font-size: 0.74rem;
+    color: var(--fr-muted);
+}
+.form-revamp .fr-hint.is-error   { color: var(--fr-error);   font-weight: 500; }
+.form-revamp .fr-hint.is-warn    { color: var(--fr-warn);    font-weight: 500; }
+.form-revamp .fr-hint.is-success { color: var(--fr-success); font-weight: 500; }
+
+/* AI-filled field marker (Sprint 21) — amber border until operator confirms */
+.form-revamp .fr-ai-filled {
+    border-color: var(--fr-warn) !important;
+    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.1);
+}
+
+/* ── Action bar (sticky on mobile) ─────────────────────────────────────── */
+.form-revamp .fr-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1rem 0;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+.form-revamp .fr-actions .fr-spacer { flex: 1; }
+
+.form-revamp .fr-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    min-height: 2.5rem;
+    border-radius: 0.625rem;
+    border: 1.5px solid transparent;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    white-space: nowrap;
+    text-decoration: none;
+}
+.form-revamp .fr-btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    color: #fff;
+    border-color: rgba(255,255,255,0.15);
+    box-shadow: 0 4px 10px -2px rgba(67, 56, 202, 0.35);
+}
+.form-revamp .fr-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px -4px rgba(67, 56, 202, 0.45);
+    color: #fff;
+}
+.form-revamp .fr-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.form-revamp .fr-btn-secondary {
+    background: #fff;
+    color: var(--fr-label);
+    border-color: var(--fr-border);
+}
+.form-revamp .fr-btn-secondary:hover {
+    border-color: var(--fr-border-fc);
+    color: var(--fr-border-fc);
+}
+.form-revamp .fr-btn-ghost {
+    background: transparent;
+    color: var(--fr-muted);
+    border-color: transparent;
+}
+.form-revamp .fr-btn-ghost:hover { color: var(--fr-label); }
+
+/* Sticky action bar on small viewports — keeps Save reachable
+ * without scrolling on long forms. */
+@media (max-width: 768px) {
+    .form-revamp .fr-actions {
+        position: sticky;
+        bottom: 0;
+        background: #ffffffee;
+        backdrop-filter: blur(8px);
+        border-top: 1px solid var(--fr-border);
+        padding: 0.75rem 1rem;
+        margin: 1rem -1rem -1rem;
+        z-index: 10;
+    }
+}
+
+/* ── Loading state on submit button ────────────────────────────────────── */
+.form-revamp .fr-btn.is-loading { pointer-events: none; opacity: 0.7; }
+.form-revamp .fr-btn.is-loading::after {
+    content: '';
+    width: 0.9em;
+    height: 0.9em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    margin-left: 0.4em;
+    animation: fr-spin 0.6s linear infinite;
+}
+@keyframes fr-spin { to { transform: rotate(360deg); } }
+
+/* ── Info preview chip (Lease: Unit details when picked) ───────────────── */
+.form-revamp .fr-info-chip {
+    display: none;
+    margin-top: 0.4rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--fr-section);
+    border: 1px solid var(--fr-border);
+    border-radius: 7px;
+    color: var(--fr-muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+.form-revamp .fr-info-chip.is-visible { display: block; }
+.form-revamp .fr-info-chip strong { color: var(--fr-text); font-weight: 600; }
+
+/* Draft autosave indicator (sessionStorage badge) */
+.form-revamp .fr-draft-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 999px;
+    color: var(--fr-success);
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+.form-revamp .fr-draft-badge i { font-size: 0.65rem; }
+
+/* Top-of-form error banner — shown when the page has validation/server errors.
+   Persistent (no auto-dismiss) so the operator can read and fix every item. */
+.fr-error-banner {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 1.25rem;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border: 1px solid #fecaca;
+    border-left: 4px solid var(--fr-error);
+    border-radius: 8px;
+    color: #7f1d1d;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.08);
+    animation: frErrorSlideDown 0.25s ease-out;
+}
+.fr-error-banner > i { margin-top: 0.15rem; color: var(--fr-error); font-size: 1.05rem; }
+.fr-error-banner strong { display: block; margin-bottom: 0.25rem; }
+.fr-error-banner ul { margin: 0; padding-left: 1.1rem; }
+.fr-error-banner ul li { margin: 0.1rem 0; }
+.fr-error-banner .validation-summary-valid { display: none; }
+@keyframes frErrorSlideDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

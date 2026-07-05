@@ -1,0 +1,315 @@
+@model RentCollection.Core.Entities.Property
+
+@{
+    ViewData["Title"] = "Create Property";
+}
+
+@*
+    Sprint 23 — Property Create revamp.
+    Zones: Essentials (Name / PACI / Type / Governorate), Address (optional),
+    Management (optional), Documents. Optional zones collapsed by default.
+*@
+
+<div class="container-fluid">
+    <div class="page-header page-header-flex">
+        <div>
+            <h1>@L["Create New Property"]</h1>
+            <p class="text-muted">@L["Required fields are in Essentials. Address & management can be filled later."]</p>
+        </div>
+        <div>
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> @L["Back to List"]
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["PropertyCreated"] != null)
+    {
+        <div class="alert alert-success" style="margin-bottom:1rem;">
+            <i class="fas fa-check-circle"></i> @L["Property"] @TempData["PropertyCreated"] @L["saved. Add another below."]
+        </div>
+    }
+
+    <form asp-action="Create" method="post" enctype="multipart/form-data"
+          class="form-revamp" id="propertyCreateForm">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <div data-fr-draft-slot></div>
+
+        @* ─────────── Zone 1 — Essentials ─────────── *@
+        <div class="fr-zone fr-zone-essentials">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-asterisk"></i>
+                <span>@L["Essentials"]</span>
+            </h3>
+            <p class="fr-zone-hint">@L["Required to save. PACI is the building's unique PACI ID."]</p>
+
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="PropertyName">@L["Property Name"] <span class="required">*</span></label>
+                    <input asp-for="PropertyName" required />
+                    <span asp-validation-for="PropertyName" class="fr-hint is-error"></span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="PACINumber">
+                        <i class="fas fa-id-card"></i> @L["Building PACI"] <span class="required">*</span>
+                    </label>
+                    <input asp-for="PACINumber" placeholder="@(L["Building PACI number"].Value)" required />
+                    <span asp-validation-for="PACINumber" class="fr-hint is-error">@L["Unique PACI identifier for the building"]</span>
+                </div>
+            </div>
+
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="PropertyType">@L["Property Type"] <span class="required">*</span></label>
+                    <select asp-for="PropertyType" required>
+                        <option value="">@L["-- Select Type --"]</option>
+                        <option value="Apartment">@L["Apartment"]</option>
+                        <option value="House">@L["House"]</option>
+                        <option value="Commercial">@L["Commercial"]</option>
+                        <option value="Condo">@L["Condo"]</option>
+                    </select>
+                    <span asp-validation-for="PropertyType" class="fr-hint is-error"></span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="Governorate">@L["Governorate"] <span class="required">*</span></label>
+                    <select asp-for="Governorate" required>
+                        <option value="">@L["-- Select Governorate --"]</option>
+                        <option value="Al Asimah">@L["Al Asimah"]</option>
+                        <option value="Hawalli">@L["Hawalli"]</option>
+                        <option value="Farwaniya">@L["Farwaniya"]</option>
+                        <option value="Ahmadi">@L["Ahmadi"]</option>
+                        <option value="Jahra">@L["Jahra"]</option>
+                        <option value="Mubarak Al Kabeer">@L["Mubarak Al Kabeer"]</option>
+                    </select>
+                    <span asp-validation-for="Governorate" class="fr-hint is-error"></span>
+                </div>
+            </div>
+
+            <div class="fr-row fr-row-3">
+                <div class="fr-field">
+                    <label asp-for="NumberOfUnits">@L["Number of Units"] <span class="required">*</span></label>
+                    <input asp-for="NumberOfUnits" type="number" min="1" required />
+                    <span asp-validation-for="NumberOfUnits" class="fr-hint is-error"></span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="CompanyId">@L["Company"] <span class="required">*</span></label>
+                    <select asp-for="CompanyId" asp-items="ViewBag.CompanyId" required>
+                        <option value="">@L["-- Select Company --"]</option>
+                    </select>
+                    <span asp-validation-for="CompanyId" class="fr-hint is-error"></span>
+                </div>
+                <div class="fr-field"></div>
+            </div>
+        </div>
+
+        @* ─────────── Zone 2 — More details (collapsed) ─────────── *@
+        <button type="button" class="fr-toggle-more" data-fr-toggle="moreProp">
+            <i class="fas fa-chevron-down"></i>
+            <span>@L["More details (address, valuation, manager)"]</span>
+        </button>
+        <div data-fr-collapsible="moreProp">
+            <div class="fr-zone">
+                <h3 class="fr-zone-title">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>@L["Address"]</span>
+                </h3>
+                <div class="fr-row fr-row-1">
+                    <div class="fr-field">
+                        <label asp-for="Address">@L["Full Address"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="Address" placeholder="@(L["Street address"].Value)" />
+                        <span class="fr-hint"></span>
+                    </div>
+                </div>
+                <div class="fr-row fr-row-3">
+                    <div class="fr-field">
+                        <label asp-for="Area">@L["Area"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="Area" />
+                        <span class="fr-hint"></span>
+                    </div>
+                    <div class="fr-field">
+                        <label asp-for="Block">@L["Block"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="Block" />
+                        <span class="fr-hint"></span>
+                    </div>
+                    <div class="fr-field">
+                        <label asp-for="Street">@L["Street"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="Street" />
+                        <span class="fr-hint"></span>
+                    </div>
+                </div>
+                <div class="fr-row">
+                    <div class="fr-field">
+                        <label asp-for="BuildingNumber">@L["Building Number"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="BuildingNumber" />
+                        <span class="fr-hint"></span>
+                    </div>
+                    <div class="fr-field"></div>
+                </div>
+            </div>
+
+            <div class="fr-zone">
+                <h3 class="fr-zone-title">
+                    <i class="fas fa-coins"></i>
+                    <span>@L["Valuation & Acquisition"]</span>
+                </h3>
+                <div class="fr-row">
+                    <div class="fr-field">
+                        <label asp-for="PurchaseDate">@L["Purchase Date"] <span class="optional">@L["optional"]</span></label>
+                        <input asp-for="PurchaseDate" type="date" />
+                        <span class="fr-hint"></span>
+                    </div>
+                    <div class="fr-field">
+                        <label asp-for="PropertyValue">@L["Property Value"] <span class="optional">@L["optional"]</span></label>
+                        <div class="fr-currency">
+                            <span class="fr-prefix">KWD</span>
+                            <input asp-for="PropertyValue" type="number" step="0.01" min="0" />
+                        </div>
+                        <span class="fr-hint"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fr-zone">
+                <h3 class="fr-zone-title">
+                    <i class="fas fa-user-tie"></i>
+                    <span>@L["Management"]</span>
+                </h3>
+                <div class="fr-row">
+                    <div class="fr-field">
+                        <label asp-for="ManagerId">@L["Property Manager"] <span class="optional">@L["optional"]</span></label>
+                        <select asp-for="ManagerId" asp-items="ViewBag.ManagerId">
+                            <option value="">@L["-- Select Manager --"]</option>
+                        </select>
+                        <span class="fr-hint">@L["Can be assigned later"]</span>
+                    </div>
+                    <div class="fr-field"></div>
+                </div>
+            </div>
+        </div>
+
+        @* ─────────── Zone 3 — Documents ─────────── *@
+        <div class="fr-zone">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-file-upload"></i>
+                <span>@L["Documents"]</span>
+            </h3>
+            <p class="fr-zone-hint">@L["Deed, permits, certificates, insurance, floor plans. Max 10MB per file."]</p>
+
+            <div id="document-upload-area">
+                <div class="document-row">
+                    <div class="fr-row fr-row-3">
+                        <div class="fr-field">
+                            <label>@L["Document Type"]</label>
+                            <select name="DocumentTypes[]">
+                                <option value="">@L["-- Select Type --"]</option>
+                                <option value="Deed">@L["Property Deed"]</option>
+                                <option value="Title">@L["Title Document"]</option>
+                                <option value="Building Permit">@L["Building Permit"]</option>
+                                <option value="Occupancy Certificate">@L["Occupancy Certificate"]</option>
+                                <option value="Insurance Policy">@L["Insurance Policy"]</option>
+                                <option value="Fire Safety Certificate">@L["Fire Safety Certificate"]</option>
+                                <option value="Electrical Certificate">@L["Electrical Certificate"]</option>
+                                <option value="Plumbing Certificate">@L["Plumbing Certificate"]</option>
+                                <option value="Municipality License">@L["Municipality License"]</option>
+                                <option value="Property Survey">@L["Property Survey"]</option>
+                                <option value="Floor Plan">@L["Floor Plan"]</option>
+                                <option value="Other">@L["Other"]</option>
+                            </select>
+                        </div>
+                        <div class="fr-field">
+                            <label>@L["File"]</label>
+                            <input type="file" name="Documents[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.dwg" />
+                            <span class="fr-hint">@L["PDF, JPG, PNG, DOC, DOCX, DWG — max 10MB"]</span>
+                        </div>
+                        <div class="fr-field" style="justify-content:flex-end;">
+                            <label>&nbsp;</label>
+                            <button type="button" class="fr-btn fr-btn-ghost remove-document" style="display:none;">
+                                <i class="fas fa-trash"></i> @L["Remove"]
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="add-document-btn" class="fr-btn fr-btn-secondary" style="margin-top:0.5rem;">
+                <i class="fas fa-plus"></i> @L["Add another document"]
+            </button>
+        </div>
+
+        <div class="fr-actions">
+            <a asp-action="Index" class="fr-btn fr-btn-ghost">@L["Cancel"]</a>
+            <div class="fr-spacer"></div>
+            <button type="submit" class="fr-btn fr-btn-secondary" data-fr-save-and-add>
+                <i class="fas fa-plus"></i> @L["Save & add another"]
+            </button>
+            <button type="submit" class="fr-btn fr-btn-primary">
+                <i class="fas fa-save"></i> @L["Create Property"]
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    <script>
+        (function () {
+            var addBtn = document.getElementById('add-document-btn');
+            if (!addBtn) return;
+
+            var typeOptions =
+                '<option value="">-- Select Type --</option>' +
+                '<option value="Deed">Property Deed</option>' +
+                '<option value="Title">Title Document</option>' +
+                '<option value="Building Permit">Building Permit</option>' +
+                '<option value="Occupancy Certificate">Occupancy Certificate</option>' +
+                '<option value="Insurance Policy">Insurance Policy</option>' +
+                '<option value="Fire Safety Certificate">Fire Safety Certificate</option>' +
+                '<option value="Electrical Certificate">Electrical Certificate</option>' +
+                '<option value="Plumbing Certificate">Plumbing Certificate</option>' +
+                '<option value="Municipality License">Municipality License</option>' +
+                '<option value="Property Survey">Property Survey</option>' +
+                '<option value="Floor Plan">Floor Plan</option>' +
+                '<option value="Other">Other</option>';
+
+            function attachRemove(rowEl) {
+                var btn = rowEl.querySelector('.remove-document');
+                if (!btn) return;
+                btn.addEventListener('click', function () {
+                    rowEl.remove();
+                    var rows = document.querySelectorAll('.document-row');
+                    if (rows.length === 1) rows[0].querySelector('.remove-document').style.display = 'none';
+                });
+            }
+
+            addBtn.addEventListener('click', function () {
+                var area = document.getElementById('document-upload-area');
+                var row = document.createElement('div');
+                row.className = 'document-row';
+                row.style.marginTop = '0.75rem';
+                row.innerHTML =
+                    '<div class="fr-row fr-row-3">' +
+                        '<div class="fr-field">' +
+                            '<label>Document Type</label>' +
+                            '<select name="DocumentTypes[]">' + typeOptions + '</select>' +
+                        '</div>' +
+                        '<div class="fr-field">' +
+                            '<label>File</label>' +
+                            '<input type="file" name="Documents[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.dwg" />' +
+                            '<span class="fr-hint">PDF, JPG, PNG, DOC, DOCX, DWG — max 10MB</span>' +
+                        '</div>' +
+                        '<div class="fr-field" style="justify-content:flex-end;">' +
+                            '<label>&nbsp;</label>' +
+                            '<button type="button" class="fr-btn fr-btn-ghost remove-document">' +
+                                '<i class="fas fa-trash"></i> Remove' +
+                            '</button>' +
+                        '</div>' +
+                    '</div>';
+                area.appendChild(row);
+                var first = document.querySelector('.document-row:first-child .remove-document');
+                if (first) first.style.display = 'inline-flex';
+                attachRemove(row);
+            });
+        })();
+    </script>
+}

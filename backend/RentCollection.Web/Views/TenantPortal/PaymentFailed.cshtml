@@ -1,0 +1,85 @@
+@{
+    ViewData["Title"] = "Payment Failed";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - VIIJAR</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body style="background: linear-gradient(135deg, #f8fafc 0%, #fee2e2 50%, #fecaca 100%); min-height: 100vh;">
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-body text-center p-5">
+                    <div class="error-icon mb-4">
+                        <i class="fas fa-times-circle text-danger" style="font-size: 5rem;"></i>
+                    </div>
+
+                    <h2 class="text-danger mb-3">@L["Payment Failed"]</h2>
+                    <p class="text-muted mb-4">@L["Unfortunately, your payment could not be processed."]</p>
+
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger mb-4">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            @ViewBag.Error
+                        </div>
+                    }
+
+                    @if (ViewBag.Reference != null)
+                    {
+                        <div class="alert alert-light border mb-4">
+                            <strong>@L["Reference Number:"]</strong><br>
+                            <code>@ViewBag.Reference</code>
+                        </div>
+                    }
+
+                    <div class="card bg-light mb-4">
+                        <div class="card-body text-start">
+                            <h6 class="card-title">@L["What you can do:"]</h6>
+                            <ul class="mb-0">
+                                <li>@L["Check your card details and try again"]</li>
+                                <li>@L["Ensure you have sufficient funds"]</li>
+                                <li>@L["Contact your bank if the problem persists"]</li>
+                                <li>@L["Try using a different payment method"]</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="@Url.Action("MakePayment", "TenantPortal")" class="btn btn-primary btn-lg">
+                            <i class="fas fa-redo me-2"></i>@L["Try Again"]
+                        </a>
+                        <a href="@Url.Action("Dashboard", "TenantPortal")" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i>@L["Back to Dashboard"]
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .error-icon {
+        animation: shake 0.5s ease-out;
+    }
+
+    @@keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+    }
+</style>
+
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+@model RentCollection.Application.Interfaces.ReconciliationSummaryDto
+@{
+    ViewData["Title"] = "Reconciliation";
+
+    string StatusClass(string s) => s?.ToLowerInvariant() switch
+    {
+        "completed" or "settled" or "approved" => "badge-success",
+        "pending" or "pendingverification" => "badge-warning",
+        "failed" or "rejected" or "cancelled" or "unmatched" => "badge-danger",
+        _ => "badge-secondary"
+    };
+}
+
+<div class="page-container">
+    @{
+        var actions = new System.Text.StringBuilder();
+        actions.Append("<a href=\"/Payments\" class=\"btn btn-secondary\"><i class=\"fas fa-arrow-left\"></i> Back to Payments</a>");
+        actions.Append("<a href=\"/Payments/KNETReconciliation\" class=\"btn btn-primary\"><i class=\"fas fa-credit-card\"></i> KNET Reconciliation</a>");
+    }
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = "Reconciliation",
+        ["Subtitle"] = "Payment reconciliation summary" +
+            (Model.StartDate != default && Model.EndDate != default
+                ? $" ({Model.StartDate:dd MMM yyyy} – {Model.EndDate:dd MMM yyyy})"
+                : ""),
+        ["ActionsHtml"] = new Microsoft.AspNetCore.Html.HtmlString(actions.ToString())
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <!-- Overview cards -->
+    <div class="payment-summary">
+        <div class="summary-card">
+            <div class="summary-icon" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                <i class="fas fa-receipt"></i>
+            </div>
+            <div class="summary-details">
+                <h3>@Model.TotalPayments</h3>
+                <p>Total Payments</p>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="summary-details">
+                <h3>@("KWD " + Model.TotalAmount.ToString("N3"))</h3>
+                <p>Total Amount</p>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="summary-details">
+                <h3>@Model.MismatchedPayments</h3>
+                <p>Mismatched Payments</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Property / date context -->
+    <div class="card" style="padding:24px;margin-bottom:20px;">
+        <h3 style="margin-top:0;">Period</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+            <div><strong>Start Date</strong><div>@Model.StartDate.ToString("dd MMM yyyy")</div></div>
+            <div><strong>End Date</strong><div>@Model.EndDate.ToString("dd MMM yyyy")</div></div>
+            <div><strong>Property</strong><div>@(string.IsNullOrEmpty(Model.PropertyName) ? "All Properties" : Model.PropertyName)</div></div>
+        </div>
+    </div>
+
+    <!-- Status breakdown -->
+    <div class="card" style="padding:24px;margin-bottom:20px;">
+        <h3 style="margin-top:0;">Status Breakdown</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th style="text-align:right;">Count</th>
+                    <th style="text-align:right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="badge badge-success">Completed</span></td>
+                    <td style="text-align:right;">@Model.CompletedPayments</td>
+                    <td style="text-align:right;">@("KWD " + Model.CompletedAmount.ToString("N3"))</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-warning">Pending</span></td>
+                    <td style="text-align:right;">@Model.PendingPayments</td>
+                    <td style="text-align:right;">@("KWD " + Model.PendingAmount.ToString("N3"))</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-danger">Failed</span></td>
+                    <td style="text-align:right;">@Model.FailedPayments</td>
+                    <td style="text-align:right;">@("KWD " + Model.FailedAmount.ToString("N3"))</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-secondary">Mismatched</span></td>
+                    <td style="text-align:right;">@Model.MismatchedPayments</td>
+                    <td style="text-align:right;">@("KWD " + Model.MismatchedAmount.ToString("N3"))</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr style="font-weight:700;">
+                    <td>Total</td>
+                    <td style="text-align:right;">@Model.TotalPayments</td>
+                    <td style="text-align:right;">@("KWD " + Model.TotalAmount.ToString("N3"))</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Mismatch resolution -->
+    <div class="card" style="padding:24px;margin-bottom:20px;">
+        <h3 style="margin-top:0;">Mismatch Resolution</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+            <div><strong>Resolved Mismatches</strong><div>@Model.ResolvedMismatches</div></div>
+            <div><strong>Unresolved Mismatches</strong><div>@Model.UnresolvedMismatches</div></div>
+        </div>
+    </div>
+
+    <!-- By building -->
+    <div class="card" style="padding:24px;margin-bottom:20px;">
+        <h3 style="margin-top:0;">By Building</h3>
+        @if (Model.ByBuilding == null || Model.ByBuilding.Count == 0)
+        {
+            <p style="color:#6b7280;">No building-level reconciliation data for this period.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Property</th>
+                        <th>KNET Account</th>
+                        <th>KNET MID</th>
+                        <th style="text-align:right;">Payments</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="text-align:right;">Settled</th>
+                        <th style="text-align:right;">Pending</th>
+                        <th style="text-align:right;">Mismatches</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.ByBuilding)
+                    {
+                        <tr>
+                            <td>@b.PropertyName</td>
+                            <td>@(string.IsNullOrEmpty(b.KNETAccountID) ? "—" : b.KNETAccountID)</td>
+                            <td>@(string.IsNullOrEmpty(b.KNETMID) ? "—" : b.KNETMID)</td>
+                            <td style="text-align:right;">@b.PaymentCount</td>
+                            <td style="text-align:right;">@("KWD " + b.TotalAmount.ToString("N3"))</td>
+                            <td style="text-align:right;">@("KWD " + b.SettledAmount.ToString("N3"))</td>
+                            <td style="text-align:right;">@("KWD " + b.PendingAmount.ToString("N3"))</td>
+                            <td style="text-align:right;">@b.MismatchCount</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <!-- By KNET account -->
+    <div class="card" style="padding:24px;">
+        <h3 style="margin-top:0;">By KNET Account</h3>
+        @if (Model.ByKNETAccount == null || Model.ByKNETAccount.Count == 0)
+        {
+            <p style="color:#6b7280;">No KNET account-level reconciliation data for this period.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>KNET Account</th>
+                        <th>KNET MID</th>
+                        <th>Buildings</th>
+                        <th style="text-align:right;">Payments</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="text-align:right;">Settled</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var k in Model.ByKNETAccount)
+                    {
+                        <tr>
+                            <td>@(string.IsNullOrEmpty(k.KNETAccountID) ? "—" : k.KNETAccountID)</td>
+                            <td>@(string.IsNullOrEmpty(k.KNETMID) ? "—" : k.KNETMID)</td>
+                            <td>@(k.BuildingNames != null && k.BuildingNames.Count > 0 ? string.Join(", ", k.BuildingNames) : "—")</td>
+                            <td style="text-align:right;">@k.PaymentCount</td>
+                            <td style="text-align:right;">@("KWD " + k.TotalAmount.ToString("N3"))</td>
+                            <td style="text-align:right;">@("KWD " + k.SettledAmount.ToString("N3"))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

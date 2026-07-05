@@ -1,0 +1,69 @@
+@*
+   Shared page-header partial (Sprint 3 A6a).
+
+   Usage from any view:
+     @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+         { "Title", "Tenants" },
+         { "Subtitle", "All active tenants across companies" },
+         { "ActionLabel", "New Tenant" },
+         { "ActionHref", Url.Action("Create") },
+         { "Crumbs", new (string label, string? href)[] {
+             ("Admin", "/Dashboard"),
+             ("Tenants", null)
+         } }
+     })
+
+   Built with Tailwind utility classes (wwwroot/css/tailwind.css) so we
+   don't pile more bespoke CSS into the project. The legacy `.page-title`
+   defined in admin.css is also fine if a view prefers it.
+*@
+@using Microsoft.AspNetCore.Html
+@{
+    var title       = ViewData["Title"] as string ?? "";
+    var subtitle    = ViewData["Subtitle"] as string;
+    var actionLabel = ViewData["ActionLabel"] as string;
+    var actionHref  = ViewData["ActionHref"] as string;
+    var crumbs      = ViewData["Crumbs"] as IEnumerable<(string label, string? href)>;
+    var actionsHtml = ViewData["ActionsHtml"] as IHtmlContent;
+}
+
+<div class="page-header-flex">
+    <div>
+        @if (crumbs != null)
+        {
+            <nav class="text-xs text-slate-500 mb-1" aria-label="Breadcrumb">
+                @foreach (var (c, isLast) in crumbs.Select((c, i) => (c, i == crumbs.Count() - 1)))
+                {
+                    @if (!string.IsNullOrEmpty(c.href) && !isLast)
+                    {
+                        <a href="@c.href" class="hover:text-indigo-600">@L[c.label]</a>
+                    }
+                    else
+                    {
+                        <span class="text-slate-700 font-medium">@L[c.label]</span>
+                    }
+                    @if (!isLast) { <span class="mx-2 text-slate-300">/</span> }
+                }
+            </nav>
+        }
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">@L[title]</h1>
+        @if (!string.IsNullOrEmpty(subtitle))
+        {
+            <p class="text-sm text-slate-500 mt-1">@L[subtitle]</p>
+        }
+    </div>
+
+    @if (actionsHtml != null)
+    {
+        <div class="flex flex-wrap items-center gap-2 self-start">
+            @actionsHtml
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(actionLabel) && !string.IsNullOrEmpty(actionHref))
+    {
+        <a href="@actionHref" class="page-header-action">
+            <i class="fas fa-plus"></i>
+            <span>@L[actionLabel]</span>
+        </a>
+    }
+</div>

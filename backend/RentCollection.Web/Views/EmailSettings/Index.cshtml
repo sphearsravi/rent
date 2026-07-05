@@ -1,0 +1,212 @@
+@model RentCollection.Web.Controllers.EmailSettingsViewModel
+
+@{
+    ViewData["Title"] = "Email Settings";
+}
+
+@*
+   Sprint 25 — admin page for SMTP configuration. The form posts to
+   /EmailSettings/Save; the Test button POSTs the same values to
+   /EmailSettings/Test via AJAX so the admin can verify creds without
+   committing.
+*@
+
+<div class="container-fluid" style="padding: 2rem;">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = L["Email Settings"].Value,
+        ["Subtitle"] = L["SMTP credentials used for all outbound email — invoices, receipts, tenant credentials."].Value
+    })
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success" style="margin-bottom: 1rem;">
+            <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        </div>
+    }
+
+    @if (Model.LastTestAt.HasValue)
+    {
+        var ok = Model.LastTestResult == "OK";
+        <div class="alert @(ok ? "alert-success" : "alert-warning")" style="margin-bottom:1rem;">
+            <i class="fas @(ok ? "fa-check-circle" : "fa-exclamation-triangle")"></i>
+            <strong>@L["Last test:"]</strong> @Model.LastTestAt.Value.ToString("yyyy-MM-dd HH:mm UTC") —
+            @(ok ? "Success." : Model.LastTestResult)
+        </div>
+    }
+
+    <form asp-action="Save" method="post" class="form-revamp" id="emailSettingsForm">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        <div class="fr-zone fr-zone-essentials">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-server"></i>
+                <span>@L["SMTP Server"]</span>
+            </h3>
+            <p class="fr-zone-hint">
+                @L["Get these from your email provider. For Gmail use an"]
+                <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener">@L["App Password"]</a> —
+                @L["regular Google passwords are rejected by SMTP."]
+            </p>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="Host">@L["Host"] <span class="required">*</span></label>
+                    <input asp-for="Host" placeholder="smtp.gmail.com" required />
+                    <span class="fr-hint">@L["Server hostname"]</span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="Port">@L["Port"] <span class="required">*</span></label>
+                    <input asp-for="Port" type="number" min="1" max="65535" required />
+                    <span class="fr-hint">@L["587 (STARTTLS) or 465 (SMTPS)"]</span>
+                </div>
+            </div>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="Username">@L["Username"] <span class="required">*</span></label>
+                    <input asp-for="Username" placeholder="you@example.com" required />
+                    <span class="fr-hint">@L["Usually your full email address"]</span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="Password">
+                        @L["Password"]
+                        @if (Model.HasStoredPassword)
+                        {
+                            <span class="optional">@L["(leave blank to keep stored value)"]</span>
+                        }
+                        else
+                        {
+                            <span class="required">*</span>
+                        }
+                    </label>
+                    <input asp-for="Password" type="password" autocomplete="new-password"
+                           placeholder="@(Model.HasStoredPassword ? "•••••••• (unchanged)" : "Enter SMTP password")" />
+                    <span class="fr-hint">@L["App Password recommended for Gmail / Outlook 2FA accounts"]</span>
+                </div>
+            </div>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label>
+                        <input asp-for="EnableSsl" type="checkbox" style="width:auto; margin-right:0.4rem;" />
+                        @L["Enable TLS / SSL"]
+                    </label>
+                    <span class="fr-hint">@L["Required by almost every modern SMTP provider"]</span>
+                </div>
+                <div class="fr-field"></div>
+            </div>
+        </div>
+
+        <div class="fr-zone">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-paper-plane"></i>
+                <span>@L["From Address"]</span>
+            </h3>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="FromAddress">@L["From Email"] <span class="required">*</span></label>
+                    <input asp-for="FromAddress" type="email" placeholder="no-reply@alrtam.com" required />
+                    <span class="fr-hint">@L["Many SMTP servers reject if this doesn't match Username"]</span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="FromName">@L["Display Name"]</label>
+                    <input asp-for="FromName" placeholder="@(L["ALRTAM Company"].Value)" />
+                    <span class="fr-hint">@L["Shown in the recipient's inbox"]</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fr-zone">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-vial"></i>
+                <span>@L["Mode"]</span>
+            </h3>
+            <div class="fr-row fr-row-1">
+                <div class="fr-field">
+                    <label>
+                        <input asp-for="DryRun" type="checkbox" style="width:auto; margin-right:0.4rem;" />
+                        @L["Dry Run (log messages, don't actually send)"]
+                    </label>
+                    <span class="fr-hint">
+                        @L["Leave ON until you've successfully tested. With Dry Run on, the rest of the app runs normally but no real emails go out — useful for staging or while you provision credentials."]
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fr-zone">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-bug"></i>
+                <span>@L["Test"]</span>
+            </h3>
+            <p class="fr-zone-hint">
+                @L["Send a test email using the values currently in the form (no need to Save first). Dry Run must be off for the test to actually contact your SMTP server."]
+            </p>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label for="testRecipient">@L["Test Recipient"]</label>
+                    <input type="email" id="testRecipient" placeholder="you@example.com" />
+                    <span class="fr-hint">@L["Where to send the test message"]</span>
+                </div>
+                <div class="fr-field" style="justify-content:flex-end;">
+                    <label>&nbsp;</label>
+                    <button type="button" id="testEmailBtn" class="fr-btn fr-btn-secondary">
+                        <i class="fas fa-paper-plane"></i> @L["Send Test Email"]
+                    </button>
+                </div>
+            </div>
+            <div id="testResult" class="fr-hint" style="margin-top:0.5rem;"></div>
+        </div>
+
+        <div class="fr-actions">
+            <div class="fr-spacer"></div>
+            <button type="submit" class="fr-btn fr-btn-primary">
+                <i class="fas fa-save"></i> @L["Save Settings"]
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        // Sprint 25 — Test button POSTs current form values to /EmailSettings/Test
+        // and renders the JSON response inline. No save happens; just a probe.
+        (function () {
+            var btn = document.getElementById('testEmailBtn');
+            var result = document.getElementById('testResult');
+            if (!btn) return;
+
+            btn.addEventListener('click', function () {
+                var to = document.getElementById('testRecipient').value.trim();
+                if (!to) {
+                    result.textContent = 'Enter a recipient email first.';
+                    result.className = 'fr-hint is-error';
+                    return;
+                }
+
+                var form = document.getElementById('emailSettingsForm');
+                var fd = new FormData(form);
+                fd.append('testRecipient', to);
+
+                result.textContent = 'Sending…';
+                result.className = 'fr-hint';
+                btn.disabled = true;
+
+                fetch('/EmailSettings/Test', {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin'
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    btn.disabled = false;
+                    result.textContent = (data.success ? '✓ ' : '✗ ') + data.message
+                        + (data.elapsedMs ? ' (' + data.elapsedMs + ' ms)' : '');
+                    result.className = data.success ? 'fr-hint is-success' : 'fr-hint is-error';
+                })
+                .catch(function (err) {
+                    btn.disabled = false;
+                    result.textContent = '✗ Request failed: ' + err.message;
+                    result.className = 'fr-hint is-error';
+                });
+            });
+        })();
+    </script>
+}

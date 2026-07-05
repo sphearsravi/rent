@@ -1,0 +1,46 @@
+/* Tailwind 4 entry for the Razor admin (Sprint 3 A6a).
+ *
+ * Build:    npm --prefix RentCollection.Web run build:css
+ * Watch:    npm --prefix RentCollection.Web run watch:css
+ *
+ * Output:   wwwroot/css/tailwind.css  (gitignored — built artifact)
+ * Loaded by Views/Shared/_Layout.cshtml AFTER admin.css so utility
+ * classes win the cascade against the legacy custom styles. */
+@import "tailwindcss";
+
+/* Shared design tokens — mirror the React app so the brand stays
+ * consistent across the stack. Reference via Tailwind arbitrary values:
+ *   bg-[hsl(var(--primary))], text-[hsl(var(--foreground))], etc. */
+@theme {
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --ring: 217 91% 60%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --radius: 0.75rem;
+  }
+}
+
+/* Utility shorthand — new partials should reach for these instead of
+ * hand-rolling colours. */
+.page-title {
+  @apply text-2xl font-bold tracking-tight text-slate-900;
+}
+.page-subtitle {
+  @apply text-sm text-slate-500 mt-1;
+}
+.section-card {
+  @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
+}

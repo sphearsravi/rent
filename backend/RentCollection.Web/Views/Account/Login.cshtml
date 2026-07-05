@@ -1,0 +1,384 @@
+@model RentCollection.Web.Models.ViewModels.LoginViewModel
+@inject Microsoft.Extensions.Options.IOptions<RentCollection.Application.Branding.BrandingSettings> Brand
+@inject IWebHostEnvironment HostEnv
+@inject Microsoft.Extensions.Configuration.IConfiguration AppConfig
+
+@{
+    ViewData["Title"] = "Login";
+    Layout = null;
+    var _ci = System.Globalization.CultureInfo.CurrentUICulture;
+    var _isRtl = _ci.TextInfo.IsRightToLeft;
+    var _dir = _isRtl ? "rtl" : "ltr";
+    var _lang = _ci.TwoLetterISOLanguageName;
+    var _return = Context.Request.Path + Context.Request.QueryString;
+    var brand = Brand.Value;
+    // Resolve the logo URL — LogoPath was rewritten to an absolute file path
+    // at startup (PostConfigure in Program.cs). For the browser we need the
+    // web-relative path; reconstruct it from the file name.
+    var logoFile = !string.IsNullOrWhiteSpace(brand.LogoPath) && System.IO.File.Exists(brand.LogoPath)
+        ? "/img/branding/" + System.IO.Path.GetFileName(brand.LogoPath)
+        : null;
+}
+
+<!DOCTYPE html>
+<html lang="@_lang" dir="@_dir">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · @brand.CompanyName</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.rtl.css" asp-append-version="true" />
+</head>
+<body class="login-body">
+
+    @* Language selector — works pre-login (CultureController is AllowAnonymous). *@
+    <form class="lang-switch" method="post" action="/Culture/Set"
+          style="position:fixed; top:1rem; @(_isRtl ? "left" : "right"):1rem; z-index:20;">
+        <input type="hidden" name="returnUrl" value="@_return" />
+        <button type="submit" name="culture" value="en-US" class="@(_lang == "en" ? "active" : "")">EN</button>
+        <button type="submit" name="culture" value="ar-KW" class="@(_lang == "ar" ? "active" : "")">ع</button>
+    </form>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            @if (logoFile != null)
+            {
+                <img src="@logoFile" alt="@brand.CompanyName" class="login-logo" />
+            }
+            else
+            {
+                <i class="fas fa-building login-icon-fallback"></i>
+            }
+            <h2>@brand.CompanyName</h2>
+            <p>@L["Staff sign-in"]</p>
+        </div>
+
+        <form asp-action="Login" method="post" class="login-form">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+            <input type="hidden" asp-for="ReturnUrl" />
+
+            <div class="form-group">
+                <label asp-for="Email">
+                    <i class="fas fa-user"></i> @L["Username or Email"]
+                </label>
+                <input asp-for="Email" class="form-control" placeholder="@(L["Enter your username or email"].Value)" autofocus autocomplete="username" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Password">
+                    <i class="fas fa-lock"></i> @L["Password"]
+                </label>
+                <div class="password-wrap">
+                    <input asp-for="Password" type="password" id="passwordInput" class="form-control"
+                           placeholder="@(L["Enter your password"].Value)" autocomplete="current-password" />
+                    <button type="button" class="show-password" id="togglePassword" aria-label="@(L["Show password"].Value)">
+                        <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                    </button>
+                </div>
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+
+            <div class="form-group form-check">
+                <input asp-for="RememberMe" class="form-check-input" />
+                <label asp-for="RememberMe" class="form-check-label">
+                    @L["Remember me on this device"]
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-sign-in-alt"></i> @L["Sign in"]
+            </button>
+
+            <a asp-action="ForgotPassword" class="btn btn-ghost">
+                <i class="fas fa-key"></i> @L["Forgot password?"]
+            </a>
+
+            @* Demo Login is dev-only by default. Demo deployments can opt in by
+               setting Demo:LoginEnabled=true in appsettings.json (or env var
+               Demo__LoginEnabled=true). That way the SmarterASP demo site can
+               show it without flipping to Development mode. *@
+            @if (HostEnv.IsDevelopment() || AppConfig.GetValue<bool>("Demo:LoginEnabled"))
+            {
+                <button type="button" class="btn btn-demo" onclick="fillDemoCredentials()">
+                    <i class="fas fa-flask"></i> @L["Fill demo credentials"]
+                </button>
+            }
+        </form>
+
+        <div class="login-divider">
+            <span>@L["or"]</span>
+        </div>
+
+        <div class="login-tenant">
+            <p class="login-tenant-hint">@L["Are you a tenant?"]</p>
+            <a href="/TenantPortal/Login" class="btn btn-tenant">
+                <i class="fas fa-users"></i> @L["Tenant portal login"]
+            </a>
+        </div>
+    </div>
+
+    <div class="login-footer">
+        © @DateTime.Today.Year @brand.CompanyName@(string.IsNullOrEmpty(brand.ContactAddress) ? "" : " · " + brand.ContactAddress)
+    </div>
+</div>
+
+<style>
+    :root {
+        --brand-primary: @brand.PrimaryHex;
+        --brand-secondary: @brand.SecondaryHex;
+    }
+
+    body.login-body {
+        background: linear-gradient(135deg, var(--brand-secondary) 0%, #1a1a1a 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 460px;
+        padding: 20px;
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+        animation: slideUp 0.4s ease-out;
+    }
+
+    @@keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-header {
+        background: linear-gradient(135deg, var(--brand-secondary) 0%, #1c1c1c 100%);
+        color: white;
+        padding: 2rem 1.5rem 1.75rem;
+        text-align: center;
+    }
+
+    .login-header .login-logo {
+        max-width: 110px;
+        max-height: 110px;
+        object-fit: contain;
+        margin-bottom: 0.5rem;
+        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.35));
+    }
+
+    .login-header .login-icon-fallback {
+        font-size: 2.75rem;
+        color: var(--brand-primary);
+        margin-bottom: 0.75rem;
+        display: block;
+    }
+
+    .login-header h2 {
+        margin: 0.4rem 0 0.2rem;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--brand-primary);
+        letter-spacing: 0.03em;
+    }
+
+    .login-header p {
+        margin: 0;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        opacity: 0.7;
+    }
+
+    .login-form { padding: 1.75rem; }
+
+    .form-group { margin-bottom: 1.1rem; }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.4rem;
+        font-weight: 600;
+        color: #334155;
+        font-size: 0.85rem;
+    }
+    .form-group label i {
+        margin-right: 0.45rem;
+        color: var(--brand-primary);
+        font-size: 0.78rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 0.9rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        background: #fbfbfd;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: var(--brand-primary);
+        background: white;
+        box-shadow: 0 0 0 3px rgba(201, 166, 71, 0.15);
+    }
+
+    .password-wrap { position: relative; }
+    .password-wrap .form-control { padding-right: 44px; }
+    .show-password {
+        position: absolute; right: 6px; top: 50%;
+        transform: translateY(-50%);
+        background: none; border: 0;
+        width: 36px; height: 36px;
+        display: flex; align-items: center; justify-content: center;
+        color: #64748b; cursor: pointer; border-radius: 6px;
+    }
+    .show-password:hover { background: #f1f5f9; color: var(--brand-secondary); }
+    .show-password:focus-visible { outline: 2px solid var(--brand-primary); }
+
+    .form-check {
+        display: flex; align-items: center; gap: 0.5rem;
+        margin-bottom: 1.2rem;
+    }
+    .form-check-input {
+        width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-primary);
+    }
+    .form-check-label {
+        cursor: pointer; margin: 0; font-size: 0.88rem; color: #475569;
+    }
+
+    /* Buttons — three flavours sharing layout but distinct identity */
+    .btn {
+        width: 100%; padding: 0.78rem;
+        border-radius: 8px; font-size: 0.95rem; font-weight: 600;
+        cursor: pointer; transition: all 0.15s ease;
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+        border: 0; text-decoration: none;
+        margin-top: 0.5rem;
+    }
+
+    /* Primary: sign-in (gold gradient) */
+    .btn-primary {
+        background: linear-gradient(135deg, var(--brand-primary) 0%, #b4912c 100%);
+        color: var(--brand-secondary);
+        text-shadow: 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(201, 166, 71, 0.45);
+    }
+
+    /* Ghost: forgot password — secondary action */
+    .btn-ghost {
+        background: transparent;
+        color: var(--brand-secondary);
+        border: 1.5px solid #e2e8f0;
+    }
+    .btn-ghost:hover {
+        background: #f8fafc;
+        border-color: var(--brand-primary);
+        color: var(--brand-secondary);
+    }
+
+    /* Demo: dev only — clearly distinct teal so nobody mistakes it for prod */
+    .btn-demo {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1.5px dashed #cbd5e1;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    .btn-demo:hover { background: #e2e8f0; color: var(--brand-secondary); }
+
+    /* Tenant: prominent secondary action */
+    .btn-tenant {
+        background: var(--brand-secondary);
+        color: var(--brand-primary);
+        border: 1.5px solid var(--brand-secondary);
+    }
+    .btn-tenant:hover {
+        background: #1c1c1c;
+        box-shadow: 0 8px 18px rgba(11, 11, 11, 0.35);
+    }
+
+    /* Section divider */
+    .login-divider {
+        display: flex; align-items: center;
+        margin: 0 1.75rem 1rem;
+        color: #94a3b8; font-size: 0.78rem;
+        text-transform: uppercase; letter-spacing: 0.1em;
+    }
+    .login-divider::before, .login-divider::after {
+        content: ''; flex: 1; height: 1px; background: #e2e8f0;
+    }
+    .login-divider span { padding: 0 0.85rem; }
+
+    .login-tenant { padding: 0 1.75rem 1.75rem; text-align: center; }
+    .login-tenant-hint {
+        margin: 0 0 0.55rem;
+        font-size: 0.85rem; color: #64748b;
+    }
+
+    .login-footer {
+        text-align: center;
+        color: rgba(255,255,255,0.5);
+        font-size: 0.75rem;
+        margin-top: 1.25rem;
+    }
+
+    .alert-danger {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 0.85rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-size: 0.88rem;
+    }
+
+    .text-danger {
+        color: #dc2626;
+        font-size: 0.82rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+</style>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+<script>
+    // Show / hide password toggle. Keeps focus + caret position on the input
+    // so toggling mid-typing feels seamless.
+    (function () {
+        const toggle = document.getElementById('togglePassword');
+        const input = document.getElementById('passwordInput');
+        const icon = document.getElementById('togglePasswordIcon');
+        if (!toggle || !input) return;
+        toggle.addEventListener('click', function () {
+            const showing = input.type === 'text';
+            input.type = showing ? 'password' : 'text';
+            icon.classList.toggle('fa-eye', showing);
+            icon.classList.toggle('fa-eye-slash', !showing);
+            toggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+            input.focus();
+        });
+    })();
+
+    function fillDemoCredentials() {
+        document.getElementById('Email').value = 'admin@test.com';
+        document.getElementById('passwordInput').value = 'Admin@123';
+    }
+</script>
+
+</body>
+</html>

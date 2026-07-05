@@ -1,0 +1,11 @@
+# Flutter tenant app dependency updates — Sprint 5 D3.
+# pub-cache (Dart/Flutter) isn't a native Dependabot ecosystem, so we
+# only manage GitHub Actions here. pub upgrades land via `flutter
+# pub upgrade --major-versions` on a scheduled CI workflow.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday

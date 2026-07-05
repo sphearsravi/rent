@@ -1,0 +1,311 @@
+﻿@using System.Globalization
+@{
+    var _ci = CultureInfo.CurrentUICulture;
+    var _isRtl = _ci.TextInfo.IsRightToLeft;
+    var _dir = _isRtl ? "rtl" : "ltr";
+    var _lang = _ci.TwoLetterISOLanguageName;
+    var _return = Context.Request.Path + Context.Request.QueryString;
+}
+<!DOCTYPE html>
+<html lang="@_lang" dir="@_dir">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - VIIJAR</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Select2 — searchable dropdown library used by Lease Create/Edit
+         (Sprint 11). jQuery is loaded below; Select2 attaches to .select2-enable
+         class. Bootstrap-5 theme keeps the visual harmony with the form-control look. -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+    <!-- Sprint 3 A6a — admin shell extracted to a cacheable file
+         (was an inline <style> block here). Tailwind utilities load after so
+         individual views can override with utility classes. -->
+    <link rel="stylesheet" href="~/css/layout-shell.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/tailwind.css" asp-append-version="true" />
+    @* Sprint 23 — shared form styles + helper JS for the revamped
+       Tenant / Lease / Property create forms. Opt-in via .form-revamp on
+       the <form> wrapper; no effect on legacy views. *@
+    <link rel="stylesheet" href="~/css/forms.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.rtl.css" asp-append-version="true" />
+    @* Legacy inline styles preserved as comment-only block, removed in this
+       commit. See wwwroot/css/layout-shell.css for the same rules. *@
+    <style>
+        /* (admin shell rules now in wwwroot/css/layout-shell.css) */
+        /* PRUNE_START_SHELL */
+
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    @* Sprint 25 — top progress bar shown during full-page nav. *@
+    <div id="navLoader" class="nav-loader" aria-hidden="true"></div>
+
+    <!-- Left Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Brand (VIIJAR — product brand) -->
+        <div class="sidebar-brand">
+            <a href="/Dashboard" class="brand">
+                <img src="~/images/logo.jpg" alt="VIIJAR" class="brand-logo" />
+                <div class="brand-text">
+                    <span class="brand-name">VIIJAR</span>
+                    <span class="brand-tagline">@L["Pay - Rent - Easy"]</span>
+                </div>
+            </a>
+        </div>
+
+        @* ── Role-aware sidebar (Phase C of role-access plan). Each item
+           is wrapped in @if (User.IsInRole(...)) so users only see what
+           they can open. Security still enforced by [Authorize] on each
+           controller — this is UX polish, not the actual gate. ── *@
+        @{
+            bool IsOp() => User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Manager");
+            bool IsFin() => User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Accountant");
+            bool IsAdmin() => User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
+        }
+        <!-- Main Navigation -->
+        <nav class="main-nav" id="mainNav">
+            <div class="nav-section-header">@L["Main Menu"]</div>
+            <a href="/Dashboard" class="nav-item">
+                <i class="fas fa-th-large"></i>
+                <span>@L["Dashboard"]</span>
+            </a>
+            @if (IsOp())
+            {
+                <a href="/Properties" class="nav-item">
+                    <i class="fas fa-building"></i>
+                    <span>@L["Properties"]</span>
+                </a>
+                <a href="/Tenants" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>@L["Tenants"]</span>
+                </a>
+                <a href="/Units" class="nav-item">
+                    <i class="fas fa-th-large"></i>
+                    <span>@L["Units"]</span>
+                </a>
+                <a href="/Leases" class="nav-item">
+                    <i class="fas fa-file-contract"></i>
+                    <span>@L["Leases"]</span>
+                </a>
+            }
+
+            @if (IsFin() || IsOp())
+            {
+                <div class="nav-divider"></div>
+                <div class="nav-section-header">@L["Financial"]</div>
+                @if (IsFin())
+                {
+                    <a href="/Payments" class="nav-item">
+                        <i class="fas fa-dollar-sign"></i>
+                        <span>@L["Payments"]</span>
+                    </a>
+                    <a href="/Invoices" class="nav-item">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>@L["Invoices"]</span>
+                    </a>
+                    <a href="/Reports" class="nav-item">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>@L["Reports"]</span>
+                    </a>
+                }
+                @if (IsOp() || IsFin())
+                {
+                    <a href="/PaymentApproval" class="nav-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span>@L["Approvals"]</span>
+                    </a>
+                }
+            }
+
+            <div class="nav-divider"></div>
+
+            <div class="nav-section-header">@L["System"]</div>
+            @if (IsOp())
+            {
+                <a href="/Maintenance" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>@L["Maintenance"]</span>
+                </a>
+                <a href="/Documents" class="nav-item">
+                    <i class="fas fa-folder"></i>
+                    <span>@L["Documents"]</span>
+                </a>
+            }
+            @if (IsAdmin())
+            {
+                <a href="/Users" class="nav-item">
+                    <i class="fas fa-user-cog"></i>
+                    <span>@L["Users"]</span>
+                </a>
+                <a href="/Audit" class="nav-item">
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <span>@L["Audit Log"]</span>
+                </a>
+                @* Sprint 25 — SMTP config for the email outbox. *@
+                <a href="/EmailSettings" class="nav-item">
+                    <i class="fas fa-envelope-open-text"></i>
+                    <span>@L["Email Settings"]</span>
+                </a>
+            }
+        </nav>
+    </aside>
+
+    <!-- Top Header -->
+    <header class="top-header">
+        <div class="header-left">
+            <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="@(L["Search properties, tenants..."].Value)">
+            </div>
+        </div>
+        <div class="header-right">
+            @* Language switcher (EN | ع) — posts to CultureController.Set. *@
+            <form class="lang-switch" method="post" action="/Culture/Set">
+                <input type="hidden" name="returnUrl" value="@_return" />
+                <button type="submit" name="culture" value="en-US" class="@(_lang == "en" ? "active" : "")">EN</button>
+                <button type="submit" name="culture" value="ar-KW" class="@(_lang == "ar" ? "active" : "")">ع</button>
+            </form>
+            @* Sprint 23 — ALRATM company logo on the right side of the header.
+               Uses the same asset that's stamped on invoices (BrandingSettings:LogoPath). *@
+            <a href="/Dashboard" class="company-logo-right" title="ALRATM Company">
+                <img src="~/img/branding/logo.png" alt="ALRATM" />
+            </a>
+            <div class="notification-icon">
+                <i class="fas fa-bell"></i>
+                <span class="notification-badge">3</span>
+            </div>
+            <div class="user-profile-wrapper">
+                <div class="user-profile" id="userProfileToggle">
+                    @{
+                        var firstName = User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? "User";
+                        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+                        var initials = firstName.Length >= 2 ? firstName.Substring(0, 2).ToUpper() : firstName.ToUpper();
+                    }
+                    <div class="user-avatar">@initials</div>
+                    <div class="user-info">
+                        <div class="user-name">@firstName</div>
+                        <div class="user-role">@role</div>
+                    </div>
+                    <i class="fas fa-chevron-down" style="font-size: 0.65rem; color: #94a3b8;"></i>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="/Account/Profile" class="user-dropdown-item">
+                        <i class="fas fa-user"></i>
+                        <span>@L["My Profile"]</span>
+                    </a>
+                    <form method="post" action="/Account/Logout">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="user-dropdown-item logout-item">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>@L["Logout"]</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="content-wrapper">
+            @RenderBody()
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            &copy; 2025 VIIJAR - PAY RENT EASY. All rights reserved.
+        </footer>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        // User profile dropdown toggle
+        document.getElementById('userProfileToggle').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('userDropdown').classList.toggle('show');
+        });
+
+        document.addEventListener('click', function(e) {
+            var dropdown = document.getElementById('userDropdown');
+            var wrapper = document.querySelector('.user-profile-wrapper');
+            if (dropdown && !wrapper.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Set active nav link based on current path
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navItems = document.querySelectorAll('.nav-item');
+
+            navItems.forEach(item => {
+                item.classList.remove('active');
+                const href = item.getAttribute('href');
+                if (href === currentPath || currentPath.startsWith(href + '/')) {
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // Close sidebar on mobile when clicking outside
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.querySelector('.mobile-menu-toggle');
+
+            if (window.innerWidth <= 1024) {
+                if (!sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+    </script>
+    <!-- Sprint 11 — load jQuery + Select2 globally so per-view Scripts sections
+         (validation, Select2 init, etc.) can rely on $ being defined. Bundled
+         from the local wwwroot copy already in source control; Select2 from CDN. -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="~/js/form-helpers.js" asp-append-version="true"></script>
+    <script>
+        // Sprint 25 — show the top progress bar on any link click or form
+        // submit that triggers a full-page navigation. Skips: same-page anchors,
+        // download links (handled by `download` attr or _blank target),
+        // ctrl/shift/meta-clicks (the user wants a new tab — same page stays).
+        // Form submits also fire it; the form-helpers.js submit lock runs first
+        // on .form-revamp forms so we don't double-spin.
+        (function () {
+            var loader = document.getElementById('navLoader');
+            if (!loader) return;
+            function show() { loader.classList.add('is-loading'); }
+            function hide() { loader.classList.remove('is-loading'); }
+
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest('a');
+                if (!a) return;
+                if (a.target === '_blank') return;
+                if (a.hasAttribute('download')) return;
+                if (e.ctrlKey || e.shiftKey || e.metaKey || e.altKey) return;
+                var href = a.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+                show();
+            });
+
+            document.addEventListener('submit', function (e) {
+                // Don't fire on AJAX-style forms (Sprint 23 form-revamp covers its own loading state).
+                if (e.target.classList.contains('form-revamp')) return;
+                show();
+            });
+
+            // BFCache restore — page came back via Back button. Hide the bar.
+            window.addEventListener('pageshow', function () { hide(); });
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

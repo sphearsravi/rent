@@ -1,0 +1,21 @@
+@{
+    ViewData["Title"] = "Access Denied";
+}
+
+<div class="container text-center" style="margin-top: 100px;">
+    <div class="error-page">
+        <i class="fas fa-ban" style="font-size: 5rem; color: #dc2626; margin-bottom: 2rem;"></i>
+        <h1 style="font-size: 3rem; font-weight: 700; color: #1f2937;">@L["Access Denied"]</h1>
+        <p style="font-size: 1.25rem; color: #6b7280; margin: 2rem 0;">
+            @L["You don't have permission to access this page."]
+        </p>
+        <div style="margin-top: 3rem;">
+            <a href="/" class="btn btn-primary" style="padding: 0.875rem 2rem; font-size: 1rem;">
+                <i class="fas fa-home"></i> @L["Go to Home"]
+            </a>
+            <a href="javascript:history.back()" class="btn btn-secondary" style="padding: 0.875rem 2rem; font-size: 1rem; margin-left: 1rem;">
+                <i class="fas fa-arrow-left"></i> @L["Go Back"]
+            </a>
+        </div>
+    </div>
+</div>

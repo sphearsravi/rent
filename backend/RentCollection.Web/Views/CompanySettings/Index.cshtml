@@ -1,0 +1,138 @@
+@model RentCollection.Web.Controllers.CompanySettingsViewModel
+@{
+    ViewData["Title"] = "Company & bank details";
+}
+
+<div class="container-fluid" style="padding: 2rem;">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
+        ["Title"] = L["Company & bank details"].Value,
+        ["Subtitle"] = L["Printed on every invoice, receipt and statement PDF. Blank fields fall back to the deployed configuration."].Value
+    })
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success" style="margin-bottom: 1rem;">
+            <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        </div>
+    }
+
+    <div class="alert @(Model.BankDetailsOnInvoice ? "alert-success" : "alert-warning")" style="margin-bottom:1rem;">
+        <i class="fas @(Model.BankDetailsOnInvoice ? "fa-check-circle" : "fa-exclamation-triangle")"></i>
+        @if (Model.BankDetailsOnInvoice)
+        {
+            <text>@L["Invoices currently print the bank-transfer details below in the “How to pay” block."]</text>
+        }
+        else
+        {
+            <text>@L["No bank account is set, so invoices say “details from the office”. Fill in the bank section to print the account on every invoice."]</text>
+        }
+        @if (Model.ModifiedAt.HasValue)
+        {
+            <span class="text-muted"> · @L["Last saved"] @Model.ModifiedAt.Value.ToString("dd MMM yyyy HH:mm") UTC @(string.IsNullOrEmpty(Model.ModifiedBy) ? "" : $"· {Model.ModifiedBy}")</span>
+        }
+    </div>
+
+    <form asp-action="Save" method="post" class="form-revamp" id="companySettingsForm">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        <div class="fr-zone fr-zone-essentials">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-university"></i>
+                <span>@L["Bank transfer details"]</span>
+            </h3>
+            <p class="fr-zone-hint">@L["Shown in the invoice “How to pay” block so tenants can transfer rent."]</p>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="BankName">@L["Bank name"]</label>
+                    <input asp-for="BankName" placeholder="@(L["e.g. National Bank of Kuwait"].Value)" />
+                    <span asp-validation-for="BankName" class="fr-hint is-error"></span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="BankAccountHolder">@L["Account holder"]</label>
+                    <input asp-for="BankAccountHolder" placeholder="@(L["Name on the account"].Value)" />
+                    <span class="fr-hint">@L["Exactly as the bank shows it"]</span>
+                </div>
+            </div>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="BankIban">IBAN</label>
+                    <input asp-for="BankIban" placeholder="KW81CBKU0000000000001234560101" style="font-family:monospace;text-transform:uppercase" />
+                    <span asp-validation-for="BankIban" class="fr-hint is-error"></span>
+                    <span class="fr-hint">@L["Spaces are removed automatically"]</span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="BankSwiftBic">SWIFT / BIC <span class="optional">@L["optional"]</span></label>
+                    <input asp-for="BankSwiftBic" placeholder="NBOKKWKW" style="font-family:monospace;text-transform:uppercase" />
+                    <span asp-validation-for="BankSwiftBic" class="fr-hint is-error"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fr-zone">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-building"></i>
+                <span>@L["Company"]</span>
+            </h3>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="CompanyName">@L["Company name"]</label>
+                    <input asp-for="CompanyName" />
+                </div>
+                <div class="fr-field">
+                    <label asp-for="TagLine">@L["Tag line"] <span class="optional">@L["optional"]</span></label>
+                    <input asp-for="TagLine" />
+                </div>
+            </div>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="ContactPhone">@L["Phone"]</label>
+                    <input asp-for="ContactPhone" placeholder="+965 …" />
+                </div>
+                <div class="fr-field">
+                    <label asp-for="ContactEmail">@L["Email"]</label>
+                    <input asp-for="ContactEmail" type="email" />
+                </div>
+            </div>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="Website">@L["Website"] <span class="optional">@L["optional"]</span></label>
+                    <input asp-for="Website" placeholder="www.alrtam.co" />
+                </div>
+                <div class="fr-field">
+                    <label asp-for="ContactAddress">@L["Address"]</label>
+                    <input asp-for="ContactAddress" />
+                </div>
+            </div>
+        </div>
+
+        <div class="fr-zone">
+            <h3 class="fr-zone-title">
+                <i class="fas fa-file-signature"></i>
+                <span>@L["Invoice footer"]</span>
+            </h3>
+            <p class="fr-zone-hint">@L["Payment terms shown at the bottom of every invoice and receipt."]</p>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="FooterTerms">@L["Terms (English)"]</label>
+                    <textarea asp-for="FooterTerms" rows="2"></textarea>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="FooterTermsAr">@L["Terms (Arabic)"]</label>
+                    <textarea asp-for="FooterTermsAr" rows="2" dir="rtl"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="fr-actions">
+            <a href="/Dashboard" class="fr-btn fr-btn-ghost">@L["Cancel"]</a>
+            <div class="fr-spacer"></div>
+            <button type="submit" class="fr-btn fr-btn-primary">
+                <i class="fas fa-save"></i> @L["Save"]
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

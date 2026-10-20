@@ -1,0 +1,49 @@
+@{
+    ViewData["Title"] = "Set up Two-Factor Authentication";
+    var secret = (string)(ViewBag.Secret ?? "");
+    var qr = (string)(ViewBag.QrDataUri ?? "");
+}
+
+<div class="container-fluid">
+    <div class="page-header">
+        <div>
+            <h1>@L["Set up Two-Factor Authentication"]</h1>
+            <p class="text-muted">@L["Scan the QR code with your authenticator app, then enter the 6-digit code to confirm."]</p>
+        </div>
+        <div class="header-actions">
+            <a asp-controller="Account" asp-action="Security" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> @L["Back"]</a>
+        </div>
+    </div>
+
+    <div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
+
+    <div class="info-card" style="max-width:640px;">
+        <div class="card-body">
+            <ol style="line-height:2;">
+                <li>@L["Open your authenticator app (Google Authenticator, Microsoft Authenticator, Authy, 1Password)."]</li>
+                <li>@L["Scan this QR code:"]</li>
+            </ol>
+
+            <div class="text-center my-3">
+                <img src="@qr" alt="2FA QR code" width="220" height="220"
+                     style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;background:#fff;" />
+            </div>
+
+            <p class="text-muted small">
+                @L["Can't scan? Enter this key manually:"]<br />
+                <code style="font-size:1rem;letter-spacing:0.08em;">@secret</code>
+            </p>
+
+            <hr />
+
+            <form asp-controller="Account" asp-action="EnableMfa" method="post" autocomplete="off" style="max-width:320px;">
+                @Html.AntiForgeryToken()
+                <label class="form-label">@L["Enter the 6-digit code to confirm"]</label>
+                <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                       class="form-control form-control-lg text-center" style="letter-spacing:0.4em;"
+                       placeholder="000000" autofocus required />
+                <button type="submit" class="btn btn-primary mt-2 w-100"><i class="fas fa-check"></i> @L["Verify & enable"]</button>
+            </form>
+        </div>
+    </div>
+</div>

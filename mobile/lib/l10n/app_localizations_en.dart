@@ -7,7 +7,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'VIIJAR Tenant';
+  String get appName => 'Alrtam';
 
   @override
   String get loginTitle => 'Sign In';
@@ -191,6 +191,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashboardNoMaintenance => 'No pending maintenance requests';
+
+  @override
+  String get dashboardAmountDue => 'Amount due';
+
+  @override
+  String get dashboardAllPaidUp => 'You\'re all paid up';
+
+  @override
+  String get dashboardAllPaidUpBody => 'No outstanding invoices — nothing to pay right now.';
+
+  @override
+  String dashboardOverdueChip(int count) {
+    return '$count overdue';
+  }
+
+  @override
+  String get dashboardNextPaymentDue => 'Next payment due';
+
+  @override
+  String get dashboardDueToday => 'Due today';
+
+  @override
+  String dashboardDueInDays(int days) {
+    return 'Due in $days days';
+  }
+
+  @override
+  String dashboardOverdueByDays(int days) {
+    return 'Overdue by $days days';
+  }
+
+  @override
+  String get dashboardPayNow => 'Pay now';
+
+  @override
+  String get dashboardQuickActions => 'Quick actions';
+
+  @override
+  String get dashboardActionPay => 'Pay';
+
+  @override
+  String get dashboardActionRequest => 'New request';
+
+  @override
+  String get dashboardActionLeases => 'My leases';
+
+  @override
+  String get dashboardActionProfile => 'Profile';
+
+  @override
+  String get dashboardStatOutstanding => 'Outstanding';
+
+  @override
+  String get dashboardStatOverdue => 'Overdue';
+
+  @override
+  String get dashboardStatOpenRequests => 'Open requests';
+
+  @override
+  String get dashboardStatMonthlyRent => 'Monthly rent';
+
+  @override
+  String dashboardLeaseExpiring(int days) {
+    return 'Lease expires in $days days';
+  }
+
+  @override
+  String get dashboardLeaseExpiringAction => 'Contact office to renew';
+
+  @override
+  String get dashboardInvoicesDueOne => '1 invoice to pay';
+
+  @override
+  String dashboardInvoicesDueMany(int count) {
+    return '$count invoices to pay';
+  }
 
   @override
   String get invoicesTitle => 'Invoices';
@@ -472,7 +548,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get aboutTagline => 'VIIJAR Rent Collection System - Tenant Mobile App';
+  String get aboutTagline => 'Alrtam Rent Collection System - Tenant Mobile App';
 
   @override
   String get aboutDescription => 'Manage your rentals, make payments, and submit maintenance requests all in one place.';
@@ -563,6 +639,104 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paymentCashOfficeHours => 'Office hours: Sun–Thu, 9 AM – 5 PM. A receipt is issued once the payment is verified.';
+
+  @override
+  String get paymentCashRequest => 'Notify office — I\'ll pay cash';
+
+  @override
+  String get paymentCashRequestSuccess => 'The office has been notified. Pay at the counter and staff will confirm it.';
+
+  @override
+  String get paymentCashRequestFailed => 'Couldn\'t send the cash request. Please try again.';
+
+  @override
+  String get paymentCashRequestTitle => 'Pay cash at the office';
+
+  @override
+  String get paymentCashRequestIntro => 'Tell the office how much you will bring. You can pay part of the balance now and the rest later.';
+
+  @override
+  String get paymentCashRequestAmountLabel => 'Amount I will pay (KWD)';
+
+  @override
+  String paymentCashRequestAmountInvalid(String balance) {
+    return 'Enter an amount between 0.001 and $balance KWD';
+  }
+
+  @override
+  String paymentCashRequestPartialHint(String remaining) {
+    return 'Remaining after this payment: $remaining KWD';
+  }
+
+  @override
+  String get paymentCashRequestFullBalance => 'Full balance';
+
+  @override
+  String get paymentCashRequestConfirm => 'Notify office';
+
+  @override
+  String get errorInvalidCredentials => 'Invalid Civil ID or password.';
+
+  @override
+  String get statusPendingVerification => 'Pending verification';
+
+  @override
+  String get maintCatPlumbing => 'Plumbing';
+
+  @override
+  String get maintCatElectrical => 'Electrical';
+
+  @override
+  String get maintCatHvac => 'Air conditioning (HVAC)';
+
+  @override
+  String get maintCatAppliance => 'Appliance';
+
+  @override
+  String get maintCatStructural => 'Structural';
+
+  @override
+  String get maintCatOther => 'Other';
+
+  @override
+  String get maintPrioLow => 'Low';
+
+  @override
+  String get maintPrioMedium => 'Medium';
+
+  @override
+  String get maintPrioHigh => 'High';
+
+  @override
+  String get maintPrioEmergency => 'Emergency';
+
+  @override
+  String get maintenanceSubmitFailed => 'Couldn\'t submit the request. Please try again.';
+
+  @override
+  String get dashboardBalanceUnavailable => 'Couldn\'t load your balance';
+
+  @override
+  String get dashboardBalanceUnavailableBody => 'Check your connection and pull down to refresh.';
+
+  @override
+  String get paymentChooseMethodButton => 'Choose payment method';
+
+  @override
+  String paymentForInvoice(String id) {
+    return 'Payment for invoice #$id';
+  }
+
+  @override
+  String get paymentAmountDueLabel => 'Amount due';
+
+  @override
+  String get payOldestFirstTitle => 'Pay your oldest invoice first';
+
+  @override
+  String payOldestFirstGoTo(String id) {
+    return 'Go to invoice #$id';
+  }
 
   @override
   String get paymentNoPendingInvoices => 'No Pending Invoices';
@@ -763,4 +937,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String payInvoiceFirst(String id) {
     return 'Pay invoice #$id first';
   }
+
+  @override
+  String get legalCase => 'Legal case';
+
+  @override
+  String legalCaseNextHearing(String date) {
+    return 'Next hearing: $date';
+  }
+
+  @override
+  String get caseStatusOpen => 'Open';
+
+  @override
+  String get caseStatusHearing => 'Hearing';
+
+  @override
+  String get caseStatusWon => 'Won';
+
+  @override
+  String get caseStatusLost => 'Lost';
+
+  @override
+  String get caseStatusSettled => 'Settled';
+
+  @override
+  String get caseStatusWithdrawn => 'Withdrawn';
+
+  @override
+  String get caseStatusClosed => 'Closed';
+
+  @override
+  String get caseTypeEviction => 'Eviction';
+
+  @override
+  String get caseTypeNonPayment => 'Non-payment';
+
+  @override
+  String get caseTypeDamages => 'Damages';
+
+  @override
+  String get caseTypeOther => 'Other';
 }

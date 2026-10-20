@@ -148,6 +148,8 @@ public class AdminPaymentVerificationDto
     public int PaymentId { get; set; }
     public DateTime PaymentDate { get; set; }
     public string ReceiptNumber { get; set; } = string.Empty;
+    /// <summary>Hand-written receipt-book number (cash only).</summary>
+    public string? ManualReceiptNumber { get; set; }
 
     // Tenant Info
     public int TenantId { get; set; }

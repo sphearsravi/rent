@@ -35,8 +35,6 @@ class InvoiceViewModel extends ChangeNotifier {
 
   final TenantApiService _apiService;
 
-  static const int _pageSize = 20;
-
   InvoiceState _state = InvoiceState.initial;
   String? _errorMessage;
   InvoiceFilter _filter = InvoiceFilter.all;
@@ -63,6 +61,18 @@ class InvoiceViewModel extends ChangeNotifier {
       .where((i) => !i.isPaid)
       .fold<double>(0.0, (sum, i) => sum + i.balance);
 
+  /// Drop all tenant data (logout). See `resetSessionState`.
+  void reset() {
+    _state = InvoiceState.initial;
+    _errorMessage = null;
+    _filter = InvoiceFilter.all;
+    _invoices.clear();
+    _pageNumber = 1;
+    _totalCount = 0;
+    _selectedInvoice = null;
+    notifyListeners();
+  }
+
   /// Switch filter. Resets pagination and reloads page 1.
   Future<void> setFilter(int tenantId, InvoiceFilter newFilter) async {
     if (newFilter == _filter && _invoices.isNotEmpty) return;
@@ -80,8 +90,6 @@ class InvoiceViewModel extends ChangeNotifier {
       final result = await _apiService.getInvoices(
         tenantId,
         status: _filter.apiValue,
-        pageNumber: 1,
-        pageSize: _pageSize,
       );
       _invoices
         ..clear()
@@ -115,7 +123,6 @@ class InvoiceViewModel extends ChangeNotifier {
         tenantId,
         status: _filter.apiValue,
         pageNumber: next,
-        pageSize: _pageSize,
       );
       _invoices.addAll(result.invoices);
       _pageNumber = next;

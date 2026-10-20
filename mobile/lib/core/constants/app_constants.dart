@@ -1,11 +1,10 @@
 /// Application-wide constants
 class AppConstants {
-  // API base URL. The default is the local dev server — every non-dev build
-  // MUST override it at build time:
-  //   flutter build apk --dart-define=API_BASE_URL=https://api.viijar.com/api
-  //   flutter build web --dart-define=API_BASE_URL=https://api.viijar.com/api
-  // The release CI/CD pipeline should fail the build if API_BASE_URL is unset
-  // or still points at localhost.
+  // API base URL. Defaults to the live production backend (alrtam.co, HTTPS) so
+  // both Android and iOS release builds hit the same server. Override only for
+  // local dev or a different environment:
+  //   flutter build apk --dart-define=API_BASE_URL=https://www.alrtam.co/api
+  //   flutter build web --dart-define=API_BASE_URL=https://www.alrtam.co/api
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     // Default is the live HTTPS backend so release builds can't silently ship a
@@ -13,9 +12,6 @@ class AppConstants {
     //   flutter run --dart-define=API_BASE_URL=http://localhost:5032/api
     defaultValue: 'https://www.alrtam.co/api',
   );
-  static const bool _isLocalhostDefault =
-      bool.fromEnvironment('dart.vm.product') == false; // debug builds only
-
   /// True when the app is running against a localhost / private-network backend.
   /// Useful for guarding behaviour that must never trigger in production.
   static bool get isLocalDev =>
@@ -40,9 +36,13 @@ class AppConstants {
   static const String tenantNameKey = 'tenant_name';
   static const String tenantEmailKey = 'tenant_email';
   static const String rememberMeKey = 'remember_me';
+  // Remembered login credentials (stored in ENCRYPTED secure storage, only when
+  // "Remember me" is checked) so the login form can prefill them next time.
+  static const String savedCivilIdKey = 'saved_civil_id';
+  static const String savedPasswordKey = 'saved_password';
 
   // App Info
-  static const String appName = 'VIIJAR Tenant';
+  static const String appName = 'Alrtam';
   static const String appVersion = '1.0.0';
   static const String currency = 'KWD';
 

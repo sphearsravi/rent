@@ -14,9 +14,15 @@ namespace RentCollection.Web.Controllers;
 /// presentation; this is the catch-all for entities that don't have
 /// one yet, plus a global recent-activity feed.
 ///
-/// Admin-only — audit data is sensitive (who did what when).
+/// SuperAdmin-only — audit data is sensitive (who did what when), and
+/// <see cref="AuditLog"/> is a GLOBAL table with no CompanyId column, so a
+/// company Admin browsing it would see every other company's activity
+/// (entity ids, usernames, payloads).
+/// TODO: add CompanyId to AuditLog (stamp it in DbAuditLogService from the
+/// caller's claim) and re-open this controller to Roles.AnyAdmin with a
+/// company-scoped predicate.
 /// </summary>
-[Authorize(Roles = Roles.AnyAdmin)]
+[Authorize(Roles = Roles.SuperAdmin)]
 public class AuditController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -31,12 +37,21 @@ public class AuditController : Controller
     /// EntityType / Action / ByUser via query string. Default = last 100
     /// events newest-first.
     /// </summary>
-    public async Task<IActionResult> Index(string? entityType, string? action, string? byUser, int take = 100)
+    public async Task<IActionResult> Index(
+        [FromQuery] string? entityType,
+        [FromQuery(Name = "action")] string? actionFilter,
+        [FromQuery] string? byUser,
+        [FromQuery] int take = 100)
     {
+        // NOTE (bugfix): the filter parameter MUST be bound from the query string
+        // only. It was previously named `action`, which collides with the default
+        // route's `{action}` token — MVC bound the route's action name ("Index")
+        // into it, so the feed always filtered `WHERE Action = 'Index'` and showed
+        // nothing. [FromQuery(Name="action")] pins it to the ?action= query value.
         var q = _context.AuditLogs.AsQueryable();
-        if (!string.IsNullOrEmpty(entityType)) q = q.Where(a => a.EntityType == entityType);
-        if (!string.IsNullOrEmpty(action))     q = q.Where(a => a.Action == action);
-        if (!string.IsNullOrEmpty(byUser))     q = q.Where(a => a.ByUser == byUser);
+        if (!string.IsNullOrEmpty(entityType))   q = q.Where(a => a.EntityType == entityType);
+        if (!string.IsNullOrEmpty(actionFilter)) q = q.Where(a => a.Action == actionFilter);
+        if (!string.IsNullOrEmpty(byUser))       q = q.Where(a => a.ByUser == byUser);
 
         var rows = await q.OrderByDescending(a => a.At)
             .Take(Math.Clamp(take, 1, 500))
@@ -50,7 +65,7 @@ public class AuditController : Controller
             .Select(a => a.Action).Distinct()
             .OrderBy(s => s).ToListAsync();
 
-        ViewBag.Filter = new { EntityType = entityType, Action = action, ByUser = byUser, Take = take };
+        ViewBag.Filter = new { EntityType = entityType, Action = actionFilter, ByUser = byUser, Take = take };
         return View(rows);
     }
 

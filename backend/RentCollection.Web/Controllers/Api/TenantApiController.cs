@@ -17,10 +17,14 @@ public class TenantApiController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly IJwtTokenService _jwtTokenService;
 
-    public TenantApiController(ApplicationDbContext context, IJwtTokenService jwtTokenService)
+    private readonly RentCollection.Web.Services.ILoginThrottle _loginThrottle;
+
+    public TenantApiController(ApplicationDbContext context, IJwtTokenService jwtTokenService,
+        RentCollection.Web.Services.ILoginThrottle loginThrottle)
     {
         _context = context;
         _jwtTokenService = jwtTokenService;
+        _loginThrottle = loginThrottle;
     }
 
     /// <summary>
@@ -60,6 +64,13 @@ public class TenantApiController : ControllerBase
             return BadRequest(new { success = false, message = "Civil ID and Password are required" });
         }
 
+        // SECURITY (audit H2): per-account brute-force lockout.
+        if (_loginThrottle.IsLockedOut(civilId, out _))
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                new { success = false, message = "Too many failed attempts. Please try again later." });
+        }
+
         // Login is anonymous — the company-scope HasQueryFilter would
         // otherwise hide every tenant (no claim = no CompanyId match).
         // IgnoreQueryFilters bypasses both the company scope AND the
@@ -74,10 +85,14 @@ public class TenantApiController : ControllerBase
 
         if (tenant == null || !BCrypt.Net.BCrypt.Verify(request.Password, tenant.Password))
         {
+            _loginThrottle.RecordFailure(civilId);
             return Unauthorized(new { success = false, message = "Invalid credentials" });
         }
 
-        var token = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? string.Empty);
+        _loginThrottle.Reset(civilId);
+        var token = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? string.Empty,
+            RentCollection.Web.Services.JwtTokenService.ComputeSecurityStamp(tenant.Password),
+            longLived: request.RememberMe);
 
         return Ok(new
         {
@@ -135,7 +150,13 @@ public class TenantApiController : ControllerBase
         if (tenant == null)
             return Unauthorized();
 
-        var token = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? string.Empty);
+        // Preserve the "remember me" TTL across refreshes: a long-lived session
+        // keeps getting long-lived tokens, so the app stays signed in for the
+        // full 30-day window instead of silently dropping to 60 minutes.
+        var remembered = User.FindFirst("rm")?.Value == "1";
+        var token = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? string.Empty,
+            RentCollection.Web.Services.JwtTokenService.ComputeSecurityStamp(tenant.Password),
+            longLived: remembered);
         return Ok(new { success = true, data = new { token } });
     }
 
@@ -160,6 +181,11 @@ public class TenantApiController : ControllerBase
             return BadRequest(new { success = false, message = "Current password is incorrect" });
         }
 
+        // SECURITY (audit M3): enforce the shared password policy.
+        var policyError = RentCollection.Web.Services.PasswordPolicy.Validate(request.NewPassword);
+        if (policyError != null)
+            return BadRequest(new { success = false, message = policyError });
+
         tenant.Password = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         // Tenant has picked their own password — clear the force-change flag
         // so subsequent logins don't keep nagging them.
@@ -167,7 +193,14 @@ public class TenantApiController : ControllerBase
         tenant.ModifiedDate = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return Ok(new { success = true, message = "Password changed successfully" });
+        // SECURITY (audit M2): the password change rotates the token security stamp,
+        // which invalidates the caller's CURRENT token. Return a fresh token so the
+        // legitimate user isn't logged out mid-session.
+        var newToken = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? string.Empty,
+            RentCollection.Web.Services.JwtTokenService.ComputeSecurityStamp(tenant.Password),
+            longLived: User.FindFirst("rm")?.Value == "1");
+
+        return Ok(new { success = true, message = "Password changed successfully", data = new { token = newToken } });
     }
 
     #endregion
@@ -259,22 +292,34 @@ public class TenantApiController : ControllerBase
             .OrderByDescending(l => l.LeaseStartDate)
             .ToListAsync();
 
+        // Latest legal case per lease (read-only status for the tenant banner).
+        // Only status/type/next-hearing are exposed — never notes or amount.
+        var leaseIds = leases.Select(l => l.LeaseId).ToList();
+        var caseByLease = await GetLatestCasesByLeaseAsync(tenantId, leaseIds);
+
         return Ok(new
         {
             success = true,
-            data = leases.Select(l => new
+            data = leases.Select(l =>
             {
-                leaseId = l.LeaseId,
-                propertyName = l.Unit?.Property?.PropertyName,
-                propertyAddress = l.Unit?.Property?.Address,
-                area = l.Unit?.Property?.Area,
-                unitNumber = l.Unit?.UnitNumber,
-                monthlyRent = l.MonthlyRent,
-                leaseStartDate = l.LeaseStartDate,
-                leaseEndDate = l.LeaseEndDate,
-                paymentDueDay = l.PaymentDueDay,
-                securityDeposit = l.SecurityDeposit,
-                status = l.Status
+                caseByLease.TryGetValue(l.LeaseId, out var lc);
+                return new
+                {
+                    leaseId = l.LeaseId,
+                    propertyName = l.Unit?.Property?.PropertyName,
+                    propertyAddress = l.Unit?.Property?.Address,
+                    area = l.Unit?.Property?.Area,
+                    unitNumber = l.Unit?.UnitNumber,
+                    monthlyRent = l.MonthlyRent,
+                    leaseStartDate = l.LeaseStartDate,
+                    leaseEndDate = l.LeaseEndDate,
+                    paymentDueDay = l.PaymentDueDay,
+                    securityDeposit = l.SecurityDeposit,
+                    status = l.Status,
+                    legalCaseStatus = lc?.Status,
+                    legalCaseType = lc?.CaseType,
+                    legalCaseNextHearing = lc?.NextHearingDate
+                };
             })
         });
     }
@@ -297,6 +342,9 @@ public class TenantApiController : ControllerBase
             return NotFound(new { success = false, message = "Lease not found" });
         }
 
+        var caseByLease = await GetLatestCasesByLeaseAsync(tenantId, new List<int> { lease.LeaseId });
+        caseByLease.TryGetValue(lease.LeaseId, out var lc);
+
         return Ok(new
         {
             success = true,
@@ -313,10 +361,30 @@ public class TenantApiController : ControllerBase
                 leaseEndDate = lease.LeaseEndDate,
                 paymentDueDay = lease.PaymentDueDay,
                 securityDeposit = lease.SecurityDeposit,
-                status = lease.Status
+                status = lease.Status,
+                legalCaseStatus = lc?.Status,
+                legalCaseType = lc?.CaseType,
+                legalCaseNextHearing = lc?.NextHearingDate
                 // terms = lease.Terms // Lease doesn't have Terms property
             }
         });
+    }
+
+    /// <summary>
+    /// Latest legal case per lease for a tenant, keyed by LeaseId. Query filters
+    /// are ignored (the tenant is already authorized for these leases) so a
+    /// company-scope filter can't hide the tenant's own case.
+    /// </summary>
+    private async Task<Dictionary<int, RentCollection.Core.Entities.LegalCase>> GetLatestCasesByLeaseAsync(
+        int tenantId, List<int> leaseIds)
+    {
+        if (leaseIds.Count == 0) return new();
+        var cases = await _context.LegalCases
+            .IgnoreQueryFilters().AsNoTracking()
+            .Where(c => c.TenantId == tenantId && leaseIds.Contains(c.LeaseId))
+            .OrderByDescending(c => c.FiledDate).ThenByDescending(c => c.LegalCaseId)
+            .ToListAsync();
+        return cases.GroupBy(c => c.LeaseId).ToDictionary(g => g.Key, g => g.First());
     }
 
     #endregion
@@ -557,7 +625,11 @@ public class TenantApiController : ControllerBase
                 amountPaid = p.AmountPaid,
                 paymentType = p.PaymentType.ToString(),
                 status = p.Status.ToString(),
-                receiptNumber = p.ReceiptNumber,
+                // A receipt only exists once money has actually been
+                // confirmed. Cash requests get a receipt number at request
+                // time (for the office), but the tenant must not see one for
+                // a payment that is still pending/rejected.
+                receiptNumber = p.Status == RentCollection.Core.Enums.PaymentStatus.Completed ? p.ReceiptNumber : null,
                 transactionReference = p.TransactionReference
             })
             .ToListAsync();
@@ -858,6 +930,10 @@ public class TenantApiController : ControllerBase
                 continue;  // skip empty / >5MB individual files
             if (!allowed.Contains(file.ContentType, StringComparer.OrdinalIgnoreCase))
                 continue;
+            // SECURITY (audit H11): the content-type above is client-supplied;
+            // confirm the real bytes are an allowed image before storing.
+            if (!RentCollection.Application.Services.FileSignatureValidator.IsAllowed(file))
+                continue;
 
             using var stream = file.OpenReadStream();
             var stored = await store.SaveAsync(stream, $"maintenance/{requestId}", file.FileName, file.ContentType);
@@ -894,6 +970,14 @@ public class TenantApiController : ControllerBase
         [FromServices] IDocumentStore store)
     {
         if (!IsAuthorizedForTenant(tenantId)) return Forbid();
+
+        // SECURITY (audit H5): self-auth on tenantId is not enough — the requestId
+        // must also belong to this tenant, or tenant A could pass another tenant's
+        // requestId and read their maintenance photos. Verify ownership first.
+        var ownsRequest = await _context.MaintenanceRequests
+            .AsNoTracking()
+            .AnyAsync(m => m.RequestId == requestId && m.TenantId == tenantId);
+        if (!ownsRequest) return NotFound(new { success = false, message = "Request not found" });
 
         var photos = await _context.MaintenancePhotos
             .AsNoTracking()
@@ -949,6 +1033,11 @@ public class TenantApiController : ControllerBase
             .Where(l => l.TenantId == tenantId && l.Status == "Active")
             .ToListAsync();
 
+        // Latest legal case per active lease so the dashboard can surface the
+        // same read-only banner the leases screen shows (status/type/hearing only).
+        var caseByLease = await GetLatestCasesByLeaseAsync(
+            tenantId, activeLeases.Select(l => l.LeaseId).ToList());
+
         var recentPayments = await _context.Payments
             .AsNoTracking()
             .Include(p => p.Lease)
@@ -985,13 +1074,20 @@ public class TenantApiController : ControllerBase
                     totalPaymentsCount = await _context.Payments.CountAsync(p => p.Lease.TenantId == tenantId),
                     pendingMaintenanceRequestsCount = pendingMaintenanceRequests.Count
                 },
-                activeLeases = activeLeases.Select(l => new
+                activeLeases = activeLeases.Select(l =>
                 {
-                    leaseId = l.LeaseId,
-                    propertyName = l.Unit?.Property?.PropertyName,
-                    unitNumber = l.Unit?.UnitNumber,
-                    monthlyRent = l.MonthlyRent,
-                    paymentDueDay = l.PaymentDueDay
+                    caseByLease.TryGetValue(l.LeaseId, out var lc);
+                    return new
+                    {
+                        leaseId = l.LeaseId,
+                        propertyName = l.Unit?.Property?.PropertyName,
+                        unitNumber = l.Unit?.UnitNumber,
+                        monthlyRent = l.MonthlyRent,
+                        paymentDueDay = l.PaymentDueDay,
+                        legalCaseStatus = lc?.Status,
+                        legalCaseType = lc?.CaseType,
+                        legalCaseNextHearing = lc?.NextHearingDate
+                    };
                 }),
                 recentPayments = recentPayments.Select(p => new
                 {
@@ -1105,6 +1201,11 @@ public class TenantLoginRequest
 
     [Required]
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>When true ("Remember me for 30 days"), the issued JWT is
+    /// long-lived (RefreshTokenExpirationDays) so the app stays signed in
+    /// across cold starts; otherwise it's the short AccessTokenExpirationMinutes.</summary>
+    public bool RememberMe { get; set; } = false;
 }
 
 public class TenantApiChangePasswordRequest

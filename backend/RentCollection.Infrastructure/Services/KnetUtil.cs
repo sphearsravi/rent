@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -36,10 +37,14 @@ public class KnetUtil
             _ => "USA"
         };
 
-        // Build cleartext parameter string (KWD uses 3 decimal places, currency code 414)
+        // Build cleartext parameter string (KWD uses 3 decimal places, currency code 414).
+        // Culture-invariant on purpose: under an ar-KW / de-DE thread culture
+        // `amount:0.000` would render "1٬500٫000" or "1500,000" and KNET would
+        // reject (or misread) the amount.
+        var amt = amount.ToString("0.000", CultureInfo.InvariantCulture);
         var clearTextParams =
             $"id={tranportalId}&password={tranportalPwd}&action=1&" +
-            $"langid={langId}&currencycode=414&amt={amount:0.000}&" +
+            $"langid={langId}&currencycode=414&amt={amt}&" +
             $"responseURL={responseUrl}&errorURL={errorUrl}&" +
             $"trackid={trackId}&" +
             $"udf1={udf1 ?? ""}&udf2={udf2 ?? ""}&udf3={udf3 ?? ""}&udf4={udf4 ?? ""}&udf5={udf5 ?? ""}&";

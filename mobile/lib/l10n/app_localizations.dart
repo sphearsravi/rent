@@ -98,7 +98,7 @@ abstract class AppLocalizations {
   /// Application display name
   ///
   /// In en, this message translates to:
-  /// **'VIIJAR Tenant'**
+  /// **'Alrtam'**
   String get appName;
 
   /// No description provided for @loginTitle.
@@ -466,6 +466,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No pending maintenance requests'**
   String get dashboardNoMaintenance;
+
+  /// No description provided for @dashboardAmountDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount due'**
+  String get dashboardAmountDue;
+
+  /// No description provided for @dashboardAllPaidUp.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re all paid up'**
+  String get dashboardAllPaidUp;
+
+  /// No description provided for @dashboardAllPaidUpBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No outstanding invoices — nothing to pay right now.'**
+  String get dashboardAllPaidUpBody;
+
+  /// No description provided for @dashboardOverdueChip.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overdue'**
+  String dashboardOverdueChip(int count);
+
+  /// No description provided for @dashboardNextPaymentDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Next payment due'**
+  String get dashboardNextPaymentDue;
+
+  /// No description provided for @dashboardDueToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Due today'**
+  String get dashboardDueToday;
+
+  /// No description provided for @dashboardDueInDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Due in {days} days'**
+  String dashboardDueInDays(int days);
+
+  /// No description provided for @dashboardOverdueByDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue by {days} days'**
+  String dashboardOverdueByDays(int days);
+
+  /// No description provided for @dashboardPayNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay now'**
+  String get dashboardPayNow;
+
+  /// No description provided for @dashboardQuickActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick actions'**
+  String get dashboardQuickActions;
+
+  /// No description provided for @dashboardActionPay.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get dashboardActionPay;
+
+  /// No description provided for @dashboardActionRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'New request'**
+  String get dashboardActionRequest;
+
+  /// No description provided for @dashboardActionLeases.
+  ///
+  /// In en, this message translates to:
+  /// **'My leases'**
+  String get dashboardActionLeases;
+
+  /// No description provided for @dashboardActionProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get dashboardActionProfile;
+
+  /// No description provided for @dashboardStatOutstanding.
+  ///
+  /// In en, this message translates to:
+  /// **'Outstanding'**
+  String get dashboardStatOutstanding;
+
+  /// No description provided for @dashboardStatOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get dashboardStatOverdue;
+
+  /// No description provided for @dashboardStatOpenRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Open requests'**
+  String get dashboardStatOpenRequests;
+
+  /// No description provided for @dashboardStatMonthlyRent.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly rent'**
+  String get dashboardStatMonthlyRent;
+
+  /// No description provided for @dashboardLeaseExpiring.
+  ///
+  /// In en, this message translates to:
+  /// **'Lease expires in {days} days'**
+  String dashboardLeaseExpiring(int days);
+
+  /// No description provided for @dashboardLeaseExpiringAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact office to renew'**
+  String get dashboardLeaseExpiringAction;
+
+  /// No description provided for @dashboardInvoicesDueOne.
+  ///
+  /// In en, this message translates to:
+  /// **'1 invoice to pay'**
+  String get dashboardInvoicesDueOne;
+
+  /// No description provided for @dashboardInvoicesDueMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} invoices to pay'**
+  String dashboardInvoicesDueMany(int count);
 
   /// No description provided for @invoicesTitle.
   ///
@@ -1016,7 +1148,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutTagline.
   ///
   /// In en, this message translates to:
-  /// **'VIIJAR Rent Collection System - Tenant Mobile App'**
+  /// **'Alrtam Rent Collection System - Tenant Mobile App'**
   String get aboutTagline;
 
   /// No description provided for @aboutDescription.
@@ -1198,6 +1330,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Office hours: Sun–Thu, 9 AM – 5 PM. A receipt is issued once the payment is verified.'**
   String get paymentCashOfficeHours;
+
+  /// No description provided for @paymentCashRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify office — I\'ll pay cash'**
+  String get paymentCashRequest;
+
+  /// No description provided for @paymentCashRequestSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'The office has been notified. Pay at the counter and staff will confirm it.'**
+  String get paymentCashRequestSuccess;
+
+  /// No description provided for @paymentCashRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t send the cash request. Please try again.'**
+  String get paymentCashRequestFailed;
+
+  /// No description provided for @paymentCashRequestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay cash at the office'**
+  String get paymentCashRequestTitle;
+
+  /// No description provided for @paymentCashRequestIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell the office how much you will bring. You can pay part of the balance now and the rest later.'**
+  String get paymentCashRequestIntro;
+
+  /// No description provided for @paymentCashRequestAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount I will pay (KWD)'**
+  String get paymentCashRequestAmountLabel;
+
+  /// No description provided for @paymentCashRequestAmountInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount between 0.001 and {balance} KWD'**
+  String paymentCashRequestAmountInvalid(String balance);
+
+  /// No description provided for @paymentCashRequestPartialHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining after this payment: {remaining} KWD'**
+  String paymentCashRequestPartialHint(String remaining);
+
+  /// No description provided for @paymentCashRequestFullBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Full balance'**
+  String get paymentCashRequestFullBalance;
+
+  /// No description provided for @paymentCashRequestConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify office'**
+  String get paymentCashRequestConfirm;
+
+  /// No description provided for @errorInvalidCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid Civil ID or password.'**
+  String get errorInvalidCredentials;
+
+  /// No description provided for @statusPendingVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending verification'**
+  String get statusPendingVerification;
+
+  /// No description provided for @maintCatPlumbing.
+  ///
+  /// In en, this message translates to:
+  /// **'Plumbing'**
+  String get maintCatPlumbing;
+
+  /// No description provided for @maintCatElectrical.
+  ///
+  /// In en, this message translates to:
+  /// **'Electrical'**
+  String get maintCatElectrical;
+
+  /// No description provided for @maintCatHvac.
+  ///
+  /// In en, this message translates to:
+  /// **'Air conditioning (HVAC)'**
+  String get maintCatHvac;
+
+  /// No description provided for @maintCatAppliance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appliance'**
+  String get maintCatAppliance;
+
+  /// No description provided for @maintCatStructural.
+  ///
+  /// In en, this message translates to:
+  /// **'Structural'**
+  String get maintCatStructural;
+
+  /// No description provided for @maintCatOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get maintCatOther;
+
+  /// No description provided for @maintPrioLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get maintPrioLow;
+
+  /// No description provided for @maintPrioMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get maintPrioMedium;
+
+  /// No description provided for @maintPrioHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get maintPrioHigh;
+
+  /// No description provided for @maintPrioEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency'**
+  String get maintPrioEmergency;
+
+  /// No description provided for @maintenanceSubmitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t submit the request. Please try again.'**
+  String get maintenanceSubmitFailed;
+
+  /// No description provided for @dashboardBalanceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your balance'**
+  String get dashboardBalanceUnavailable;
+
+  /// No description provided for @dashboardBalanceUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and pull down to refresh.'**
+  String get dashboardBalanceUnavailableBody;
+
+  /// No description provided for @paymentChooseMethodButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose payment method'**
+  String get paymentChooseMethodButton;
+
+  /// No description provided for @paymentForInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment for invoice #{id}'**
+  String paymentForInvoice(String id);
+
+  /// No description provided for @paymentAmountDueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount due'**
+  String get paymentAmountDueLabel;
+
+  /// No description provided for @payOldestFirstTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay your oldest invoice first'**
+  String get payOldestFirstTitle;
+
+  /// No description provided for @payOldestFirstGoTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to invoice #{id}'**
+  String payOldestFirstGoTo(String id);
 
   /// No description provided for @paymentNoPendingInvoices.
   ///
@@ -1546,6 +1858,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pay invoice #{id} first'**
   String payInvoiceFirst(String id);
+
+  /// No description provided for @legalCase.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal case'**
+  String get legalCase;
+
+  /// No description provided for @legalCaseNextHearing.
+  ///
+  /// In en, this message translates to:
+  /// **'Next hearing: {date}'**
+  String legalCaseNextHearing(String date);
+
+  /// No description provided for @caseStatusOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get caseStatusOpen;
+
+  /// No description provided for @caseStatusHearing.
+  ///
+  /// In en, this message translates to:
+  /// **'Hearing'**
+  String get caseStatusHearing;
+
+  /// No description provided for @caseStatusWon.
+  ///
+  /// In en, this message translates to:
+  /// **'Won'**
+  String get caseStatusWon;
+
+  /// No description provided for @caseStatusLost.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost'**
+  String get caseStatusLost;
+
+  /// No description provided for @caseStatusSettled.
+  ///
+  /// In en, this message translates to:
+  /// **'Settled'**
+  String get caseStatusSettled;
+
+  /// No description provided for @caseStatusWithdrawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Withdrawn'**
+  String get caseStatusWithdrawn;
+
+  /// No description provided for @caseStatusClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get caseStatusClosed;
+
+  /// No description provided for @caseTypeEviction.
+  ///
+  /// In en, this message translates to:
+  /// **'Eviction'**
+  String get caseTypeEviction;
+
+  /// No description provided for @caseTypeNonPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-payment'**
+  String get caseTypeNonPayment;
+
+  /// No description provided for @caseTypeDamages.
+  ///
+  /// In en, this message translates to:
+  /// **'Damages'**
+  String get caseTypeDamages;
+
+  /// No description provided for @caseTypeOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get caseTypeOther;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

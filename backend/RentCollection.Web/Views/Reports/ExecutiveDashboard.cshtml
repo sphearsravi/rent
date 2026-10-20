@@ -1,695 +1,337 @@
+@using RentCollection.Web.Models
 @{
     ViewData["Title"] = "Executive Dashboard";
+
+    DateTime fromDate = ViewBag.FromDate;
+    DateTime toDate = ViewBag.ToDate;
+
+    // KPI row
+    decimal periodCollected = ViewBag.PeriodCollected;
+    decimal periodInvoiced = ViewBag.PeriodInvoiced;
+    decimal collectionRate = ViewBag.CollectionRate;
+    decimal totalOutstanding = ViewBag.TotalOutstanding;
+    int outstandingInvoices = ViewBag.OutstandingInvoices;
+    decimal overdueAmount = ViewBag.OverdueAmount;
+    int overdueInvoices = ViewBag.OverdueInvoices;
+    decimal occupancyRate = ViewBag.OccupancyRate;
+    int totalUnits = ViewBag.TotalUnits;
+    int occupiedUnits = ViewBag.OccupiedUnits;
+    int vacantUnits = ViewBag.VacantUnits;
+    int totalProperties = ViewBag.TotalProperties;
+
+    // Financials
+    decimal potentialMonthlyRent = ViewBag.PotentialMonthlyRent;
+    decimal actualMonthlyRent = ViewBag.ActualMonthlyRent;
+    decimal ytdRevenue = ViewBag.YTDRevenue;
+    decimal maintenanceCost = ViewBag.YTDMaintenanceCosts;
+    int maintenanceCount = ViewBag.MaintenanceCount;
+    decimal netRevenue = ViewBag.NetRevenue;
+    decimal prevMonthRevenue = ViewBag.PrevMonthRevenue;
+    decimal revenueChange = ViewBag.RevenueChange;
+
+    // People
+    int activeTenants = ViewBag.ActiveTenants;
+    int activeLeases = ViewBag.ActiveLeases;
+    int expiringLeases = ViewBag.ExpiringLeases;
+    decimal avgRentPerTenant = ViewBag.AvgRentPerTenant;
+    decimal avgMaintenanceCost = ViewBag.AvgMaintenanceCost;
+
+    var trend = ViewBag.Trend as List<ExecutiveTrendPoint> ?? new List<ExecutiveTrendPoint>();
+    var propertyRows = ViewBag.PropertyRows as List<ExecutivePropertyRow> ?? new List<ExecutivePropertyRow>();
+
+    var barPct = (int)Math.Clamp(Math.Round(collectionRate), 0, 100);
+    var unletRent = Math.Max(0, potentialMonthlyRent - actualMonthlyRent);
+    var trendExpected = trend.Sum(t => t.Expected);
+    var trendCollected = trend.Sum(t => t.Collected);
+    decimal? trendRate = trendExpected > 0 ? Math.Min(100, trendCollected / trendExpected * 100) : null;
+    var bestMonth = trend.Where(t => t.Expected > 0)
+        .OrderByDescending(t => t.Collected / t.Expected).FirstOrDefault();
+
+    var fromQ = fromDate.ToString("yyyy-MM-dd");
+    var toQ = toDate.ToString("yyyy-MM-dd");
+
+    string Kwd(decimal v) => "KWD " + v.ToString("N3");
+    string Pct(decimal v) => v.ToString("N1") + "%";
+    string Grade(decimal? r) => r == null ? "" : r < 60 ? "is-red" : r < 90 ? "is-amber" : "is-green";
+    string Dot(decimal? r) => r == null ? "" : r < 60 ? "od-dot-red" : r < 90 ? "od-dot-amber" : "od-dot-green";
 }
 
-@section Styles {
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <style>
-        /* Animated Background */
-        .bg-animation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            overflow: hidden;
-            pointer-events: none;
-        }
-
-        .bg-animation .circle {
-            position: absolute;
-            border-radius: 50%;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
-            animation: float 20s infinite;
-        }
-
-        .bg-animation .circle:nth-child(1) {
-            width: 400px;
-            height: 400px;
-            top: -100px;
-            right: -100px;
-            animation-delay: 0s;
-        }
-
-        .bg-animation .circle:nth-child(2) {
-            width: 300px;
-            height: 300px;
-            bottom: -50px;
-            left: -50px;
-            animation-delay: 5s;
-        }
-
-        .bg-animation .circle:nth-child(3) {
-            width: 200px;
-            height: 200px;
-            top: 50%;
-            left: 50%;
-            animation-delay: 10s;
-        }
-
-        @@keyframes float {
-            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.5; }
-            50% { transform: translateY(-30px) rotate(180deg); opacity: 0.8; }
-        }
-
-        .app-container {
-            position: relative;
-            z-index: 1;
-            padding: 1.5rem;
-            max-width: 1800px;
-            margin: 0 auto;
-        }
-
-        /* Header */
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-        }
-
-        .header-content h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .header-content h1 i {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-content p {
-            color: #64748b;
-            margin-top: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-        }
-
-        /* Glassmorphic Cards */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .glass-card:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Filter Section */
-        .filter-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .filter-header h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #334155;
-        }
-
-        .filter-header i {
-            color: #818cf8;
-        }
-
-        .filter-form {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .form-group label {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #475569;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .form-control {
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            padding: 0.875rem 1rem;
-            color: #1e293b;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: #818cf8;
-            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
-            background: #ffffff;
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 0.875rem 1.5rem;
-            border-radius: 12px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-            text-decoration: none;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .btn:hover::before {
-            left: 100%;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: white;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
-        }
-
-        .btn-secondary {
-            background: rgba(99, 102, 241, 0.1);
-            color: #4f46e5;
-            border: 1px solid rgba(99, 102, 241, 0.3);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(99, 102, 241, 0.2);
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-        }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.25rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            padding: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 1.25rem;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, var(--accent-color), transparent);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-card.properties { --accent-color: #6366f1; }
-        .stat-card.occupancy { --accent-color: #10b981; }
-        .stat-card.collection { --accent-color: #3b82f6; }
-        .stat-card.outstanding { --accent-color: #f59e0b; }
-
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        .stat-card.properties .stat-icon {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
-            color: #818cf8;
-        }
-
-        .stat-card.occupancy .stat-icon {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
-            color: #34d399;
-        }
-
-        .stat-card.collection .stat-icon {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
-            color: #60a5fa;
-        }
-
-        .stat-card.outstanding .stat-icon {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
-            color: #fbbf24;
-        }
-
-        .stat-content {
-            flex: 1;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #1e293b;
-            line-height: 1.2;
-        }
-
-        .stat-sub {
-            font-size: 0.85rem;
-            color: #94a3b8;
-            margin-top: 0.25rem;
-        }
-
-        /* Data Table */
-        .table-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-        }
-
-        .table-header {
-            padding: 1.25rem 1.5rem;
-            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .table-header h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #334155;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .table-header h3 i {
-            color: #818cf8;
-        }
-
-        .table-responsive {
-            overflow-x: auto;
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .data-table th {
-            background: rgba(99, 102, 241, 0.08);
-            padding: 1rem 1.25rem;
-            text-align: left;
-            font-weight: 600;
-            color: #475569;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid #e2e8f0;
-            white-space: nowrap;
-        }
-
-        .data-table td {
-            padding: 1rem 1.25rem;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 0.9rem;
-            color: #334155;
-        }
-
-        .data-table tr {
-            transition: all 0.2s ease;
-        }
-
-        .data-table tr:hover {
-            background: rgba(99, 102, 241, 0.05);
-        }
-
-        .data-table .amount {
-            font-weight: 600;
-            font-family: 'SF Mono', 'Fira Code', monospace;
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        .row-highlight-info {
-            background: rgba(59, 130, 246, 0.1) !important;
-        }
-
-        .row-highlight-danger {
-            background: rgba(239, 68, 68, 0.1) !important;
-        }
-
-        .row-highlight-success {
-            background: rgba(16, 185, 129, 0.1) !important;
-        }
-
-        /* Summary Cards Grid */
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .summary-table {
-            width: 100%;
-        }
-
-        .summary-table td {
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .summary-table td:first-child {
-            font-weight: 500;
-            color: #475569;
-        }
-
-        .summary-table td:last-child {
-            text-align: right;
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        /* Responsive */
-        @@media (max-width: 768px) {
-            .page-header {
-                flex-direction: column;
-                gap: 1.5rem;
-                text-align: center;
-            }
-
-            .header-actions {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .filter-form {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .summary-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-}
-
-<!-- Animated Background -->
-<div class="bg-animation">
-    <div class="circle"></div>
-    <div class="circle"></div>
-    <div class="circle"></div>
-</div>
-
-<div class="app-container">
-    <!-- Header -->
-    <div class="page-header">
-        <div class="header-content">
-            <h1><i class="fas fa-tachometer-alt"></i> @L["Executive Dashboard"]</h1>
-            <p>@L["High-level portfolio overview with key business metrics"]</p>
+<div class="od">
+
+    @* ── Header ── *@
+    <header class="od-header">
+        <div>
+            <div class="od-eyebrow">@L["Executive report"] · @fromDate.ToString("d MMM yyyy") – @toDate.ToString("d MMM yyyy")</div>
+            <h1 class="od-title">@L["How the portfolio performed"]</h1>
+            <div class="od-sub">@L["Collections, occupancy and costs for the selected period."]</div>
         </div>
-        <div class="header-actions">
-            <a href="@Url.Action("ExecutiveDashboardExcel", new { fromDate = ViewBag.FromDate, toDate = ViewBag.ToDate })" class="btn btn-success">
-                <i class="fas fa-file-excel"></i> @L["Export Excel"]
+        <form method="get" class="od-toolbar">
+            <label class="od-sub" for="fromDate">@L["From Date"]</label>
+            <input type="date" id="fromDate" name="fromDate" class="od-select" value="@fromQ" />
+            <label class="od-sub" for="toDate">@L["To Date"]</label>
+            <input type="date" id="toDate" name="toDate" class="od-select" value="@toQ" />
+            <button type="submit" class="od-btn od-btn-primary">@L["Apply Filter"]</button>
+            <a class="od-btn od-btn-ghost" href="@Url.Action("ExecutiveDashboardExcel", new { fromDate = fromQ, toDate = toQ })">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/></svg>
+                @L["Export Excel"]
             </a>
-            <a href="@Url.Action("Index")" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> @L["Back"]
+            <a class="od-btn od-btn-ghost" href="@Url.Action("ExecutiveDashboardPdf", new { from = fromQ, to = toQ })">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></svg>
+                @L["Download PDF"]
             </a>
-        </div>
-    </div>
-
-    <!-- Date Filter -->
-    <div class="glass-card">
-        <div class="filter-header">
-            <i class="fas fa-calendar-alt"></i>
-            <h3>@L["Date Range Filter"]</h3>
-        </div>
-        <form method="get" class="filter-form">
-            <div class="form-group">
-                <label>@L["From Date"]</label>
-                <input type="date" name="fromDate" class="form-control" value="@ViewBag.FromDate?.ToString("yyyy-MM-dd")" />
-            </div>
-            <div class="form-group">
-                <label>@L["To Date"]</label>
-                <input type="date" name="toDate" class="form-control" value="@ViewBag.ToDate?.ToString("yyyy-MM-dd")" />
-            </div>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-filter"></i> @L["Apply Filter"]
-            </button>
+            <a class="od-btn od-btn-ghost" href="@Url.Action("Index")">@L["Back"]</a>
         </form>
-    </div>
+    </header>
 
-    <!-- Key Metrics -->
-    <div class="stats-grid">
-        <div class="stat-card properties">
-            <div class="stat-icon">
-                <i class="fas fa-building"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-label">@L["Total Properties"]</div>
-                <div class="stat-value">@ViewBag.TotalProperties</div>
-                <div class="stat-sub">@L["Total Units:"] @ViewBag.TotalUnits</div>
-            </div>
-        </div>
-        <div class="stat-card occupancy">
-            <div class="stat-icon">
-                <i class="fas fa-home"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-label">@L["Occupancy Rate"]</div>
-                <div class="stat-value">@ViewBag.OccupancyRate.ToString("N2")%</div>
-                <div class="stat-sub">@ViewBag.OccupiedUnits / @ViewBag.TotalUnits @L["units"]</div>
-            </div>
-        </div>
-        <div class="stat-card collection">
-            <div class="stat-icon">
-                <i class="fas fa-percentage"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-label">@L["Collection Rate"]</div>
-                <div class="stat-value">@ViewBag.CollectionRate.ToString("N2")%</div>
-                <div class="stat-sub">@L["Of expected rent"]</div>
-            </div>
-        </div>
-        <div class="stat-card outstanding">
-            <div class="stat-icon">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-label">@L["Outstanding Amount"]</div>
-                <div class="stat-value">@ViewBag.TotalOutstanding.ToString("N3")</div>
-                <div class="stat-sub">@L["KWD - Unpaid invoices"]</div>
-            </div>
-        </div>
-    </div>
+    @* ── KPI row ── *@
+    <section class="od-grid-kpi" aria-label="@(L["Executive report"].Value)">
 
-    <!-- Financial Summary -->
-    <div class="table-card">
-        <div class="table-header">
-            <h3><i class="fas fa-money-bill-wave"></i> @L["Financial Summary"]</h3>
-        </div>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>@L["Metric"]</th>
-                        <th class="text-right">@L["Amount (KWD)"]</th>
-                        <th>@L["Details"]</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>@L["Potential Monthly Rent"]</strong></td>
-                        <td class="text-right amount">@ViewBag.PotentialMonthlyRent.ToString("N3")</td>
-                        <td>@L["If all units were occupied"]</td>
-                    </tr>
-                    <tr>
-                        <td><strong>@L["Actual Monthly Rent"]</strong></td>
-                        <td class="text-right amount">@ViewBag.ActualMonthlyRent.ToString("N3")</td>
-                        <td>@L["Current occupied units"]</td>
-                    </tr>
-                    <tr class="row-highlight-info">
-                        <td><strong>@L["YTD Revenue"]</strong></td>
-                        <td class="text-right amount" style="color: #60a5fa;">@ViewBag.YTDRevenue.ToString("N3")</td>
-                        <td>@L["Year-to-date collected payments"]</td>
-                    </tr>
-                    <tr class="row-highlight-danger">
-                        <td><strong>@L["YTD Maintenance Costs"]</strong></td>
-                        <td class="text-right amount" style="color: #f87171;">@ViewBag.YTDMaintenanceCosts.ToString("N3")</td>
-                        <td>@ViewBag.MaintenanceCount @L["completed requests"]</td>
-                    </tr>
-                    <tr class="row-highlight-success">
-                        <td><strong>@L["Net Revenue (YTD)"]</strong></td>
-                        <td class="text-right amount" style="color: #34d399;">@ViewBag.NetRevenue.ToString("N3")</td>
-                        <td>@L["Revenue minus maintenance costs"]</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+        <article class="od-card od-kpi-hero">
+            <div class="od-kpi-row">
+                <span class="od-kpi-label">@L["Collected in period"]</span>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linecap="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+            </div>
+            <div class="od-kpi-value">@Kwd(periodCollected)</div>
+            <div class="od-kpi-sub">@L["of {0} invoiced in this period", Kwd(periodInvoiced)]</div>
+            <div class="od-bar"><span style="width:@(barPct)%"></span></div>
+            <div class="od-kpi-row" style="font-size:13px">
+                <strong>@L["{0} collected", Pct(collectionRate)]</strong>
+                <span class="od-kpi-sub">@L["Previous month: {0}", Kwd(prevMonthRevenue)]</span>
+            </div>
+        </article>
 
-    <!-- Tenant & Maintenance Summary -->
-    <div class="summary-grid">
-        <div class="table-card">
-            <div class="table-header">
-                <h3><i class="fas fa-users"></i> @L["Tenant Summary"]</h3>
+        <article class="od-card">
+            <div class="od-kpi-row">
+                <span class="od-kpi-label">@L["Outstanding"]</span>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--od-amber)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             </div>
-            <div style="padding: 1.5rem;">
-                <table class="summary-table">
-                    <tr>
-                        <td>@L["Total Active Tenants"]</td>
-                        <td>@ViewBag.ActiveTenants</td>
-                    </tr>
-                    <tr>
-                        <td>@L["Total Active Leases"]</td>
-                        <td>@ViewBag.ActiveLeases</td>
-                    </tr>
-                    <tr>
-                        <td>@L["Average Rent per Tenant"]</td>
-                        <td>@ViewBag.AvgRentPerTenant.ToString("N3") KWD</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-        <div class="table-card">
-            <div class="table-header">
-                <h3><i class="fas fa-wrench"></i> @L["Maintenance Summary"]</h3>
-            </div>
-            <div style="padding: 1.5rem;">
-                <table class="summary-table">
-                    <tr>
-                        <td>@L["Total Requests (Period)"]</td>
-                        <td>@ViewBag.MaintenanceCount</td>
-                    </tr>
-                    <tr>
-                        <td>@L["Total Cost (Period)"]</td>
-                        <td>@ViewBag.YTDMaintenanceCosts.ToString("N3") KWD</td>
-                    </tr>
-                    <tr>
-                        <td>@L["Average Cost per Request"]</td>
-                        <td>@ViewBag.AvgMaintenanceCost.ToString("N3") KWD</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
+            <div class="od-kpi-value">@Kwd(totalOutstanding)</div>
+            <div class="od-kpi-sub">@L["{0} unpaid invoices", outstandingInvoices]</div>
+            <a class="od-card-link" href="@Url.Action("Index", "Invoices")">@L["View invoices"] →</a>
+        </article>
 
-@section Scripts {
-    <script>
-        // Add subtle animation on scroll
-        document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.stat-card, .glass-card, .table-card');
+        <article class="od-card">
+            <div class="od-kpi-row">
+                <span class="od-kpi-label">@L["Overdue"]</span>
+                @if (overdueInvoices > 0)
+                {
+                    <span class="od-pill od-pill-red">@L["{0} invoices", overdueInvoices]</span>
+                }
+                else
+                {
+                    <span class="od-pill od-pill-green">0</span>
+                }
+            </div>
+            <div class="od-kpi-value @(overdueAmount > 0 ? "is-red" : "is-green")">@Kwd(overdueAmount)</div>
+            <div class="od-kpi-sub">@L["Past due date as of today"]</div>
+        </article>
 
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
+        <article class="od-card">
+            <div class="od-kpi-row">
+                <span class="od-kpi-label">@L["Occupancy"]</span>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--od-green)"><path d="M3 21V9l9-6 9 6v12M9 21v-6h6v6"/></svg>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                <span class="od-kpi-value @Grade(occupancyRate)">@Pct(occupancyRate)</span>
+                <span class="od-kpi-sub">@L["{0} of {1} units", occupiedUnits, totalUnits]</span>
+            </div>
+            <div class="od-kpi-sub">@L["{0} vacant · about {1} per month unlet", vacantUnits, Kwd(unletRent)]</div>
+        </article>
+    </section>
+
+    @* ── Trend + financial summary ── *@
+    <section class="od-grid-2">
+
+        <article class="od-card">
+            <div class="od-card-head">
+                <h2 class="od-card-title">@L["Collections — last 6 months"]</h2>
+                <div class="od-legend">
+                    <span><span class="od-swatch od-trend-expected"></span>@L["Expected"]</span>
+                    <span><span class="od-swatch od-trend-collected"></span>@L["Collected"]</span>
+                </div>
+            </div>
+
+            @if (trend.Count == 0 || trend.All(t => t.Expected == 0 && t.Collected == 0))
+            {
+                <div class="od-empty">@L["No invoices in this period"]</div>
+            }
+            else
+            {
+                <div class="od-trend" role="img" aria-label="@(L["Collections — last 6 months"].Value)">
+                    @foreach (var t in trend)
+                    {
+                        <div class="od-trend-col">
+                            <div class="od-trend-bars">
+                                <span class="od-trend-expected" style="height:@(t.ExpectedPx)px" title="@L["Expected"]: @Kwd(t.Expected)"></span>
+                                <span class="od-trend-collected @(t.IsPartial ? "is-partial" : "")" style="height:@(t.CollectedPx)px" title="@L["Collected"]: @Kwd(t.Collected)"></span>
+                            </div>
+                            <span class="od-trend-label">@t.Label@(t.IsPartial ? " (" + L["so far"].Value + ")" : "")</span>
+                        </div>
                     }
-                });
-            }, { threshold: 0.1 });
+                </div>
+            }
 
-            cards.forEach(card => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                card.style.transition = 'all 0.6s ease';
-                observer.observe(card);
-            });
-        });
-    </script>
-}
+            <div class="od-grid-3 od-divider-top">
+                <div class="od-stat">
+                    <span>@L["Avg collection rate"]</span>
+                    <strong class="@Grade(trendRate)">@(trendRate.HasValue ? Pct(trendRate.Value) : "—")</strong>
+                </div>
+                <div class="od-stat">
+                    <span>@L["Best month"]</span>
+                    <strong>@(bestMonth != null ? bestMonth.Label + " · " + Pct(Math.Min(100, bestMonth.Collected / bestMonth.Expected * 100)) : "—")</strong>
+                </div>
+                <div class="od-stat">
+                    <span>@L["YTD Revenue"]</span>
+                    <strong>@Kwd(ytdRevenue)</strong>
+                </div>
+            </div>
+        </article>
+
+        <article class="od-card">
+            <div class="od-card-head">
+                <h2 class="od-card-title">@L["Financial Summary"]</h2>
+                <span class="od-card-meta">KWD</span>
+            </div>
+            <div class="od-rows">
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Potential Monthly Rent"]</strong><span>@L["If all units were occupied"]</span></span>
+                    <span class="od-amount">@potentialMonthlyRent.ToString("N3")</span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text">
+                        <strong>@L["Actual Monthly Rent"]</strong>
+                        <span>@L["Current occupied units"] ·
+                            <span class="od-pill @(revenueChange >= 0 ? "od-pill-green" : "od-pill-red")">@(revenueChange >= 0 ? "+" : "")@revenueChange.ToString("N1")% @L["vs previous month"]</span>
+                        </span>
+                    </span>
+                    <span class="od-amount">@actualMonthlyRent.ToString("N3")</span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["YTD Revenue"]</strong><span>@L["Year-to-date collected payments"]</span></span>
+                    <span class="od-amount">@ytdRevenue.ToString("N3")</span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["YTD Maintenance Costs"]</strong><span>@maintenanceCount @L["completed requests"]</span></span>
+                    <span class="od-amount @(maintenanceCost > 0 ? "is-red" : "")">@maintenanceCost.ToString("N3")</span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Net Revenue (YTD)"]</strong><span>@L["Revenue minus maintenance costs"]</span></span>
+                    <span class="od-amount">@netRevenue.ToString("N3")</span>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    @* ── Property health ── *@
+    <section class="od-card">
+        <div class="od-card-head">
+            <h2 class="od-card-title">@L["Property health"]</h2>
+            <span class="od-card-meta">@L["{0} properties · {1} units", totalProperties, totalUnits] · @L["Sorted by collection rate — weakest first"]</span>
+        </div>
+        @if (propertyRows.Count == 0)
+        {
+            <div class="od-empty">@L["No properties in scope"]</div>
+        }
+        else
+        {
+            <div class="od-table-wrap">
+                <table class="od-table">
+                    <thead>
+                        <tr>
+                            <th>@L["Property"]</th>
+                            <th>@L["Occupied"]</th>
+                            <th class="num">@L["Invoiced"]</th>
+                            <th class="num">@L["Collected"]</th>
+                            <th>@L["Collection"]</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in propertyRows)
+                        {
+                            var rate = r.CollectionRate;
+                            <tr>
+                                <td><strong>@if (rate != null) {<span class="od-dot @Dot(rate)"></span>}@r.Name</strong></td>
+                                <td>@r.OccupiedUnits / @r.TotalUnits <span class="od-card-meta">(@Pct(r.OccupancyRate))</span></td>
+                                <td class="num">@r.Invoiced.ToString("N3")</td>
+                                <td class="num">@r.Collected.ToString("N3")</td>
+                                <td>
+                                    @if (rate != null)
+                                    {
+                                        <div class="od-rate">
+                                            <div class="od-bar is-thin"><span class="@Grade(rate)" style="width:@((int)Math.Round(rate.Value))%"></span></div>
+                                            <strong class="od-kpi-value @Grade(rate)" style="font-size:14px">@((int)Math.Round(rate.Value))%</strong>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="od-card-meta">—</span>
+                                    }
+                                </td>
+                                <td class="num"><a href="@Url.Action("Details", "Properties", new { id = r.PropertyId })" class="od-card-link">@L["Open"] →</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @* ── Tenants + maintenance ── *@
+    <section class="od-grid-2">
+
+        <article class="od-card">
+            <div class="od-card-head">
+                <h2 class="od-card-title">@L["Tenant Summary"]</h2>
+            </div>
+            <div class="od-rows">
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Total Active Tenants"]</strong></span>
+                    <span class="od-amount">@activeTenants</span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Total Active Leases"]</strong></span>
+                    <span class="od-amount">@activeLeases</span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Expiring within 30 days"]</strong><span>@L["renew or terminate"]</span></span>
+                    <span class="od-amount">
+                        @if (expiringLeases > 0)
+                        {
+                            <span class="od-pill od-pill-amber">@expiringLeases</span>
+                        }
+                        else
+                        {
+                            <span>@expiringLeases</span>
+                        }
+                    </span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Average Rent per Tenant"]</strong></span>
+                    <span class="od-amount">@Kwd(avgRentPerTenant)</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="od-card">
+            <div class="od-card-head">
+                <h2 class="od-card-title">@L["Maintenance Summary"]</h2>
+            </div>
+            <div class="od-rows">
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Total Requests (Period)"]</strong></span>
+                    <span class="od-amount">@maintenanceCount</span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Total Cost (Period)"]</strong></span>
+                    <span class="od-amount @(maintenanceCost > 0 ? "is-red" : "")">@Kwd(maintenanceCost)</span>
+                </div>
+                <div class="od-row">
+                    <span class="od-row-text"><strong>@L["Average Cost per Request"]</strong></span>
+                    <span class="od-amount">@Kwd(avgMaintenanceCost)</span>
+                </div>
+            </div>
+            <div class="od-note">@L["Maintenance costs count completed requests dated within the period."]</div>
+        </article>
+    </section>
+</div>

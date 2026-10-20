@@ -20,7 +20,7 @@ InvoiceModel makeInvoice({
     invoiceId: id,
     totalAmount: totalAmount,
     balanceAmount: balanceAmount,
-    dueDate: DateTime(2026, 1, 1),
+    dueDate: DateTime(2026),
     status: status,
   );
 }
@@ -45,8 +45,8 @@ InvoiceDetailModel makeDetail(int id) {
     totalAmount: 500.0,
     paidAmount: 100.0,
     balanceAmount: 400.0,
-    invoiceDate: DateTime(2026, 1, 1),
-    dueDate: DateTime(2026, 2, 1),
+    invoiceDate: DateTime(2026),
+    dueDate: DateTime(2026, 2),
     status: 'Pending',
   );
 }
@@ -68,7 +68,7 @@ void main() {
           status: any(named: 'status'),
           pageNumber: any(named: 'pageNumber'),
           pageSize: any(named: 'pageSize'),
-        )).thenAnswer((_) async => result);
+        ),).thenAnswer((_) async => result);
   }
 
   group('refresh', () {
@@ -93,7 +93,7 @@ void main() {
             status: any(named: 'status'),
             pageNumber: any(named: 'pageNumber'),
             pageSize: any(named: 'pageSize'),
-          )).thenThrow(Exception('network down'));
+          ),).thenThrow(Exception('network down'));
 
       await vm.refresh(711);
 
@@ -106,7 +106,7 @@ void main() {
   group('setFilter', () {
     test('changes filter and reloads with mapped status', () async {
       stubGetInvoices(
-          makeResult(totalCount: 1, invoices: [makeInvoice(id: 1, status: 'Paid')]));
+          makeResult(totalCount: 1, invoices: [makeInvoice(id: 1, status: 'Paid')]),);
 
       await vm.setFilter(711, InvoiceFilter.paid);
 
@@ -116,7 +116,7 @@ void main() {
             status: 'Paid',
             pageNumber: any(named: 'pageNumber'),
             pageSize: any(named: 'pageSize'),
-          )).called(1);
+          ),).called(1);
     });
   });
 
@@ -135,7 +135,7 @@ void main() {
 
       // Next page returns 20 more.
       stubGetInvoices(
-          makeResult(totalCount: 40, pageNumber: 2, invoices: secondPage));
+          makeResult(totalCount: 40, pageNumber: 2, invoices: secondPage),);
       await vm.loadMore(711);
 
       expect(vm.invoices.length, 40);
@@ -164,7 +164,7 @@ void main() {
       final overdue =
           makeInvoice(id: 3, status: 'Overdue', balanceAmount: 250.0);
       stubGetInvoices(
-          makeResult(totalCount: 3, invoices: [paid, pending, overdue]));
+          makeResult(totalCount: 3, invoices: [paid, pending, overdue]),);
 
       await vm.refresh(711);
 

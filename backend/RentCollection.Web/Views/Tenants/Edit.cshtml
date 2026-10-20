@@ -133,7 +133,14 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label asp-for="CompanyId" class="control-label">@L["Company"]</label>
-                            <select asp-for="CompanyId" class="form-control" asp-items="ViewBag.CompanyId"></select>
+                            @if (User.IsInRole("SuperAdmin"))
+                            {
+                                <select asp-for="CompanyId" class="form-control" asp-items="ViewBag.CompanyId"></select>
+                            }
+                            else
+                            {
+                                <input class="form-control" value="@((ViewBag.CompanyId as SelectList)?.FirstOrDefault(i => i.Selected)?.Text ?? "—")" readonly />
+                            }
                             <span asp-validation-for="CompanyId" class="text-danger"></span>
                         </div>
                     </div>
@@ -169,20 +176,20 @@
 
 <style>
     body {
-        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
         color: #1e293b;
         min-height: 100vh;
     }
 
     .container-fluid {
-        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
         min-height: 100vh;
         padding: 2rem;
     }
 
     .form-card {
         background: rgba(255, 255, 255, 0.8);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(138, 109, 31, 0.2);
         border-radius: 12px;
         padding: 2rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -204,7 +211,7 @@
         color: #334155;
         margin-bottom: 1.5rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #6366f1;
+        border-bottom: 2px solid #8a6d1f;
         display: inline-block;
     }
 
@@ -232,13 +239,13 @@
 
     .form-control:focus {
         outline: none;
-        border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        border-color: #8a6d1f;
+        box-shadow: 0 0 0 3px rgba(138, 109, 31, 0.1);
     }
 
     .form-check {
         padding: 0.75rem;
-        background: rgba(99, 102, 241, 0.05);
+        background: rgba(138, 109, 31, 0.05);
         border-radius: 8px;
     }
 
@@ -277,14 +284,14 @@
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        background: linear-gradient(135deg, #8a6d1f 0%, #b8860b 100%);
         color: white;
     }
 
     .btn-primary:hover {
-        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+        background: linear-gradient(135deg, #b8860b 0%, #8a6d1f 100%);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        box-shadow: 0 4px 12px rgba(138, 109, 31, 0.3);
     }
 
     .btn-secondary {
@@ -297,12 +304,12 @@
     }
 
     .btn-info {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        background: linear-gradient(135deg, #8a6d1f 0%, #b8860b 100%);
         color: white;
     }
 
     .btn-info:hover {
-        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+        background: linear-gradient(135deg, #b8860b 0%, #8a6d1f 100%);
     }
 
     .text-danger {

@@ -1,6 +1,6 @@
 @if (TempData["SuccessMessage"] != null)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="alert alert-success alert-dismissible fade show" role="alert" data-autodismiss="true">
         <i class="fas fa-check-circle"></i>
         <strong>@L["Success!"]</strong> @TempData["SuccessMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@(L["Close"].Value)"></button>
@@ -9,7 +9,7 @@
 
 @if (TempData["ErrorMessage"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <div class="alert alert-danger alert-dismissible fade show" role="alert" data-autodismiss="true">
         <i class="fas fa-exclamation-circle"></i>
         <strong>@L["Error!"]</strong> @TempData["ErrorMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@(L["Close"].Value)"></button>
@@ -18,7 +18,7 @@
 
 @if (TempData["InfoMessage"] != null)
 {
-    <div class="alert alert-info alert-dismissible fade show" role="alert">
+    <div class="alert alert-info alert-dismissible fade show" role="alert" data-autodismiss="true">
         <i class="fas fa-info-circle"></i>
         <strong>@L["Info:"]</strong> @TempData["InfoMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@(L["Close"].Value)"></button>
@@ -27,7 +27,7 @@
 
 @if (TempData["WarningMessage"] != null)
 {
-    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <div class="alert alert-warning alert-dismissible fade show" role="alert" data-autodismiss="true">
         <i class="fas fa-exclamation-triangle"></i>
         <strong>@L["Warning!"]</strong> @TempData["WarningMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@(L["Close"].Value)"></button>
@@ -130,14 +130,25 @@
 </style>
 
 <script>
-    // Auto-dismiss alerts after 5 seconds
+    // Auto-dismiss ONLY the TempData alerts rendered by this partial (marked
+    // data-autodismiss="true"). Other .alert boxes on the page - validation
+    // summaries, the one-time tenant credential box, inline warnings - stay.
     document.addEventListener('DOMContentLoaded', function() {
-        const alerts = document.querySelectorAll('.alert');
+        var alerts = document.querySelectorAll('.alert[data-autodismiss="true"]');
         alerts.forEach(function(alert) {
             alert.classList.add('auto-dismiss');
             setTimeout(function() {
                 alert.remove();
             }, 5000);
+        });
+
+        // Close buttons work without Bootstrap JS: any .btn-close / [data-dismiss]
+        // inside an .alert removes that alert.
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.btn-close, [data-dismiss="alert"], [data-bs-dismiss="alert"]');
+            if (!btn) return;
+            var box = btn.closest('.alert');
+            if (box) { box.remove(); }
         });
     });
 </script>

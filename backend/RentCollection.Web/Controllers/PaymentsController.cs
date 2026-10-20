@@ -24,6 +24,29 @@ public class PaymentsController : Controller
         _logger = logger;
     }
 
+    // Company scope: Payment has no company query filter and the verification
+    // service is unscoped. Guard by-id lookups via the owning Tenant and
+    // post-filter lists to the tenants visible through the filtered Tenants
+    // set. SuperAdmin is cross-company by design.
+    private bool CanAccessCompany(int? entityCompanyId)
+    {
+        if (User.IsInRole(Roles.SuperAdmin)) return true;
+        return int.TryParse(User.FindFirst("companyId")?.Value, out var cid)
+            && entityCompanyId == cid;
+    }
+
+    private async Task<HashSet<int>?> VisibleTenantIdsAsync()
+    {
+        if (User.IsInRole(Roles.SuperAdmin)) return null;   // null = no filter
+        return (await _context.Tenants.Select(t => t.TenantId).ToListAsync()).ToHashSet();
+    }
+
+    /// <summary>
+    /// Inclusive end-of-day for a user-picked end date: "to 12 Oct" means up
+    /// to 23:59:59.9999999 on 12 Oct, not midnight at its start.
+    /// </summary>
+    private static DateTime EndOfDay(DateTime d) => d.Date.AddDays(1).AddTicks(-1);
+
     public async Task<IActionResult> Index(
         string? civilId = null,
         int? leaseId = null,
@@ -44,12 +67,19 @@ public class PaymentsController : Controller
                 PropertyId = propertyId,
                 KNETMID = knetMid,
                 HasMismatch = hasMismatch,
-                StartDate = startDate,
-                EndDate = endDate,
+                StartDate = startDate?.Date,
+                // The service compares PaymentDate <= EndDate; pass end-of-day
+                // so the chosen end date is inclusive.
+                EndDate = endDate.HasValue ? EndOfDay(endDate.Value) : null,
                 Status = status
             };
 
             var payments = await _verificationService.GetPaymentsForVerificationAsync(filter);
+
+            // Company scope — the service is unscoped.
+            var visibleTenants = await VisibleTenantIdsAsync();
+            if (visibleTenants != null)
+                payments = payments.Where(p => visibleTenants.Contains(p.TenantId)).ToList();
 
             // Pass filter values to view for form persistence
             ViewBag.CivilId = civilId;
@@ -70,12 +100,29 @@ public class PaymentsController : Controller
             // Get mismatch count for badge
             ViewBag.MismatchCount = payments.Count(p => p.HasMismatch);
 
+            // 2026-10 list redesign — KPI strip over ALL of the company's
+            // payments (not just the filtered page): collected this month,
+            // awaiting verification (cash/bank), failed in the last 30 days.
+            var scoped = _context.Payments.AsNoTracking().AsQueryable();
+            if (visibleTenants != null) scoped = scoped.Where(p => visibleTenants.Contains(p.TenantId));
+            var monthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            var since30 = DateTime.Today.AddDays(-30);
+            var completed = scoped.Where(p => p.Status == RentCollection.Core.Enums.PaymentStatus.Completed);
+            ViewBag.KpiCollectedMtd = await completed.Where(p => p.PaymentDate >= monthStart).SumAsync(p => (decimal?)p.AmountPaid) ?? 0m;
+            ViewBag.KpiCollectedMtdCount = await completed.CountAsync(p => p.PaymentDate >= monthStart);
+            ViewBag.KpiCollectedAll = await completed.SumAsync(p => (decimal?)p.AmountPaid) ?? 0m;
+            var pendingQ = scoped.Where(p => p.Status == RentCollection.Core.Enums.PaymentStatus.PendingVerification);
+            ViewBag.KpiPendingCount = await pendingQ.CountAsync();
+            ViewBag.KpiPendingAmount = await pendingQ.SumAsync(p => (decimal?)p.AmountPaid) ?? 0m;
+            ViewBag.KpiFailed30 = await scoped.CountAsync(p => p.Status == RentCollection.Core.Enums.PaymentStatus.Failed && p.PaymentDate >= since30);
+            ViewBag.KpiMismatchAll = await scoped.CountAsync(p => p.HasMismatch);
+
             return View(payments);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading payments for verification");
-            TempData["Error"] = "An error occurred while loading payments. Please try again.";
+            TempData["ErrorMessage"] = "An error occurred while loading payments. Please try again.";
             return View(new List<RentCollection.Application.DTOs.AdminPaymentVerificationDto>());
         }
     }
@@ -88,12 +135,18 @@ public class PaymentsController : Controller
         try
         {
             var mismatchedPayments = await _verificationService.GetMismatchedPaymentsAsync();
+
+            // Company scope — the service is unscoped.
+            var visibleTenants = await VisibleTenantIdsAsync();
+            if (visibleTenants != null)
+                mismatchedPayments = mismatchedPayments.Where(p => visibleTenants.Contains(p.TenantId)).ToList();
+
             return View("Index", mismatchedPayments);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading mismatched payments");
-            TempData["Error"] = "An error occurred while loading mismatched payments.";
+            TempData["ErrorMessage"] = "An error occurred while loading mismatched payments.";
             return View("Index", new List<RentCollection.Application.DTOs.AdminPaymentVerificationDto>());
         }
     }
@@ -105,7 +158,27 @@ public class PaymentsController : Controller
     {
         try
         {
-            var filter = new PaymentVerificationFilterDto();
+            // Resolve the payment by id first (the service has no by-id lookup
+            // and used to load EVERY payment to find one), and enforce company
+            // scope via the owning Tenant before building the verification DTO.
+            var target = await _context.Payments
+                .AsNoTracking()
+                .Where(p => p.PaymentId == id)
+                .Select(p => new { p.PaymentId, p.LeaseId, p.PaymentDate, CompanyId = (int?)p.Tenant.CompanyId })
+                .FirstOrDefaultAsync();
+            if (target == null || !CanAccessCompany(target.CompanyId))
+            {
+                return NotFound();
+            }
+
+            // Narrow the service query to this payment's lease + date so it
+            // returns a handful of rows instead of the whole table.
+            var filter = new PaymentVerificationFilterDto
+            {
+                LeaseId = target.LeaseId,
+                StartDate = target.PaymentDate,
+                EndDate = target.PaymentDate,
+            };
             var payments = await _verificationService.GetPaymentsForVerificationAsync(filter);
             var payment = payments.FirstOrDefault(p => p.PaymentId == id);
 
@@ -123,7 +196,7 @@ public class PaymentsController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading payment details for PaymentId: {PaymentId}", id);
-            TempData["Error"] = "An error occurred while loading payment details.";
+            TempData["ErrorMessage"] = "An error occurred while loading payment details.";
             return RedirectToAction(nameof(Index));
         }
     }
@@ -142,18 +215,18 @@ public class PaymentsController : Controller
 
             if (success)
             {
-                TempData["Success"] = "Mismatch resolved successfully.";
+                TempData["SuccessMessage"] = "Mismatch resolved successfully.";
             }
             else
             {
-                TempData["Error"] = "Failed to resolve mismatch.";
+                TempData["ErrorMessage"] = "Failed to resolve mismatch.";
             }
 
             return RedirectToAction(nameof(Details), new { id = paymentId });
         }
         catch (Exception)
         {
-            TempData["Error"] = "An error occurred while resolving the mismatch.";
+            TempData["ErrorMessage"] = "An error occurred while resolving the mismatch.";
             return RedirectToAction(nameof(Details), new { id = paymentId });
         }
     }
@@ -168,14 +241,16 @@ public class PaymentsController : Controller
     {
         try
         {
-            // Default to current month if no dates provided
-            var start = startDate ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
-            var end = endDate ?? DateTime.Now;
+            // Default to current month if no dates provided. A user-picked end
+            // date is made inclusive (end of that day) — the service compares
+            // PaymentDate <= endDate.
+            var start = startDate?.Date ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            var end = endDate.HasValue ? EndOfDay(endDate.Value) : DateTime.Now;
 
             var summary = await _verificationService.GetReconciliationSummaryAsync(start, end, propertyId);
 
             ViewBag.StartDate = start;
-            ViewBag.EndDate = end;
+            ViewBag.EndDate = endDate ?? end;
             ViewBag.PropertyId = propertyId;
 
             // Get properties for filter dropdown
@@ -189,7 +264,7 @@ public class PaymentsController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading reconciliation summary");
-            TempData["Error"] = "An error occurred while loading the reconciliation summary.";
+            TempData["ErrorMessage"] = "An error occurred while loading the reconciliation summary.";
             return View(new RentCollection.Application.Interfaces.ReconciliationSummaryDto());
         }
     }
@@ -204,13 +279,14 @@ public class PaymentsController : Controller
     {
         try
         {
-            var start = startDate ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
-            var end = endDate ?? DateTime.Now;
+            // Inclusive end date — see Reconciliation.
+            var start = startDate?.Date ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            var end = endDate.HasValue ? EndOfDay(endDate.Value) : DateTime.Now;
 
             var data = await _verificationService.GetKNETReconciliationDataAsync(start, end, propertyId);
 
             ViewBag.StartDate = start;
-            ViewBag.EndDate = end;
+            ViewBag.EndDate = endDate ?? end;
             ViewBag.PropertyId = propertyId;
 
             // Get properties for filter dropdown
@@ -224,7 +300,7 @@ public class PaymentsController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading KNET reconciliation data");
-            TempData["Error"] = "An error occurred while loading KNET reconciliation data.";
+            TempData["ErrorMessage"] = "An error occurred while loading KNET reconciliation data.";
             return View(new List<RentCollection.Application.Interfaces.KNETReconciliationDto>());
         }
     }

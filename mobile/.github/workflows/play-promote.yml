@@ -1,0 +1,57 @@
+name: Play Promote Open Testing
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install deps
+        run: pip3 install google-auth requests
+      - name: Promote beta v5 to completed + commit for review
+        env:
+          SA: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import os, json, requests
+          from google.oauth2 import service_account
+          import google.auth.transport.requests as gt
+
+          info = json.loads(os.environ["SA"])
+          creds = service_account.Credentials.from_service_account_info(
+              info, scopes=["https://www.googleapis.com/auth/androidpublisher"])
+          creds.refresh(gt.Request())
+          H = {"Authorization": f"Bearer {creds.token}", "Content-Type": "application/json"}
+          pkg = "com.alrtam"
+          base = f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{pkg}"
+
+          def show(label, r):
+              print(f"[{r.status_code}] {label}")
+              if r.status_code >= 300:
+                  print(r.text[:1500])
+              return r
+
+          e = show("create edit", requests.post(base + "/edits", headers=H))
+          if e.status_code >= 300: raise SystemExit(1)
+          eid = e.json()["id"]
+
+          body = {"track": "beta", "releases": [
+              {"name": "1.0.0", "status": "completed", "versionCodes": ["5"]}]}
+          u = show("update beta track -> completed",
+                   requests.put(f"{base}/edits/{eid}/tracks/beta", headers=H, data=json.dumps(body)))
+
+          # validate first to surface any missing-listing/content errors clearly
+          v = show("validate edit", requests.post(f"{base}/edits/{eid}:validate", headers=H))
+
+          if u.status_code < 300 and v.status_code < 300:
+              c = show("commit (send for review)",
+                       requests.post(f"{base}/edits/{eid}:commit", headers=H))
+              if c.status_code < 300:
+                  print("\n✅ SUBMITTED FOR REVIEW — Open testing v5 is now in Google review.")
+              else:
+                  print("\n❌ commit failed — see error above.")
+          else:
+              print("\n❌ Not committing — update/validate failed above. Discarding edit.")
+              requests.delete(f"{base}/edits/{eid}", headers=H)
+          PY

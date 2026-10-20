@@ -1,0 +1,47 @@
+name: Play Status Check
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install deps
+        run: pip3 install google-auth requests
+      - name: Query tracks
+        env:
+          SA: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import os, json, requests
+          from google.oauth2 import service_account
+          import google.auth.transport.requests as gt
+
+          info = json.loads(os.environ["SA"])
+          creds = service_account.Credentials.from_service_account_info(
+              info, scopes=["https://www.googleapis.com/auth/androidpublisher"])
+          creds.refresh(gt.Request())
+          H = {"Authorization": f"Bearer {creds.token}"}
+          pkg = "com.alrtam"
+          base = f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{pkg}"
+
+          e = requests.post(base + "/edits", headers=H)
+          if e.status_code >= 300:
+              print("ERROR creating edit:", e.status_code, e.text[:500]); raise SystemExit(1)
+          eid = e.json()["id"]
+
+          t = requests.get(f"{base}/edits/{eid}/tracks", headers=H).json()
+          print("=== TRACKS ===")
+          for tr in t.get("tracks", []):
+              print(f"\nTrack: {tr.get('track')}")
+              for rel in tr.get("releases", []):
+                  print(f"  name={rel.get('name')!r} status={rel.get('status')!r} "
+                        f"versionCodes={rel.get('versionCodes')} "
+                        f"userFraction={rel.get('userFraction')}")
+          if not t.get("tracks"):
+              print("(no tracks have releases yet)")
+
+          requests.delete(f"{base}/edits/{eid}", headers=H)
+          print("\nDONE")
+          PY

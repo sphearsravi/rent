@@ -31,34 +31,34 @@ public class HttpCompanyContext : ICompanyContext
     ///   - caller is unauthenticated (e.g. /login) — no claim, no filter,
     ///   - caller is a tenant (JWT has `tenantId` claim) — tenants are
     ///     scoped by ownership via IsAuthorizedForTenant, not by company,
-    ///   - caller is in SuperAdmin role,
-    ///   - caller is a legacy admin without a companyId claim.
+    ///   - caller is in the SuperAdmin ROLE.
     ///
-    /// Without these bypasses the filter returns zero rows because every
-    /// real Tenant/Property/User row has a non-null CompanyId.
+    /// SECURITY (audit C6): a missing `companyId` claim must NOT be treated as
+    /// SuperAdmin. Previously any authenticated admin whose CompanyId was null
+    /// (mis-provisioned / imported) silently bypassed EVERY company filter and
+    /// saw all landlords' data. SuperAdmin is now determined strictly by the
+    /// role claim. A non-super admin with no company claim resolves to a null
+    /// CurrentCompanyId and correctly sees NO company-scoped rows (deny), which
+    /// forces proper provisioning rather than granting cross-company access.
     /// </summary>
     public bool IsSuperAdmin
     {
         get
         {
             var user = _accessor.HttpContext?.User;
-            if (user == null) return true;                              // pre-auth pipeline
+            if (user == null) return true;                              // pre-auth pipeline / migrations
 
             // Tenant JWT — has tenantId claim, scoped by ownership.
             if (!string.IsNullOrEmpty(user.FindFirstValue("tenantId")))
                 return true;
 
             // Genuinely unauthenticated request — let it through (the
-            // `[Authorize]` attributes will reject sensitive endpoints).
+            // `[Authorize]` attributes reject sensitive endpoints anyway).
             if (user.Identity?.IsAuthenticated != true) return true;
 
-            if (user.IsInRole(Roles.SuperAdmin)) return true;
-
-            // Legacy admin: authenticated but no company claim → treat as super.
-            if (string.IsNullOrEmpty(user.FindFirstValue("companyId")))
-                return true;
-
-            return false;
+            // SuperAdmin is decided ONLY by the role — never inferred from an
+            // absent company claim.
+            return user.IsInRole(Roles.SuperAdmin);
         }
     }
 }

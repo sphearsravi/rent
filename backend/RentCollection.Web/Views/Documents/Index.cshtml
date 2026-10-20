@@ -63,7 +63,7 @@
             <input type="search" name="search" value="@filterSearch" placeholder="@(L["Search by name, description, or linked entity…"].Value)" aria-label="@(L["Search documents"].Value)" />
             @if (!string.IsNullOrEmpty(filterSearch))
             {
-                <a class="search-clear" href="/Documents@(string.IsNullOrEmpty(filterType) ? "" : $"?type={filterType}")" aria-label="@(L["Clear search"].Value)">Ã—</a>
+                <a class="search-clear" href="/Documents@(string.IsNullOrEmpty(filterType) ? "" : $"?type={filterType}")" aria-label="@(L["Clear search"].Value)">&times;</a>
             }
         </form>
     </div>
@@ -221,7 +221,7 @@
 @section Styles {
     <style>
         body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
             color: #1e293b;
             min-height: 100vh;
         }
@@ -284,13 +284,13 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 4px 12px rgba(138, 109, 31, 0.4);
         }
 
         .alert {
@@ -409,7 +409,7 @@
         }
 
         .document-related i {
-            color: #3b82f6;
+            color: #8a6d1f;
             margin-right: 0.25rem;
         }
 
@@ -499,8 +499,8 @@
         }
 
         .btn-download:hover {
-            border-color: #3b82f6;
-            color: #3b82f6;
+            border-color: #8a6d1f;
+            color: #8a6d1f;
         }
 
         .btn-icon-danger:hover {
@@ -547,17 +547,17 @@
         .type-chip {
             display: inline-flex; align-items: center; gap: 0.4rem;
             padding: 0.4rem 0.85rem;
-            background: rgba(99, 102, 241,0.06);
-            color: #4338ca;
+            background: rgba(138, 109, 31,0.06);
+            color: #5a4512;
             border-radius: 999px;
             font-size: 0.8rem; font-weight: 500;
-            border: 1px solid rgba(99, 102, 241,0.15);
+            border: 1px solid rgba(138, 109, 31,0.15);
             text-decoration: none;
             transition: all 0.15s;
         }
-        .type-chip:hover { background: rgba(99, 102, 241,0.12); }
+        .type-chip:hover { background: rgba(138, 109, 31,0.12); }
         .type-chip.is-active {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white; border-color: transparent;
         }
         .type-chip i { font-size: 0.75rem; }
@@ -570,8 +570,8 @@
             min-width: 280px;
         }
         .docs-search:focus-within {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241,0.1);
+            border-color: #8a6d1f;
+            box-shadow: 0 0 0 3px rgba(138, 109, 31,0.1);
         }
         .docs-search i { color: #94a3b8; margin-right: 0.5rem; }
         .docs-search input {
@@ -597,10 +597,10 @@
             transition: all 0.15s;
         }
         .link-pill:hover {
-            border-color: #6366f1; color: #6366f1;
-            background: rgba(99, 102, 241,0.04);
+            border-color: #8a6d1f; color: #8a6d1f;
+            background: rgba(138, 109, 31,0.04);
         }
-        .link-pill i { color: #6366f1; font-size: 0.7rem; flex-shrink: 0; }
+        .link-pill i { color: #8a6d1f; font-size: 0.7rem; flex-shrink: 0; }
         .link-pill-missing {
             background: #fef2f2; color: #991b1b; border-color: #fecaca;
             cursor: not-allowed;
@@ -624,7 +624,7 @@
             background: none; border: 0; cursor: pointer; text-align: start;
             font-family: inherit;
         }
-        .kebab-menu a:hover, .kebab-menu button:hover { background: #f8fafc; color: #6366f1; }
+        .kebab-menu a:hover, .kebab-menu button:hover { background: #f8fafc; color: #8a6d1f; }
         .kebab-menu a i, .kebab-menu button i { width: 16px; color: #94a3b8; }
         .kebab-form { margin: 0; }
         .kebab-danger:hover { background: rgba(239,68,68,0.08) !important; color: #dc2626 !important; }

@@ -20,9 +20,11 @@ namespace RentCollection.Tests.Knet;
 /// difference between a tenant paying their rent and someone tampering
 /// with the books.
 ///
-/// Tests bypass encryption (passing <c>trandata = null</c>) so the
-/// gateway-payload shape is controlled by the explicit string params —
-/// the AES round-trip is already pinned by <see cref="KnetContractTests"/>.
+/// Every callback here carries a real AES-encrypted <c>trandata</c> blob built
+/// by <see cref="Enc"/>, because the handler (audit C1) rejects any callback
+/// WITHOUT trandata as unauthenticated — a plain <c>result=CAPTURED</c> query
+/// string is forgeable and must never credit an invoice. The cleartext params
+/// are still passed too, mirroring what K-NET posts; the decrypted values win.
 /// </summary>
 public class HandleKnetResponseTests : IDisposable
 {
@@ -58,7 +60,8 @@ public class HandleKnetResponseTests : IDisposable
         await SeedAsync(invoiceAmount: 500m, paymentAmount: 500m, trackId: "TRK_HAPPY");
 
         var result = await _sut.HandleKnetResponseAsync(
-            trandata: null, paymentId: "KP_001", trackId: "TRK_HAPPY",
+            trandata: Enc("CAPTURED", "KP_001", "TRK_HAPPY", "TX_001", 500m),
+            paymentId: "KP_001", trackId: "TRK_HAPPY",
             tranId: "TX_001", result: "CAPTURED", error: null);
 
         result.Success.Should().BeTrue();
@@ -80,11 +83,11 @@ public class HandleKnetResponseTests : IDisposable
         await SeedAsync(invoiceAmount: 500m, paymentAmount: 500m, trackId: "TRK_IDEMP");
 
         // First callback — succeeds.
-        var first = await _sut.HandleKnetResponseAsync(null, "KP_002", "TRK_IDEMP", "TX_002", "CAPTURED", null);
+        var first = await _sut.HandleKnetResponseAsync(Enc("CAPTURED", "KP_002", "TRK_IDEMP", "TX_002", 500m), "KP_002", "TRK_IDEMP", "TX_002", "CAPTURED", null);
         first.Success.Should().BeTrue();
 
         // Second callback — must be a no-op, NOT a second invoice credit.
-        var second = await _sut.HandleKnetResponseAsync(null, "KP_002", "TRK_IDEMP", "TX_002", "CAPTURED", null);
+        var second = await _sut.HandleKnetResponseAsync(Enc("CAPTURED", "KP_002", "TRK_IDEMP", "TX_002", 500m), "KP_002", "TRK_IDEMP", "TX_002", "CAPTURED", null);
 
         second.Success.Should().BeTrue("re-callback of an already-completed payment is still the right outcome");
         var payments = await _ctx.Payments.AsNoTracking().ToListAsync();
@@ -99,13 +102,13 @@ public class HandleKnetResponseTests : IDisposable
         await SeedAsync(invoiceAmount: 500m, paymentAmount: 500m, trackId: "TRK_FAIL");
 
         // First callback — failed.
-        await _sut.HandleKnetResponseAsync(null, "KP_003", "TRK_FAIL", "TX_003", "CANCELED", null);
+        await _sut.HandleKnetResponseAsync(Enc("CANCELED", "KP_003", "TRK_FAIL", "TX_003", 500m), "KP_003", "TRK_FAIL", "TX_003", "CANCELED", null);
         var afterFail = await _ctx.Payments.AsNoTracking().FirstAsync();
         afterFail.Status.Should().Be(PaymentStatus.Failed);
 
         // Replay arrives with CAPTURED — must NOT promote a Failed payment to Completed.
         // The idempotency guard checks `payment.Status != Pending` and returns early.
-        await _sut.HandleKnetResponseAsync(null, "KP_003", "TRK_FAIL", "TX_003", "CAPTURED", null);
+        await _sut.HandleKnetResponseAsync(Enc("CAPTURED", "KP_003", "TRK_FAIL", "TX_003", 500m), "KP_003", "TRK_FAIL", "TX_003", "CAPTURED", null);
 
         var afterReplay = await _ctx.Payments.AsNoTracking().FirstAsync();
         afterReplay.Status.Should().Be(PaymentStatus.Failed,
@@ -155,7 +158,8 @@ public class HandleKnetResponseTests : IDisposable
         await SeedAsync(invoiceAmount: 500m, paymentAmount: 500m, trackId: trackId);
 
         var result = await _sut.HandleKnetResponseAsync(
-            null, "KP_NC", trackId, "TX_NC", knetResult, error: "0001", errorText: "test");
+            Enc(knetResult, "KP_NC", trackId, "TX_NC", 500m, error: "0001", errorText: "test"),
+            "KP_NC", trackId, "TX_NC", knetResult, error: "0001", errorText: "test");
 
         result.Success.Should().BeFalse();
         var payment = await _ctx.Payments.AsNoTracking().FirstAsync(p => p.TransactionReference == trackId);
@@ -175,7 +179,8 @@ public class HandleKnetResponseTests : IDisposable
         // No payment seeded — but a callback arrives. Could be a stale
         // sandbox test, could be someone POSTing a forged payload.
         var result = await _sut.HandleKnetResponseAsync(
-            null, "KP_GHOST", "TRK_NOT_EXIST", "TX_G", "CAPTURED", null);
+            Enc("CAPTURED", "KP_GHOST", "TRK_NOT_EXIST", "TX_G", 500m),
+            "KP_GHOST", "TRK_NOT_EXIST", "TX_G", "CAPTURED", null);
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Payment record not found");
@@ -186,14 +191,39 @@ public class HandleKnetResponseTests : IDisposable
     [Fact]
     public async Task Callback_with_missing_trackid_returns_error()
     {
+        // Encrypted blob deliberately carries NO trackid, and none is passed in
+        // the clear either — the handler must say so rather than guess.
         var result = await _sut.HandleKnetResponseAsync(
-            null, "KP_X", trackId: null, "TX_X", "CAPTURED", null);
+            Enc("CAPTURED", "KP_X", trackId: null, "TX_X", 500m),
+            "KP_X", trackId: null, "TX_X", "CAPTURED", null);
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Missing track ID");
     }
 
     // ───────────── helpers ─────────────
+
+    private const string TestKey = "0123456789ABCDEF";
+
+    /// <summary>
+    /// Build the AES-encrypted <c>trandata</c> blob K-NET posts, using the same
+    /// key the test settings/property are seeded with. <paramref name="trackId"/>
+    /// null omits the field entirely (for the missing-trackid case). Keys match
+    /// what <see cref="KnetUtil.ParseResponseParams"/> is read with in the handler
+    /// (lowercase result/paymentid/trackid/tranid/amt; "Error"/"ErrorText").
+    /// </summary>
+    private static string Enc(
+        string result, string paymentId, string? trackId, string tranId, decimal amt,
+        string? error = null, string? errorText = null)
+    {
+        var parts = new List<string> { $"result={result}", $"paymentid={paymentId}" };
+        if (trackId != null) parts.Add($"trackid={trackId}");
+        parts.Add($"tranid={tranId}");
+        parts.Add($"amt={amt.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)}");
+        if (error != null) parts.Add($"Error={error}");
+        if (errorText != null) parts.Add($"ErrorText={errorText}");
+        return new KnetUtil().EncryptUrlParams(string.Join("&", parts), TestKey);
+    }
 
     /// <summary>
     /// Seed: 1 company, 1 tenant, 1 property, 1 unit, 1 lease, 1 invoice,

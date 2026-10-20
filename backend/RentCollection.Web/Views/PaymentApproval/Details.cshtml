@@ -31,7 +31,7 @@
 
         .info-card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
@@ -44,14 +44,14 @@
             font-weight: 600;
             margin-bottom: 1rem;
             padding-bottom: 0.75rem;
-            border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+            border-bottom: 2px solid rgba(138, 109, 31, 0.2);
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
 
         .card-header-title i {
-            color: #6366f1;
+            color: #8a6d1f;
         }
 
         .info-grid {
@@ -112,7 +112,7 @@
             max-width: 100%;
             max-height: 300px;
             border-radius: 8px;
-            border: 1px solid rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(138, 109, 31, 0.3);
             margin-top: 0.5rem;
         }
 
@@ -120,23 +120,23 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            color: #6366f1;
+            color: #8a6d1f;
             text-decoration: none;
             font-weight: 500;
             padding: 0.5rem 1rem;
-            background: rgba(99, 102, 241, 0.1);
+            background: rgba(138, 109, 31, 0.1);
             border-radius: 6px;
             transition: all 0.3s ease;
         }
 
         .proof-link:hover {
-            background: rgba(99, 102, 241, 0.2);
-            color: #4f46e5;
+            background: rgba(138, 109, 31, 0.2);
+            color: #6e5518;
         }
 
         .actions-section {
             background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             padding: 1.5rem;
             margin-top: 2rem;
@@ -223,13 +223,13 @@
         /* Modal Styles */
         .modal-content {
             background: rgba(255, 255, 255, 0.95);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             backdrop-filter: blur(10px);
         }
 
         .modal-header {
-            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            border-bottom: 1px solid rgba(138, 109, 31, 0.2);
             padding: 1.25rem 1.5rem;
         }
 
@@ -244,20 +244,20 @@
         }
 
         .modal-footer {
-            border-top: 1px solid rgba(99, 102, 241, 0.2);
+            border-top: 1px solid rgba(138, 109, 31, 0.2);
             padding: 1rem 1.5rem;
         }
 
         .form-control {
-            border: 1px solid rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(138, 109, 31, 0.3);
             border-radius: 8px;
             padding: 0.75rem;
             color: #1e293b;
         }
 
         .form-control:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            border-color: #8a6d1f;
+            box-shadow: 0 0 0 3px rgba(138, 109, 31, 0.1);
         }
 
         .form-label {
@@ -340,6 +340,8 @@
         <h1><i class="fas fa-clipboard-check"></i> @L["Payment Review"]</h1>
         <p class="subtitle">@L["Review payment details before approval"]</p>
     </div>
+
+    @await Html.PartialAsync("_AlertMessages")
 
     <!-- Payment Information -->
     <div class="info-card">
@@ -515,6 +517,10 @@
                     <div class="info-label">@L["Receipt Number"]</div>
                     <div class="info-value">@(Model.CashPayment?.ReceiptNumber ?? "N/A")</div>
                 </div>
+                <div class="info-item">
+                    <div class="info-label">@L["Manual receipt no."]</div>
+                    <div class="info-value">@(string.IsNullOrWhiteSpace(Model.CashPayment?.ManualReceiptNumber) ? "—" : Model.CashPayment!.ManualReceiptNumber)</div>
+                </div>
             </div>
         </div>
     }
@@ -594,6 +600,13 @@
                 <button type="button" class="btn btn-modal-cancel" data-bs-dismiss="modal">@L["Cancel"]</button>
                 <form asp-action="Approve" asp-controller="PaymentApproval" method="post" style="display: inline;">
                     <input type="hidden" name="id" value="@Model.PaymentId" />
+                    @if (Model.CashPayment != null && string.IsNullOrWhiteSpace(Model.CashPayment.ManualReceiptNumber))
+                    {
+                        <div style="margin:0 0 0.75rem; text-align:start">
+                            <label for="manualReceiptNumber" style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">@L["Manual receipt no."] <span style="font-weight:400;color:#64748b">(@L["optional"])</span></label>
+                            <input id="manualReceiptNumber" name="manualReceiptNumber" type="text" maxlength="50" class="form-control" placeholder="@(L["Number from the paper receipt book"].Value)" />
+                        </div>
+                    }
                     <button type="submit" class="btn btn-modal-confirm btn-confirm-approve">
                         <i class="fas fa-check me-1"></i>
                         @L["Approve Payment"]

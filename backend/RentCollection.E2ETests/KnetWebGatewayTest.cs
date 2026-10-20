@@ -21,20 +21,25 @@ public sealed class KnetWebGatewayTest : IClassFixture<E2EFixture>
     public async Task Pay_on_real_knet_gateway()
     {
         var baseUrl = Environment.GetEnvironmentVariable("RC_E2E_BASE_URL")!;
-        var tenantId = 711; var propertyId = 67; var leaseId = 693;
-        // oldest outstanding invoice for the tenant
+        var tenantId = 711;
+        // oldest outstanding invoice for the tenant + its lease/property, derived
+        // consistently from the invoice (avoids a Lease/Invoice mismatch).
         var invoiceId = await WorkflowSupport.Scalar<int>(
             "SELECT TOP 1 InvoiceId FROM Invoices WHERE TenantId=@t AND Status NOT IN ('Paid','Cancelled') ORDER BY InvoiceDate, InvoiceId", ("@t", tenantId));
+        var leaseId = await WorkflowSupport.Scalar<int>("SELECT LeaseId FROM Invoices WHERE InvoiceId=@i", ("@i", invoiceId));
+        var propertyId = await WorkflowSupport.Scalar<int>(
+            "SELECT u.PropertyId FROM Leases l JOIN Units u ON u.UnitId=l.UnitId WHERE l.LeaseId=@l", ("@l", leaseId));
         var amount = await WorkflowSupport.Scalar<decimal>("SELECT TotalAmount FROM Invoices WHERE InvoiceId=@i", ("@i", invoiceId));
 
         await using var ctx = await _fixture.NewContextAsync();
         var page = await ctx.NewPageAsync();
 
         // Fresh initiate → fresh, single-use gateway URL.
+        var language = Environment.GetEnvironmentVariable("RC_KNET_LANG") ?? "en";
         var init = await ctx.APIRequest.PostAsync($"{baseUrl}/api/payments/knet/initiate", new()
         {
             Headers = new Dictionary<string, string> { ["content-type"] = "application/json" },
-            Data = JsonSerializer.Serialize(new { invoiceId, tenantId, propertyId, leaseId, amount }),
+            Data = JsonSerializer.Serialize(new { invoiceId, tenantId, propertyId, leaseId, amount, language }),
         });
         var j = await init.JsonAsync();
         j.Value.GetProperty("success").GetBoolean().Should().BeTrue("initiate: " + await init.TextAsync());

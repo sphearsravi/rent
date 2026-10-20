@@ -1,4 +1,5 @@
 ﻿@model RentCollection.Core.Entities.Lease
+@inject RentCollection.Web.Services.ILookupService Lookups
 
 @{
     ViewData["Title"] = "Edit Lease";
@@ -16,7 +17,7 @@
                 @if (isClosed)
                 {
                     <span class="badge bg-warning" style="margin-left:0.5rem;">
-                        <i class="fas fa-lock"></i> Closed Ã¢â‚¬” read-only
+                        <i class="fas fa-lock"></i> Closed &mdash; read-only
                     </span>
                 }
             </p>
@@ -30,7 +31,7 @@
 
     @if (isClosed)
     {
-        @* LEASE_AUDIT Flaw #9 Ã¢â‚¬” closed leases (Terminated / Renewed /
+        @* LEASE_AUDIT Flaw #9 - closed leases (Terminated / Renewed /
            Expired) are historical records. The form is rendered so the
            operator can still read the values, but every input is locked
            and the controller will refuse a POST anyway. To make a change,
@@ -172,7 +173,7 @@
 
             <div class="form-section">
                 <h3 class="section-title">@L["Lease Settings"]</h3>
-                @* LEASE_AUDIT Flaw #8 Ã¢â‚¬” Status is no longer editable. The
+                @* LEASE_AUDIT Flaw #8 - Status is no longer editable. The
                    value is shown as a read-only badge here so operators
                    know what state they're looking at; lifecycle changes go
                    through Renew / Terminate / Transfer on the Details page. *@
@@ -200,7 +201,7 @@
                                 </small>
                             </div>
                             @* Status is intentionally NOT bound to the
-                               form Ã¢â‚¬” controller carries the persisted
+                               form - controller carries the persisted
                                value forward on POST. *@
                         </div>
                     </div>
@@ -234,10 +235,10 @@
                         <div class="form-group">
                             <label asp-for="InsuranceFrequency" class="control-label">@L["Frequency"]</label>
                             <select asp-for="InsuranceFrequency" class="form-control">
-                                <option value="None">@L["None"]</option>
-                                <option value="Monthly">@L["Monthly"]</option>
-                                <option value="Annual">@L["Annual"]</option>
-                                <option value="OneTime">@L["One-time"]</option>
+                                @foreach (var opt in await Lookups.GetOptionsAsync("InsuranceFrequency"))
+                                {
+                                    <option value="@opt.Code" selected="@(Model?.InsuranceFrequency == opt.Code)">@opt.Label</option>
+                                }
                             </select>
                         </div>
                     </div>
@@ -314,7 +315,7 @@
 
 <style>
     body {
-        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
         color: #1e293b;
         min-height: 100vh;
     }
@@ -325,7 +326,7 @@
 
     .form-card {
         background: rgba(255, 255, 255, 0.8);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(138, 109, 31, 0.2);
         border-radius: 12px;
         padding: 2rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -347,7 +348,7 @@
         color: #334155;
         margin-bottom: 1.5rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #6366f1;
+        border-bottom: 2px solid #8a6d1f;
         display: inline-block;
     }
 
@@ -375,8 +376,8 @@
 
     .form-control:focus {
         outline: none;
-        border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        border-color: #8a6d1f;
+        box-shadow: 0 0 0 3px rgba(138, 109, 31, 0.1);
     }
 
     .input-group {
@@ -422,14 +423,14 @@
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        background: linear-gradient(135deg, #8a6d1f 0%, #b8860b 100%);
         color: white;
     }
 
     .btn-primary:hover {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        background: linear-gradient(135deg, #6e5518 0%, #a67c00 100%);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        box-shadow: 0 4px 12px rgba(138, 109, 31, 0.3);
     }
 
     .btn-secondary {

@@ -1,23 +1,28 @@
 @model RentCollection.Core.Entities.Lease
+@inject RentCollection.Web.Services.ILookupService Lookups
 
 @{
     ViewData["Title"] = "Create Lease";
+    var conflict = ViewBag.Conflict as RentCollection.Web.Controllers.LeasesController.LeaseConflict;
 }
 
 @*
-    Sprint 23 — Lease Create revamp.
-    Zones: Essentials (Building/Unit/Tenant + Dates + Rent), Optional
-    (Late fees, Lease type, Insurance), Documents. Optional zone is
-    collapsed by default; the operator opens it only when they need it.
+    2026-10 lease redesign.
+    Three questions in order — WHERE (building → unit, with live availability),
+    WHO (tenant, with their current lease count), TERMS (dates with quick
+    picks, rent prefilled from the unit, deposit) — plus a sticky summary that
+    spells out what will be created: period, totals, first rent invoice and
+    whether the lease starts Pending (deposit) or Active.
 
-    Sprint 11 Select2 cascade + Sprint 20 inline documents preserved.
+    Availability comes from the leases table (Active/Pending), not Unit.Status;
+    unavailable units stay in the list, disabled, with the reason.
 *@
 
-<div class="container-fluid">
+<div class="container-fluid lw-page">
     <div class="page-header page-header-flex">
         <div>
-            <h1>@L["Create New Lease"]</h1>
-            <p class="text-muted">@L["Pick a unit + tenant, set dates + rent. Everything else is optional."]</p>
+            <h1>@L["New Lease"]</h1>
+            <p class="text-muted">@L["Where, who, and on what terms. The summary on the right updates as you go."]</p>
         </div>
         <div>
             <a asp-action="Index" class="btn btn-secondary">
@@ -26,6 +31,8 @@
         </div>
     </div>
 
+    @await Html.PartialAsync("_AlertMessages")
+
     @if (TempData["LeaseCreated"] != null)
     {
         <div class="alert alert-success" style="margin-bottom:1rem;">
@@ -33,222 +40,308 @@
         </div>
     }
 
+    @if (conflict != null)
+    {
+        <div class="lw-conflict" role="alert">
+            <i class="fas fa-ban"></i>
+            <div>
+                <strong>@L["This unit is already leased for that period."]</strong>
+                <div>
+                    @L["Lease"] <a href="/Leases/Details/@conflict.LeaseId">#@conflict.LeaseId</a> ·
+                    @conflict.TenantName · @conflict.Start.ToString("dd MMM yyyy") – @conflict.End.ToString("dd MMM yyyy") ·
+                    <span class="lw-chip lw-chip-@conflict.Status.ToLowerInvariant()">@L[conflict.Status]</span>
+                </div>
+                <div class="lw-conflict-actions">
+                    <a class="fr-btn fr-btn-secondary" href="/Leases/Details/@conflict.LeaseId#renew"><i class="fas fa-arrows-rotate"></i> @L["Renew that lease"]</a>
+                    <a class="fr-btn fr-btn-ghost" href="/Leases/Details/@conflict.LeaseId#terminate"><i class="fas fa-circle-stop"></i> @L["Terminate it"]</a>
+                    <span class="text-muted">@L["or start this lease after"] @conflict.End.AddDays(1).ToString("dd MMM yyyy") @L["or pick another unit"].</span>
+                </div>
+            </div>
+        </div>
+    }
+
     <form asp-action="Create" method="post" enctype="multipart/form-data"
-          class="form-revamp" id="leaseCreateForm">
+          class="form-revamp lw-form" id="leaseCreateForm">
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
         <div data-fr-draft-slot></div>
 
-        @* ─────────── Zone 1 — Essentials ─────────── *@
-        <div class="fr-zone fr-zone-essentials">
-            <h3 class="fr-zone-title">
-                <i class="fas fa-asterisk"></i>
-                <span>@L["Essentials"]</span>
-            </h3>
-            <p class="fr-zone-hint">@L["Required to save. Picking a Building filters Units."]</p>
+        <div class="lw-grid">
+            <div class="lw-main">
 
-            <div class="fr-row">
-                <div class="fr-field">
-                    <label for="buildingSelect">@L["Building"] <span class="required">*</span></label>
-                    <select id="buildingSelect" class="select2-enable" asp-items="ViewBag.PropertyId">
-                        <option value="">@L["-- Select Building --"]</option>
-                    </select>
-                    <span class="fr-hint">@L["Pick this first to narrow the Unit list"]</span>
-                </div>
-                <div class="fr-field">
-                    <label asp-for="UnitId">@L["Unit"] <span class="required">*</span></label>
-                    <select asp-for="UnitId" id="unitSelect" class="select2-enable" asp-items="ViewBag.UnitId">
-                        <option value="">@L["-- Select Unit --"]</option>
-                    </select>
-                    <span asp-validation-for="UnitId" class="fr-hint is-error"></span>
-                </div>
-            </div>
+                @* ─────────── 1 · WHERE ─────────── *@
+                <div class="fr-zone fr-zone-essentials">
+                    <h3 class="fr-zone-title">
+                        <span class="lw-step">1</span>
+                        <span>@L["Where"]</span>
+                    </h3>
+                    <p class="fr-zone-hint">@L["Units already under an active or pending lease are listed but cannot be picked — the reason is shown next to each."]</p>
 
-            <div class="fr-row fr-row-1">
-                <div class="fr-field">
-                    <label asp-for="TenantId">@L["Tenant"] <span class="required">*</span></label>
-                    <select asp-for="TenantId" id="tenantSelect" class="select2-enable" asp-items="ViewBag.TenantId">
-                        <option value="">@L["-- Select Tenant --"]</option>
-                    </select>
-                    <span asp-validation-for="TenantId" class="fr-hint is-error"></span>
-                </div>
-            </div>
-
-            <div class="fr-row">
-                <div class="fr-field">
-                    <label asp-for="LeaseStartDate">@L["Start Date"] <span class="required">*</span></label>
-                    <input asp-for="LeaseStartDate" type="date" required />
-                    <span asp-validation-for="LeaseStartDate" class="fr-hint is-error"></span>
-                </div>
-                <div class="fr-field">
-                    <label asp-for="LeaseEndDate">@L["End Date"] <span class="required">*</span></label>
-                    <input asp-for="LeaseEndDate" type="date" required />
-                    <span asp-validation-for="LeaseEndDate" class="fr-hint is-error"></span>
-                </div>
-            </div>
-
-            <div class="fr-row">
-                <div class="fr-field">
-                    <label asp-for="MonthlyRent">@L["Monthly Rent"] <span class="required">*</span></label>
-                    <div class="fr-currency">
-                        <span class="fr-prefix">KWD</span>
-                        <input asp-for="MonthlyRent" type="number" step="0.001" min="0" required />
-                    </div>
-                    <span asp-validation-for="MonthlyRent" class="fr-hint is-error"></span>
-                </div>
-                <div class="fr-field">
-                    <label asp-for="SecurityDeposit">@L["Security Deposit"] <span class="optional">@L["optional"]</span></label>
-                    <div class="fr-currency">
-                        <span class="fr-prefix">KWD</span>
-                        <input asp-for="SecurityDeposit" type="number" step="0.001" min="0" value="0" data-val-required="false" />
-                    </div>
-                    <span class="fr-hint">@L["> 0 ⇒ lease starts Pending until deposit invoice is collected"]</span>
-                </div>
-            </div>
-        </div>
-
-        @* Sprint 11 — units-by-building map for the cascade. *@
-        <script id="unitsByBuilding" type="application/json">@Html.Raw(ViewBag.UnitsByBuildingJson ?? "{}")</script>
-
-        @* ─────────── Zone 2 — More details (collapsed) ─────────── *@
-        <button type="button" class="fr-toggle-more" data-fr-toggle="moreLease">
-            <i class="fas fa-chevron-down"></i>
-            <span>@L["More details (late fees, lease type, insurance)"]</span>
-        </button>
-        <div data-fr-collapsible="moreLease">
-            <div class="fr-zone">
-                <h3 class="fr-zone-title">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <span>@L["Payment & Late Fees"]</span>
-                </h3>
-                <div class="fr-row fr-row-3">
-                    <div class="fr-field">
-                        <label asp-for="PaymentDueDay">@L["Due Day"] <span class="optional">1-31</span></label>
-                        <input asp-for="PaymentDueDay" type="number" min="1" max="31" placeholder="@(L["Day of month"].Value)" />
-                        <span class="fr-hint"></span>
-                    </div>
-                    <div class="fr-field">
-                        <label asp-for="LateFeeAmount">@L["Late Fee"] <span class="optional">@L["optional"]</span></label>
-                        <div class="fr-currency">
-                            <span class="fr-prefix">KWD</span>
-                            <input asp-for="LateFeeAmount" type="number" step="0.001" min="0" />
+                    <div class="fr-row">
+                        <div class="fr-field">
+                            <label for="buildingSelect">@L["Building"] <span class="required">*</span></label>
+                            <select id="buildingSelect" class="select2-enable" asp-items="ViewBag.PropertyId">
+                                <option value="">@L["-- Select Building --"]</option>
+                            </select>
+                            <span class="fr-hint">@L["Shows how many units can be leased today"]</span>
                         </div>
-                        <span class="fr-hint"></span>
-                    </div>
-                    <div class="fr-field">
-                        <label asp-for="LateFeeGracePeriod">@L["Grace Period"] <span class="optional">@L["days"]</span></label>
-                        <input asp-for="LateFeeGracePeriod" type="number" min="0" />
-                        <span class="fr-hint"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="fr-zone">
-                <h3 class="fr-zone-title">
-                    <i class="fas fa-file-contract"></i>
-                    <span>@L["Lease Settings"]</span>
-                </h3>
-                <div class="fr-row">
-                    <div class="fr-field">
-                        <label asp-for="LeaseType">@L["Lease Type"]</label>
-                        <select asp-for="LeaseType">
-                            <option value="Fixed">@L["Fixed Term"]</option>
-                            <option value="Month-to-Month">@L["Month-to-Month"]</option>
-                            <option value="Annual">@L["Annual"]</option>
-                        </select>
-                        <span class="fr-hint"></span>
-                    </div>
-                    <div class="fr-field"></div>
-                </div>
-            </div>
-
-            <div class="fr-zone">
-                <h3 class="fr-zone-title">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>@L["Insurance"]</span>
-                </h3>
-                <p class="fr-zone-hint">@L["Set Frequency = None if this lease doesn't include insurance. Insurance invoices bill separately from rent."]</p>
-                <div class="fr-row fr-row-3">
-                    <div class="fr-field">
-                        <label asp-for="InsuranceAmount">@L["Amount"]</label>
-                        <div class="fr-currency">
-                            <span class="fr-prefix">KWD</span>
-                            <input asp-for="InsuranceAmount" type="number" step="0.001" min="0" placeholder="0.000" />
+                        <div class="fr-field">
+                            <label asp-for="UnitId">@L["Unit"] <span class="required">*</span></label>
+                            <select asp-for="UnitId" id="unitSelect" class="select2-enable" asp-items="ViewBag.UnitId">
+                                <option value="">@L["-- Select Unit --"]</option>
+                            </select>
+                            <span asp-validation-for="UnitId" class="fr-hint is-error"></span>
                         </div>
-                        <span class="fr-hint"></span>
                     </div>
-                    <div class="fr-field">
-                        <label asp-for="InsuranceFrequency">@L["Frequency"]</label>
-                        <select asp-for="InsuranceFrequency">
-                            <option value="None">@L["None"]</option>
-                            <option value="Monthly">@L["Monthly"]</option>
-                            <option value="Annual">@L["Annual"]</option>
-                            <option value="OneTime">@L["One-time (at lease start)"]</option>
-                        </select>
-                        <span class="fr-hint"></span>
-                    </div>
-                    <div class="fr-field">
-                        <label asp-for="InsuranceStartDate">@L["Start"] <span class="optional">@L["optional"]</span></label>
-                        <input asp-for="InsuranceStartDate" type="date" />
-                        <span class="fr-hint">@L["Defaults to lease start"]</span>
+
+                    <div id="unitAvailability" class="lw-availability" hidden>
+                        <i class="fas fa-circle-info"></i>
+                        <span id="unitAvailabilityText"></span>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        @* ─────────── Zone 3 — Documents ─────────── *@
-        <div class="fr-zone">
-            <h3 class="fr-zone-title">
-                <i class="fas fa-file-upload"></i>
-                <span>@L["Documents"]</span>
-            </h3>
-            <p class="fr-zone-hint">@L["Signed lease, deposit receipt, insurance certificate, etc. Max 5MB per file."]</p>
+                @* ─────────── 2 · WHO ─────────── *@
+                <div class="fr-zone fr-zone-essentials">
+                    <h3 class="fr-zone-title">
+                        <span class="lw-step">2</span>
+                        <span>@L["Who"]</span>
+                    </h3>
+                    <div class="fr-row">
+                        <div class="fr-field">
+                            <label asp-for="TenantId">@L["Tenant"] <span class="required">*</span></label>
+                            <select asp-for="TenantId" id="tenantSelect" class="select2-enable" asp-items="ViewBag.TenantId">
+                                <option value="">@L["-- Select Tenant --"]</option>
+                            </select>
+                            <span asp-validation-for="TenantId" class="fr-hint is-error"></span>
+                            <span class="fr-hint" id="tenantNote"></span>
+                        </div>
+                        <div class="fr-field lw-field-link">
+                            <label>&nbsp;</label>
+                            <a href="/Tenants/Create" target="_blank" rel="noopener" class="fr-btn fr-btn-ghost">
+                                <i class="fas fa-user-plus"></i> @L["New tenant"]
+                            </a>
+                            <span class="fr-hint">@L["Opens in a new tab; re-open the list to see them"]</span>
+                        </div>
+                    </div>
+                </div>
 
-            <div id="document-upload-area">
-                <div class="document-row">
+                @* ─────────── 3 · TERMS ─────────── *@
+                <div class="fr-zone fr-zone-essentials">
+                    <h3 class="fr-zone-title">
+                        <span class="lw-step">3</span>
+                        <span>@L["Terms"]</span>
+                    </h3>
+
+                    <div class="fr-row">
+                        <div class="fr-field">
+                            <label asp-for="LeaseStartDate">@L["Start Date"] <span class="required">*</span></label>
+                            <input asp-for="LeaseStartDate" type="date" required />
+                            <span asp-validation-for="LeaseStartDate" class="fr-hint is-error"></span>
+                        </div>
+                        <div class="fr-field">
+                            <label asp-for="LeaseEndDate">@L["End Date"] <span class="required">*</span></label>
+                            <input asp-for="LeaseEndDate" type="date" required />
+                            <span asp-validation-for="LeaseEndDate" class="fr-hint is-error"></span>
+                            <div class="lw-quick">
+                                <span class="fr-hint">@L["Quick term:"]</span>
+                                <button type="button" class="lw-quick-btn" data-months="6">6 @L["months"]</button>
+                                <button type="button" class="lw-quick-btn" data-months="12">1 @L["year"]</button>
+                                <button type="button" class="lw-quick-btn" data-months="24">2 @L["years"]</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="fr-row fr-row-3">
                         <div class="fr-field">
-                            <label>@L["Document Type"]</label>
-                            <select name="DocumentTypes[]">
-                                <option value="">@L["-- Select Type --"]</option>
-                                <option value="Signed Lease">@L["Signed Lease Agreement"]</option>
-                                <option value="Deposit Receipt">@L["Security Deposit Receipt"]</option>
-                                <option value="Insurance Document">@L["Insurance Document"]</option>
-                                <option value="Addendum">@L["Lease Addendum"]</option>
-                                <option value="Termination Notice">@L["Termination Notice"]</option>
-                                <option value="Handover Form">@L["Unit Handover Form"]</option>
-                                <option value="Inspection Report">@L["Inspection Report"]</option>
-                                <option value="Other">@L["Other"]</option>
-                            </select>
+                            <label asp-for="MonthlyRent">@L["Monthly Rent"] <span class="required">*</span></label>
+                            <div class="fr-currency">
+                                <span class="fr-prefix">KWD</span>
+                                <input asp-for="MonthlyRent" type="number" step="0.001" min="0" required />
+                            </div>
+                            <span asp-validation-for="MonthlyRent" class="fr-hint is-error"></span>
+                            <span class="fr-hint" id="rentHint"></span>
                         </div>
                         <div class="fr-field">
-                            <label>@L["File"]</label>
-                            <input type="file" name="Documents[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-                            <span class="fr-hint">@L["PDF, JPG, PNG, DOC, DOCX — max 5MB"]</span>
+                            <label asp-for="SecurityDeposit">@L["Security Deposit"] <span class="optional">@L["optional"]</span></label>
+                            <div class="fr-currency">
+                                <span class="fr-prefix">KWD</span>
+                                <input asp-for="SecurityDeposit" type="number" step="0.001" min="0" data-val-required="false" />
+                            </div>
+                            <span class="fr-hint">@L["With a deposit the lease starts Pending until you Activate it"]</span>
                         </div>
-                        <div class="fr-field" style="justify-content:flex-end;">
-                            <label>&nbsp;</label>
-                            <button type="button" class="fr-btn fr-btn-ghost remove-document" style="display:none;">
-                                <i class="fas fa-trash"></i> @L["Remove"]
-                            </button>
+                        <div class="fr-field">
+                            <label asp-for="PaymentDueDay">@L["Rent due on day"] <span class="optional">1-31</span></label>
+                            <input asp-for="PaymentDueDay" type="number" min="1" max="31" />
+                            <span class="fr-hint">@L["of every month"]</span>
                         </div>
                     </div>
                 </div>
+
+                @* Data for the cascade + summary. *@
+                <script id="unitsByBuilding" type="application/json">@Html.Raw(ViewBag.UnitsByBuildingJson ?? "{}")</script>
+                <script id="tenantsById" type="application/json">@Html.Raw(ViewBag.TenantsJson ?? "{}")</script>
+
+                @* ─────────── More details (collapsed) ─────────── *@
+                <button type="button" class="fr-toggle-more" data-fr-toggle="moreLease">
+                    <i class="fas fa-chevron-down"></i>
+                    <span>@L["More details (late fees, lease type, insurance)"]</span>
+                </button>
+                <div data-fr-collapsible="moreLease">
+                    <div class="fr-zone">
+                        <h3 class="fr-zone-title">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>@L["Late Fees"]</span>
+                        </h3>
+                        <div class="fr-row">
+                            <div class="fr-field">
+                                <label asp-for="LateFeeAmount">@L["Late Fee"] <span class="optional">@L["optional"]</span></label>
+                                <div class="fr-currency">
+                                    <span class="fr-prefix">KWD</span>
+                                    <input asp-for="LateFeeAmount" type="number" step="0.001" min="0" />
+                                </div>
+                                <span class="fr-hint"></span>
+                            </div>
+                            <div class="fr-field">
+                                <label asp-for="LateFeeGracePeriod">@L["Grace Period"] <span class="optional">@L["days"]</span></label>
+                                <input asp-for="LateFeeGracePeriod" type="number" min="0" />
+                                <span class="fr-hint"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="fr-zone">
+                        <h3 class="fr-zone-title">
+                            <i class="fas fa-file-contract"></i>
+                            <span>@L["Lease Settings"]</span>
+                        </h3>
+                        <div class="fr-row">
+                            <div class="fr-field">
+                                <label asp-for="LeaseType">@L["Lease Type"]</label>
+                                <select asp-for="LeaseType">
+                                    <option value="Fixed">@L["Fixed Term"]</option>
+                                    <option value="Month-to-Month">@L["Month-to-Month"]</option>
+                                    <option value="Annual">@L["Annual"]</option>
+                                </select>
+                                <span class="fr-hint"></span>
+                            </div>
+                            <div class="fr-field"></div>
+                        </div>
+                    </div>
+
+                    <div class="fr-zone">
+                        <h3 class="fr-zone-title">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>@L["Insurance"]</span>
+                        </h3>
+                        <p class="fr-zone-hint">@L["Set Frequency = None if this lease doesn't include insurance. Insurance invoices bill separately from rent."]</p>
+                        <div class="fr-row fr-row-3">
+                            <div class="fr-field">
+                                <label asp-for="InsuranceAmount">@L["Amount"]</label>
+                                <div class="fr-currency">
+                                    <span class="fr-prefix">KWD</span>
+                                    <input asp-for="InsuranceAmount" type="number" step="0.001" min="0" placeholder="0.000" />
+                                </div>
+                                <span class="fr-hint"></span>
+                            </div>
+                            <div class="fr-field">
+                                <label asp-for="InsuranceFrequency">@L["Frequency"]</label>
+                                <select asp-for="InsuranceFrequency">
+                                    @foreach (var opt in await Lookups.GetOptionsAsync("InsuranceFrequency"))
+                                    {
+                                        <option value="@opt.Code" selected="@(Model?.InsuranceFrequency == opt.Code)">@opt.Label</option>
+                                    }
+                                </select>
+                                <span class="fr-hint"></span>
+                            </div>
+                            <div class="fr-field">
+                                <label asp-for="InsuranceStartDate">@L["Start"] <span class="optional">@L["optional"]</span></label>
+                                <input asp-for="InsuranceStartDate" type="date" />
+                                <span class="fr-hint">@L["Defaults to lease start"]</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* ─────────── Documents ─────────── *@
+                <div class="fr-zone">
+                    <h3 class="fr-zone-title">
+                        <i class="fas fa-file-upload"></i>
+                        <span>@L["Documents"]</span>
+                    </h3>
+                    <p class="fr-zone-hint">@L["Signed lease, deposit receipt, insurance certificate, etc. Max 5MB per file."]</p>
+
+                    <div id="document-upload-area">
+                        <div class="document-row">
+                            <div class="fr-row fr-row-3">
+                                <div class="fr-field">
+                                    <label>@L["Document Type"]</label>
+                                    <select name="DocumentTypes[]">
+                                        <option value="">@L["-- Select Type --"]</option>
+                                        @foreach (var opt in await Lookups.GetOptionsAsync("LeaseDocumentType"))
+                                        {
+                                            <option value="@opt.Code">@opt.Label</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="fr-field">
+                                    <label>@L["File"]</label>
+                                    <input type="file" name="Documents[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                    <span class="fr-hint">@L["PDF, JPG, PNG, DOC, DOCX — max 5MB"]</span>
+                                </div>
+                                <div class="fr-field" style="justify-content:flex-end;">
+                                    <label>&nbsp;</label>
+                                    <button type="button" class="fr-btn fr-btn-ghost remove-document" style="display:none;">
+                                        <i class="fas fa-trash"></i> @L["Remove"]
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" id="add-document-btn" class="fr-btn fr-btn-secondary" style="margin-top:0.5rem;">
+                        <i class="fas fa-plus"></i> @L["Add another document"]
+                    </button>
+                </div>
+
+                <div class="fr-actions">
+                    <a asp-action="Index" class="fr-btn fr-btn-ghost">@L["Cancel"]</a>
+                    <div class="fr-spacer"></div>
+                    <button type="submit" class="fr-btn fr-btn-secondary" data-fr-save-and-add>
+                        <i class="fas fa-plus"></i> @L["Save & add another"]
+                    </button>
+                    <button type="submit" class="fr-btn fr-btn-primary" id="createLeaseBtn">
+                        <i class="fas fa-file-signature"></i> @L["Create Lease"]
+                    </button>
+                </div>
             </div>
 
-            <button type="button" id="add-document-btn" class="fr-btn fr-btn-secondary" style="margin-top:0.5rem;">
-                <i class="fas fa-plus"></i> @L["Add another document"]
-            </button>
-        </div>
-
-        <div class="fr-actions">
-            <a asp-action="Index" class="fr-btn fr-btn-ghost">@L["Cancel"]</a>
-            <div class="fr-spacer"></div>
-            <button type="submit" class="fr-btn fr-btn-secondary" data-fr-save-and-add>
-                <i class="fas fa-plus"></i> @L["Save & add another"]
-            </button>
-            <button type="submit" class="fr-btn fr-btn-primary">
-                <i class="fas fa-save"></i> @L["Create Lease"]
-            </button>
+            @* ─────────── Sticky summary ─────────── *@
+            <aside class="lw-summary" aria-live="polite">
+                <div class="lw-summary-card">
+                    <div class="lw-summary-head">
+                        <i class="fas fa-file-signature"></i>
+                        <span>@L["Lease summary"]</span>
+                    </div>
+                    <dl class="lw-summary-list">
+                        <div><dt>@L["Unit"]</dt><dd id="sumUnit">—</dd></div>
+                        <div><dt>@L["Tenant"]</dt><dd id="sumTenant">—</dd></div>
+                        <div><dt>@L["Period"]</dt><dd id="sumPeriod">—</dd></div>
+                        <div><dt>@L["Monthly Rent"]</dt><dd id="sumRent">—</dd></div>
+                        <div><dt>@L["Security Deposit"]</dt><dd id="sumDeposit">—</dd></div>
+                        <div><dt>@L["Contract value"]</dt><dd id="sumTotal">—</dd></div>
+                        <div><dt>@L["First rent invoice"]</dt><dd id="sumFirstInvoice">—</dd></div>
+                    </dl>
+                    <div class="lw-outcome" id="sumOutcome">
+                        <i class="fas fa-circle-check"></i>
+                        <span id="sumOutcomeText">@L["Will be created as Active — the unit becomes Occupied and rent invoices start on the due day."]</span>
+                    </div>
+                    <ul class="lw-checklist" id="sumChecklist">
+                        <li data-check="unit"><i class="fas fa-circle"></i> @L["Unit chosen and available"]</li>
+                        <li data-check="tenant"><i class="fas fa-circle"></i> @L["Tenant chosen"]</li>
+                        <li data-check="dates"><i class="fas fa-circle"></i> @L["End date after start date"]</li>
+                        <li data-check="rent"><i class="fas fa-circle"></i> @L["Monthly rent entered"]</li>
+                    </ul>
+                </div>
+            </aside>
         </div>
     </form>
 </div>
@@ -257,74 +350,196 @@
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 
     <script>
-        // Sprint 11 — Select2 typeahead + Building→Unit cascade.
         (function () {
-            if (typeof jQuery === 'undefined' || typeof jQuery.fn.select2 === 'undefined') {
-                console.warn('Select2 not available; using native selects.');
-                return;
+            var $ = window.jQuery;
+            var hasSelect2 = $ && $.fn && $.fn.select2;
+
+            var unitsByBuilding = {}, tenantsById = {};
+            try { unitsByBuilding = JSON.parse(document.getElementById('unitsByBuilding').textContent || '{}'); } catch (e) { console.error(e); }
+            try { tenantsById = JSON.parse(document.getElementById('tenantsById').textContent || '{}'); } catch (e) { console.error(e); }
+
+            var L = {
+                unavailable: @Json.Serialize(L["Not available"].Value),
+                available: @Json.Serialize(L["Available now"].Value),
+                availableFrom: @Json.Serialize(L["Available from"].Value),
+                listedRent: @Json.Serialize(L["Unit's listed rent"].Value),
+                liveLeases: @Json.Serialize(L["already holds"].Value),
+                leases: @Json.Serialize(L["live lease(s)"].Value),
+                months: @Json.Serialize(L["months"].Value),
+                days: @Json.Serialize(L["days"].Value),
+                pending: @Json.Serialize(L["Will be created as Pending — issue and collect the deposit invoice, then Activate. The unit is reserved for this tenant meanwhile."].Value),
+                active: @Json.Serialize(L["Will be created as Active — the unit becomes Occupied and rent invoices start on the due day."].Value)
+            };
+
+            var building = document.getElementById('buildingSelect');
+            var unit = document.getElementById('unitSelect');
+            var tenant = document.getElementById('tenantSelect');
+            var start = document.getElementById('LeaseStartDate');
+            var end = document.getElementById('LeaseEndDate');
+            var rent = document.getElementById('MonthlyRent');
+            var deposit = document.getElementById('SecurityDeposit');
+            var dueDay = document.getElementById('PaymentDueDay');
+            var avail = document.getElementById('unitAvailability');
+            var availText = document.getElementById('unitAvailabilityText');
+            var rentHint = document.getElementById('rentHint');
+            var tenantNote = document.getElementById('tenantNote');
+            var submitBtn = document.getElementById('createLeaseBtn');
+
+            var lastAutoRent = null;
+
+            function fmt(n) { return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }); }
+            function fmtDate(d) { return d ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'; }
+            function parseDate(v) { if (!v) return null; var d = new Date(v + 'T00:00:00'); return isNaN(d) ? null : d; }
+            function toInput(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+            function findUnit(id) {
+                for (var pid in unitsByBuilding) {
+                    var hit = (unitsByBuilding[pid] || []).find(function (u) { return String(u.id) === String(id); });
+                    if (hit) return hit;
+                }
+                return null;
             }
 
-            var $ = jQuery;
-            var unitsByBuilding = {};
-            try {
-                unitsByBuilding = JSON.parse(document.getElementById('unitsByBuilding').textContent || '{}');
-            } catch (e) {
-                console.error('Failed to parse unitsByBuilding JSON', e);
-            }
-
-            $('.select2-enable').select2({ theme: 'bootstrap-5', width: '100%' });
-
-            var $building = $('#buildingSelect');
-            var $unit = $('#unitSelect');
-            var preselectedUnitId = $unit.val();
-
-            function rebuildUnitOptions(propertyId, preserveSelection) {
-                var current = preserveSelection ? $unit.val() : '';
-                $unit.empty().append('<option value="">-- Select Unit --</option>');
+            function rebuildUnitOptions(propertyId, keep) {
+                var current = keep ? unit.value : '';
+                unit.innerHTML = '<option value="">-- Select Unit --</option>';
                 var list = propertyId && unitsByBuilding[propertyId] ? unitsByBuilding[propertyId] : [];
                 list.forEach(function (u) {
                     var opt = new Option(u.text, u.id, false, String(u.id) === String(current));
-                    $unit.append(opt);
+                    if (!u.available && String(u.id) !== String(current)) opt.disabled = true;
+                    unit.appendChild(opt);
                 });
-                $unit.trigger('change.select2');
+                if (hasSelect2) $(unit).trigger('change.select2');
+                onUnitChange();
             }
 
+            function onUnitChange() {
+                var u = findUnit(unit.value);
+                if (!u) {
+                    avail.hidden = true; rentHint.textContent = '';
+                    update(); return;
+                }
+                avail.hidden = false;
+                avail.classList.toggle('is-bad', !u.available);
+                availText.textContent = u.available
+                    ? L.available + ' · ' + u.property + ' · ' + u.text + (u.type ? ' · ' + u.type : '')
+                    : L.unavailable + ' — ' + (u.note || '') + (u.availableFrom ? ' · ' + L.availableFrom + ' ' + fmtDate(parseDate(u.availableFrom)) : '');
+                if (u.rent > 0) {
+                    rentHint.textContent = L.listedRent + ': KWD ' + fmt(u.rent);
+                    // Prefill rent from the unit unless the operator typed their own.
+                    if (!rent.value || Number(rent.value) === 0 || (lastAutoRent !== null && Number(rent.value) === lastAutoRent)) {
+                        rent.value = Number(u.rent).toFixed(3);
+                        lastAutoRent = Number(u.rent);
+                    }
+                }
+                update();
+            }
+
+            function onTenantChange() {
+                var t = tenantsById[tenant.value];
+                tenantNote.textContent = t && t.liveLeases > 0
+                    ? t.name + ' ' + L.liveLeases + ' ' + t.liveLeases + ' ' + L.leases
+                    : '';
+                update();
+            }
+
+            // Whole months in an INCLUSIVE term: 13 Oct 2026 → 12 Oct 2027 is 12
+            // months (the day after the end is the anniversary of the start).
+            function monthsBetween(a, b) {
+                var e = new Date(b.getFullYear(), b.getMonth(), b.getDate() + 1);
+                var m = (e.getFullYear() - a.getFullYear()) * 12 + (e.getMonth() - a.getMonth());
+                if (e.getDate() < a.getDate()) m -= 1;
+                return Math.max(0, m);
+            }
+
+            function update() {
+                var u = findUnit(unit.value);
+                var t = tenantsById[tenant.value];
+                var s = parseDate(start.value), e = parseDate(end.value);
+                var r = Number(rent.value) || 0, d = Number(deposit.value) || 0;
+
+                document.getElementById('sumUnit').textContent = u ? u.property + ' · ' + u.text.replace(/\s\(.*\)$/, '') : '—';
+                document.getElementById('sumTenant').textContent = t ? t.name + (t.paci ? ' · ' + t.paci : '') : '—';
+
+                var okDates = s && e && e > s;
+                if (okDates) {
+                    var days = Math.round((e - s) / 86400000) + 1;
+                    var months = monthsBetween(s, e);
+                    document.getElementById('sumPeriod').textContent = fmtDate(s) + ' → ' + fmtDate(e) + ' (' + (months > 0 ? months + ' ' + L.months + ', ' : '') + days + ' ' + L.days + ')';
+                    // Contract value: whole months × rent; shorter than a month → pro-rata on 30 days.
+                    document.getElementById('sumTotal').textContent = r > 0 ? 'KWD ' + fmt(r * (months > 0 ? months : days / 30)) : '—';
+                    var due = Math.min(Math.max(Number(dueDay.value) || 1, 1), 28);
+                    var first = new Date(s.getFullYear(), s.getMonth(), due);
+                    if (first < s) first = new Date(s.getFullYear(), s.getMonth() + 1, due);
+                    document.getElementById('sumFirstInvoice').textContent = fmtDate(first);
+                } else {
+                    document.getElementById('sumPeriod').textContent = '—';
+                    document.getElementById('sumTotal').textContent = '—';
+                    document.getElementById('sumFirstInvoice').textContent = '—';
+                }
+                document.getElementById('sumRent').textContent = r > 0 ? 'KWD ' + fmt(r) : '—';
+                document.getElementById('sumDeposit').textContent = d > 0 ? 'KWD ' + fmt(d) : '—';
+
+                var outcome = document.getElementById('sumOutcome');
+                outcome.classList.toggle('is-pending', d > 0);
+                document.getElementById('sumOutcomeText').textContent = d > 0 ? L.pending : L.active;
+
+                function mark(key, ok) {
+                    var li = document.querySelector('#sumChecklist [data-check="' + key + '"]');
+                    if (!li) return;
+                    li.classList.toggle('ok', !!ok);
+                    li.querySelector('i').className = ok ? 'fas fa-circle-check' : 'fas fa-circle';
+                }
+                var unitOk = !!u && u.available;
+                mark('unit', unitOk); mark('tenant', !!t); mark('dates', okDates); mark('rent', r > 0);
+                if (submitBtn) submitBtn.disabled = !(unitOk && t && okDates && r > 0);
+            }
+
+            // Quick term buttons: end = start + N months − 1 day.
+            document.querySelectorAll('.lw-quick-btn').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    var s = parseDate(start.value) || new Date();
+                    if (!start.value) start.value = toInput(s);
+                    var e = new Date(s.getFullYear(), s.getMonth() + Number(b.dataset.months), s.getDate() - 1);
+                    end.value = toInput(e);
+                    update();
+                });
+            });
+
+            if (hasSelect2) $('.select2-enable').select2({ theme: 'bootstrap-5', width: '100%' });
+
+            // Preselect building from a prefilled unit (deep link / re-render).
+            var preselectedUnitId = unit.value;
             if (preselectedUnitId) {
                 for (var pid in unitsByBuilding) {
-                    if (!Object.prototype.hasOwnProperty.call(unitsByBuilding, pid)) continue;
-                    var matches = unitsByBuilding[pid].some(function (u) {
-                        return String(u.id) === String(preselectedUnitId);
-                    });
-                    if (matches) {
-                        $building.val(pid).trigger('change.select2');
+                    if ((unitsByBuilding[pid] || []).some(function (u) { return String(u.id) === String(preselectedUnitId); })) {
+                        building.value = pid;
+                        if (hasSelect2) $(building).trigger('change.select2');
                         rebuildUnitOptions(pid, true);
                         break;
                     }
                 }
+            } else if (building.value) {
+                rebuildUnitOptions(building.value, false);
             }
 
-            $building.on('change', function () {
-                rebuildUnitOptions(this.value, false);
-            });
+            building.addEventListener('change', function () { rebuildUnitOptions(this.value, false); });
+            unit.addEventListener('change', onUnitChange);
+            tenant.addEventListener('change', onTenantChange);
+            [start, end, rent, deposit, dueDay].forEach(function (el) { el && el.addEventListener('input', update); el && el.addEventListener('change', update); });
+
+            onTenantChange();
+            update();
         })();
     </script>
 
     <script>
-        // Inline document add/remove rows (revamped markup).
+        // Inline document add/remove rows.
         (function () {
             var addBtn = document.getElementById('add-document-btn');
             if (!addBtn) return;
-
-            var typeOptions =
-                '<option value="">-- Select Type --</option>' +
-                '<option value="Signed Lease">Signed Lease Agreement</option>' +
-                '<option value="Deposit Receipt">Security Deposit Receipt</option>' +
-                '<option value="Insurance Document">Insurance Document</option>' +
-                '<option value="Addendum">Lease Addendum</option>' +
-                '<option value="Termination Notice">Termination Notice</option>' +
-                '<option value="Handover Form">Unit Handover Form</option>' +
-                '<option value="Inspection Report">Inspection Report</option>' +
-                '<option value="Other">Other</option>';
+            var firstTypeSel = document.querySelector('select[name="DocumentTypes[]"]');
+            var typeOptions = firstTypeSel ? firstTypeSel.innerHTML : '<option value="">-- Select Type --</option>';
 
             function attachRemove(rowEl) {
                 var btn = rowEl.querySelector('.remove-document');
@@ -343,21 +558,11 @@
                 row.style.marginTop = '0.75rem';
                 row.innerHTML =
                     '<div class="fr-row fr-row-3">' +
-                        '<div class="fr-field">' +
-                            '<label>Document Type</label>' +
-                            '<select name="DocumentTypes[]">' + typeOptions + '</select>' +
-                        '</div>' +
-                        '<div class="fr-field">' +
-                            '<label>File</label>' +
-                            '<input type="file" name="Documents[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />' +
-                            '<span class="fr-hint">PDF, JPG, PNG, DOC, DOCX — max 5MB</span>' +
-                        '</div>' +
-                        '<div class="fr-field" style="justify-content:flex-end;">' +
-                            '<label>&nbsp;</label>' +
-                            '<button type="button" class="fr-btn fr-btn-ghost remove-document">' +
-                                '<i class="fas fa-trash"></i> Remove' +
-                            '</button>' +
-                        '</div>' +
+                        '<div class="fr-field"><label>Document Type</label><select name="DocumentTypes[]">' + typeOptions + '</select></div>' +
+                        '<div class="fr-field"><label>File</label><input type="file" name="Documents[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />' +
+                            '<span class="fr-hint">PDF, JPG, PNG, DOC, DOCX — max 5MB</span></div>' +
+                        '<div class="fr-field" style="justify-content:flex-end;"><label>&nbsp;</label>' +
+                            '<button type="button" class="fr-btn fr-btn-ghost remove-document"><i class="fas fa-trash"></i> Remove</button></div>' +
                     '</div>';
                 area.appendChild(row);
                 var first = document.querySelector('.document-row:first-child .remove-document');

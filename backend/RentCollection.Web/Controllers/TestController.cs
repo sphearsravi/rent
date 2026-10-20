@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,26 +7,40 @@ using RentCollection.Infrastructure.Data;
 
 namespace RentCollection.Web.Controllers;
 
-// Diagnostic-only — never expose in production. Routes return 404 outside Development.
+// Diagnostic-only. Three independent gates keep this out of production:
+//   1. compiled only into DEBUG builds (#if DEBUG);
+//   2. [Authorize(Roles = SuperAdmin)] — any other authenticated user gets 403;
+//   3. every action returns 404 unless the host environment is Development.
+// Seed passwords come from configuration (Test:SeedAdminPassword) — never
+// hard-code credentials here, and never echo them in a response.
 #if DEBUG
+[Authorize(Roles = Roles.SuperAdmin)]
 public class TestController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _configuration;
 
     public TestController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        RoleManager<IdentityRole> roleManager)
+        RoleManager<IdentityRole> roleManager,
+        IWebHostEnvironment env,
+        IConfiguration configuration)
     {
         _context = context;
         _userManager = userManager;
         _roleManager = roleManager;
+        _env = env;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> DbConnection()
     {
+        if (!_env.IsDevelopment()) return NotFound();
+
         var result = new
         {
             Status = "Unknown",
@@ -116,6 +131,14 @@ public class TestController : Controller
 
     public async Task<IActionResult> SeedAdmin()
     {
+        if (!_env.IsDevelopment()) return NotFound();
+
+        var seedPassword = _configuration["Test:SeedAdminPassword"];
+        if (string.IsNullOrWhiteSpace(seedPassword))
+        {
+            return Content("Test:SeedAdminPassword is not configured. Set it via user-secrets before seeding.");
+        }
+
         try
         {
             // Check if admin exists
@@ -125,7 +148,7 @@ public class TestController : Controller
             if (existingAdmin != null)
             {
                 var roles = await _userManager.GetRolesAsync(existingAdmin);
-                return Content($"Admin user already exists!\n\nEmail: {adminEmail}\nRoles: {string.Join(", ", roles)}\nIsActive: {existingAdmin.IsActive}\n\nYou can login with:\nEmail: {adminEmail}\nPassword: Admin@123");
+                return Content($"Admin user already exists!\n\nEmail: {adminEmail}\nRoles: {string.Join(", ", roles)}\nIsActive: {existingAdmin.IsActive}");
             }
 
             // Seed Roles first
@@ -151,12 +174,12 @@ public class TestController : Controller
                 CreatedDate = DateTime.UtcNow
             };
 
-            var result = await _userManager.CreateAsync(admin, "Admin@123");
+            var result = await _userManager.CreateAsync(admin, seedPassword);
 
             if (result.Succeeded)
             {
                 await _userManager.AddToRoleAsync(admin, "Admin");
-                return Content($"SUCCESS! Admin user created!\n\nEmail: {adminEmail}\nPassword: Admin@123\n\nYou can now login with these credentials.");
+                return Content($"SUCCESS! Admin user created!\n\nEmail: {adminEmail}\nPassword: (the configured Test:SeedAdminPassword)\n\nYou can now login with these credentials.");
             }
             else
             {
@@ -171,6 +194,8 @@ public class TestController : Controller
 
     public async Task<IActionResult> CheckUsers()
     {
+        if (!_env.IsDevelopment()) return NotFound();
+
         try
         {
             var users = await _userManager.Users.ToListAsync();
@@ -203,6 +228,14 @@ public class TestController : Controller
 
     public async Task<IActionResult> SeedCustomAdmin()
     {
+        if (!_env.IsDevelopment()) return NotFound();
+
+        var seedPassword = _configuration["Test:SeedAdminPassword"];
+        if (string.IsNullOrWhiteSpace(seedPassword))
+        {
+            return Content("Test:SeedAdminPassword is not configured. Set it via user-secrets before seeding.");
+        }
+
         try
         {
             var adminEmail = "admin@rentcollection.com";
@@ -214,12 +247,12 @@ public class TestController : Controller
 
             if (existingUser != null)
             {
-                return Content($"Admin user already exists in custom Users table!\n\nUsername: {existingUser.Username}\nEmail: {existingUser.Email}\nRole: {existingUser.Role}\nIsActive: {existingUser.IsActive}\n\nYou can login with:\nUsername: {adminUsername}\nPassword: Admin@123");
+                return Content($"Admin user already exists in custom Users table!\n\nUsername: {existingUser.Username}\nEmail: {existingUser.Email}\nRole: {existingUser.Role}\nIsActive: {existingUser.IsActive}");
             }
 
             // Hash password using PBKDF2
             var passwordHasher = new RentCollection.Application.Services.PasswordHasher();
-            var passwordHash = passwordHasher.HashPassword("Admin@123");
+            var passwordHash = passwordHasher.HashPassword(seedPassword);
 
             // Create admin user in custom Users table
             var admin = new User
@@ -239,7 +272,7 @@ public class TestController : Controller
             _context.Users.Add(admin);
             await _context.SaveChangesAsync();
 
-            return Content($"SUCCESS! Admin user created in custom Users table!\n\nUsername: {adminUsername}\nEmail: {adminEmail}\nPassword: Admin@123\nRole: Admin\n\nYou can now login with these credentials.");
+            return Content($"SUCCESS! Admin user created in custom Users table!\n\nUsername: {adminUsername}\nEmail: {adminEmail}\nPassword: (the configured Test:SeedAdminPassword)\nRole: Admin\n\nYou can now login with these credentials.");
         }
         catch (Exception ex)
         {
@@ -249,6 +282,8 @@ public class TestController : Controller
 
     public async Task<IActionResult> CheckCustomUsers()
     {
+        if (!_env.IsDevelopment()) return NotFound();
+
         try
         {
             var users = await _context.Users.ToListAsync();
@@ -282,40 +317,8 @@ public class TestController : Controller
         }
     }
 
-    public async Task<IActionResult> UpdateAdminCredentials()
-    {
-        try
-        {
-            // Find the admin user
-            var admin = await _context.Users.FirstOrDefaultAsync(u => u.Username == "admin");
-
-            if (admin == null)
-            {
-                return Content("Admin user not found. Please create one first using /Test/SeedCustomAdmin");
-            }
-
-            // Update credentials to simpler ones
-            var passwordHasher = new RentCollection.Application.Services.PasswordHasher();
-
-            admin.Username = "admin";
-            admin.Email = "admin@test.com";
-            admin.PasswordHash = passwordHasher.HashPassword("admin123");
-            admin.FirstName = "System";
-            admin.LastName = "Administrator";
-            admin.IsActive = true;
-            admin.EmailVerified = true;
-            admin.ModifiedDate = DateTime.UtcNow;
-
-            _context.Users.Update(admin);
-            await _context.SaveChangesAsync();
-
-            return Content($"SUCCESS! Admin credentials updated!\n\nNew Login Details:\nUsername: admin\nEmail: admin@test.com\nPassword: admin123\n\nYou can now login with these credentials.");
-        }
-        catch (Exception ex)
-        {
-            return Content($"Error: {ex.Message}\n\nStack Trace: {ex.StackTrace}");
-        }
-    }
+    // SECURITY: UpdateAdminCredentials was removed — it reset the admin
+    // password to a hard-coded value on a plain GET. Use the Users admin UI.
 
     private string? MaskPassword(string? connectionString)
     {

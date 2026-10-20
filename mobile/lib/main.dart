@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/locale_provider.dart';
+import 'core/session_reset.dart';
 import 'core/version_gate.dart';
 import 'core/constants/app_constants.dart';
 import 'l10n/app_localizations.dart';
@@ -72,7 +72,7 @@ void main() {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-    ));
+    ),);
 
     final storageService = StorageService();
     await storageService.init();
@@ -93,10 +93,17 @@ void main() {
     // Global navigator so the Dio 401 handler can boot the user to /login
     // from outside the widget tree.
     final navigatorKey = GlobalKey<NavigatorState>();
+    // Re-entrancy guard: the dashboard fires several requests at once, so a
+    // dead session produces a burst of 401s. Without this each one pushed a
+    // fresh /login on top of the last.
+    var handling401 = false;
     apiService.onUnauthenticated = () {
+      if (handling401) return;
+      handling401 = true;
       final ctx = navigatorKey.currentContext;
       if (ctx != null) {
         try {
+          resetSessionState(ctx);
           ctx.read<AuthViewModel>().logout();
         } catch (_) {
           // Provider not mounted yet (e.g. during splash) — clearing the
@@ -107,6 +114,8 @@ void main() {
         '/login',
         (route) => false,
       );
+      // Re-arm once the login screen has had a frame to settle.
+      Future<void>.delayed(const Duration(seconds: 2), () => handling401 = false);
     };
 
     runApp(ViijarTenantApp(
@@ -114,8 +123,8 @@ void main() {
       tenantApiService: tenantApiService,
       fcmService: fcmService,
       navigatorKey: navigatorKey,
-    ));
-  }, _reportUncaughtError);
+    ),);
+  }, _reportUncaughtError,);
 }
 
 class ViijarTenantApp extends StatelessWidget {
@@ -178,7 +187,7 @@ class ViijarTenantApp extends StatelessWidget {
       ],
       child: Consumer<LocaleProvider>(
         builder: (context, localeProvider, _) => MaterialApp(
-          title: 'VIIJAR Tenant',
+          title: 'Alrtam',
           navigatorKey: navigatorKey,
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
@@ -197,7 +206,13 @@ class ViijarTenantApp extends StatelessWidget {
           // Payment is now invoice-driven: callers push '/payments/make' with
           // the selected InvoiceModel as the route argument.
           '/payments/make': (context) => const MakePaymentScreen(),
-          '/payments/result': (context) => const PaymentResultScreen(),
+          // Accepts the payment id as the route argument (String or int) —
+          // without it the screen could only ever say "unable to verify".
+          '/payments/result': (context) {
+            final arg = ModalRoute.of(context)?.settings.arguments;
+            final id = arg is Map ? arg['paymentId'] : arg;
+            return PaymentResultScreen(paymentId: id?.toString());
+          },
           // '/payments/history' removed — payment history lives under each
           // invoice's detail screen now.
           // '/maintenance/create' removed — it mapped to HomeScreen (a no-op).
@@ -248,18 +263,24 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _checkAuthStatus() async {
-    // Wait for animation
-    await Future.delayed(const Duration(milliseconds: 2000));
+    // Run the splash animation delay and the version check IN PARALLEL, and
+    // cap the version check at 5s. Sequential with Dio's 30s timeouts, an
+    // offline launch used to sit on the splash for close to a minute.
+    final versionFuture = context
+        .read<TenantApiService>()
+        .getAppVersionInfo(
+          platform: defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
+        )
+        .timeout(const Duration(seconds: 5), onTimeout: () => null);
 
+    await Future.delayed(const Duration(milliseconds: 2000));
     if (!mounted) return;
 
     // Force-update gate runs before auth. Fail-open: if the endpoint is
     // unreachable or returns nothing, fall through to the normal flow — a
     // network blip must never lock the user out.
     try {
-      final info = await context
-          .read<TenantApiService>()
-          .getAppVersionInfo(platform: 'android');
+      final info = await versionFuture;
       if (!mounted) return;
       if (info != null) {
         final status = VersionGate.evaluate(
@@ -268,11 +289,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           latest: info.latestVersion,
         );
         if (status == UpdateStatus.required) {
-          Navigator.of(context).pushReplacement(
+          unawaited(Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => ForceUpdateScreen(storeUrl: info.storeUrl),
             ),
-          );
+          ),);
           return;
         }
       }
@@ -293,12 +314,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // tenant. FCM tokens rotate rarely but do; this catches it.
       final tenantId = authViewModel.tenantId;
       if (tenantId != null) {
-        // ignore: discarded_futures
-        context.read<FcmService>().registerWithServer(tenantId);
+        // Fire-and-forget; FcmService catches its own errors.
+        unawaited(context.read<FcmService>().registerWithServer(tenantId));
       }
-      Navigator.of(context).pushReplacementNamed('/home');
+      unawaited(Navigator.of(context).pushReplacementNamed('/home'));
     } else {
-      Navigator.of(context).pushReplacementNamed('/login');
+      unawaited(Navigator.of(context).pushReplacementNamed('/login'));
     }
   }
 
@@ -320,12 +341,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo
+                      // Logo — the actual gold Alrtam app icon, rounded.
                       Container(
                         width: 120,
                         height: 120,
                         decoration: BoxDecoration(
-                          color: Colors.white,
                           borderRadius: BorderRadius.circular(30),
                           boxShadow: [
                             BoxShadow(
@@ -335,16 +355,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.apartment_rounded,
-                          size: 60,
-                          color: AppTheme.primaryIndigo,
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset(
+                          'assets/icons/app_icon.png',
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(height: 24),
                       // App Name
                       const Text(
-                        'VIIJAR',
+                        'Alrtam',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 40,

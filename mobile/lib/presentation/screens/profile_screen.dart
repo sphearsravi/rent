@@ -1,9 +1,12 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/locale_provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/session_reset.dart';
 import '../../l10n/app_localizations.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
@@ -22,7 +25,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // Defer past the first frame so notifyListeners() never fires mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   Future<void> _loadData() async {
@@ -64,7 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             if (viewModel.state == ProfileState.error && !viewModel.hasProfile) {
               return _buildErrorState(
-                  viewModel.errorMessage ?? l.profileFailedToLoad);
+                  viewModel.errorMessage ?? l.profileFailedToLoad,);
             }
 
             return RefreshIndicator(
@@ -127,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Center(
               child: Text(
-                profile?.initials ?? 'TN',
+                profile?.initials ?? _initialsFrom(authViewModel.tenantName),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 36,
@@ -139,7 +143,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           // Name
           Text(
-            profile?.fullName ?? authViewModel.tenantName ?? 'Tenant',
+            profile?.fullName ??
+                authViewModel.tenantName ??
+                AppLocalizations.of(context)!.dashboardTenantFallback,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -336,7 +342,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(width: 4),
               const Icon(Icons.unfold_more,
-                  color: AppTheme.textMuted, size: 18),
+                  color: AppTheme.textMuted, size: 18,),
             ],
           ),
           shape:
@@ -380,7 +386,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: _showLogoutDialog,
             icon: const Icon(Icons.logout, color: AppTheme.errorRed),
             label: Text(AppLocalizations.of(context)!.logout,
-                style: const TextStyle(color: AppTheme.errorRed)),
+                style: const TextStyle(color: AppTheme.errorRed),),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: AppTheme.errorRed),
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -416,7 +422,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Directionality.of(context) == TextDirection.rtl
                 ? Icons.chevron_left
                 : Icons.chevron_right,
-            color: AppTheme.textMuted),
+            color: AppTheme.textMuted,),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
@@ -469,33 +475,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (newPasswordController.text != confirmPasswordController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(AppLocalizations.of(context)!.changePasswordMismatch),
-                    backgroundColor: AppTheme.errorRed,
-                  ),
-                );
+              // Resolve everything that needs the dialog's context BEFORE the
+              // await: after it the dialog may be gone and `mounted` (which
+              // refers to the Profile screen, not the dialog) wouldn't protect us.
+              final l = AppLocalizations.of(context)!;
+              final messenger = ScaffoldMessenger.of(this.context);
+              final nav = Navigator.of(context);
+              final authViewModel = context.read<AuthViewModel>();
+
+              final oldPw = oldPasswordController.text;
+              final newPw = newPasswordController.text;
+              if (oldPw.isEmpty || newPw.isEmpty) {
+                messenger.showSnackBar(SnackBar(
+                  content: Text(l.changePasswordFailed),
+                  backgroundColor: AppTheme.errorRed,
+                ),);
                 return;
               }
-
-              final authViewModel = context.read<AuthViewModel>();
-              final success = await authViewModel.changePassword(
-                oldPasswordController.text,
-                newPasswordController.text,
-              );
-
-              if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success
-                        ? AppLocalizations.of(context)!.changePasswordSuccess
-                        : AppLocalizations.of(context)!.changePasswordFailed),
-                    backgroundColor: success ? AppTheme.successGreen : AppTheme.errorRed,
-                  ),
-                );
+              if (newPw != confirmPasswordController.text) {
+                messenger.showSnackBar(SnackBar(
+                  content: Text(l.changePasswordMismatch),
+                  backgroundColor: AppTheme.errorRed,
+                ),);
+                return;
               }
+              // Guard double-taps while the request is in flight.
+              if (authViewModel.isChangingPassword) return;
+
+              final success = await authViewModel.changePassword(oldPw, newPw);
+
+              nav.pop();
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(success
+                      ? l.changePasswordSuccess
+                      : (authViewModel.errorMessage ?? l.changePasswordFailed),),
+                  backgroundColor: success ? AppTheme.successGreen : AppTheme.errorRed,
+                ),
+              );
             },
             child: Text(AppLocalizations.of(context)!.changeAction),
           ),
@@ -504,18 +521,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Initials from the signed-in name ("Demo Tester" → "DT"); falls back to a
+  /// neutral glyph instead of the old hardcoded "TN".
+  String _initialsFrom(String? name) {
+    final parts = (name ?? '')
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '•';
+    final first = parts.first[0];
+    final last = parts.length > 1 ? parts.last[0] : '';
+    return (first + last).toUpperCase();
+  }
+
   void _showAboutDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            ShaderMask(
-              shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-              child: const Icon(Icons.apartment_rounded, size: 32, color: Colors.white),
+            // The real Alrtam logo, not a generic building icon.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset('assets/icons/app_icon.png', width: 32, height: 32),
             ),
             const SizedBox(width: 12),
-            Text(AppLocalizations.of(context)!.appName),
+            Expanded(child: Text(AppLocalizations.of(context)!.appName)),
           ],
         ),
         content: Column(
@@ -548,21 +580,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.logoutConfirmTitle),
-        content: Text(AppLocalizations.of(context)!.logoutConfirmMessage),
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(AppLocalizations.of(dialogCtx)!.logoutConfirmTitle),
+        content: Text(AppLocalizations.of(dialogCtx)!.logoutConfirmMessage),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(AppLocalizations.of(dialogCtx)!.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              await context.read<AuthViewModel>().logout();
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-              }
+              // Grab the SCREEN's navigator + auth BEFORE popping the dialog.
+              // The old code popped, then used the (now disposed) dialog
+              // context, which can throw and leave the user stuck on Profile.
+              final nav = Navigator.of(context);
+              final auth = context.read<AuthViewModel>();
+              Navigator.pop(dialogCtx);
+              // Wipe every data view-model so the next tenant never sees this
+              // tenant's dashboard/invoices/profile.
+              resetSessionState(context);
+              await auth.logout();
+              unawaited(nav.pushNamedAndRemoveUntil('/login', (route) => false));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorRed,

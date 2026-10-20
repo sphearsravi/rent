@@ -11,6 +11,11 @@ public static class InvoiceStatuses
     public const string Paid = "Paid";
     public const string Overdue = "Overdue";
     public const string Cancelled = "Cancelled";
+
+    /// <summary>Transient state set when a cash / bank-transfer payment is
+    /// submitted and is awaiting a finance approver. Reverts to <see cref="Pending"/>
+    /// on rejection, or advances to Paid / Partially&#160;Paid on approval.</summary>
+    public const string PendingVerification = "Pending Verification";
 }
 
 // LeaseStatuses now lives next to Lease.cs in RentCollection.Core.Entities

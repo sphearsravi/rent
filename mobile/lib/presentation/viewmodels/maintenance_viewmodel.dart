@@ -48,6 +48,15 @@ class MaintenanceViewModel extends ChangeNotifier {
   List<MaintenanceModel> get pendingRequests =>
       _requests.where((r) => r.isOpen || r.isInProgress).toList();
 
+  /// Drop all tenant data (logout). See `resetSessionState`.
+  void reset() {
+    _state = MaintenanceState.initial;
+    _errorMessage = null;
+    _requests = [];
+    _selectedRequest = null;
+    notifyListeners();
+  }
+
   /// Load all maintenance requests
   Future<void> loadRequests(int tenantId, {String? status}) async {
     _state = MaintenanceState.loading;

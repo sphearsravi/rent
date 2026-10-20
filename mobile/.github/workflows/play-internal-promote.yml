@@ -1,0 +1,57 @@
+name: Play Promote Internal
+
+on:
+  workflow_dispatch:
+    inputs:
+      versionCode:
+        description: "versionCode to put live on internal testing"
+        default: "8"
+        required: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install deps
+        run: pip3 install google-auth requests
+      - name: Promote versionCode to internal (completed) + commit
+        env:
+          SA: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
+          VC: ${{ github.event.inputs.versionCode }}
+        run: |
+          python3 - <<'PY'
+          import os, json, requests
+          from google.oauth2 import service_account
+          import google.auth.transport.requests as gt
+
+          info = json.loads(os.environ["SA"]); vc = os.environ["VC"]
+          creds = service_account.Credentials.from_service_account_info(
+              info, scopes=["https://www.googleapis.com/auth/androidpublisher"])
+          creds.refresh(gt.Request())
+          H = {"Authorization": f"Bearer {creds.token}", "Content-Type": "application/json"}
+          pkg = "com.alrtam"
+          base = f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{pkg}"
+
+          def show(label, r):
+              print(f"[{r.status_code}] {label}")
+              if r.status_code >= 300: print(r.text[:1200])
+              return r
+
+          e = show("create edit", requests.post(base + "/edits", headers=H))
+          if e.status_code >= 300: raise SystemExit(1)
+          eid = e.json()["id"]
+
+          body = {"track": "internal", "releases": [
+              {"name": "1.0.0", "status": "completed", "versionCodes": [vc]}]}
+          u = show("internal -> completed",
+                   requests.put(f"{base}/edits/{eid}/tracks/internal", headers=H, data=json.dumps(body)))
+          if u.status_code < 300:
+              c = show("commit", requests.post(f"{base}/edits/{eid}:commit", headers=H))
+              if c.status_code < 300:
+                  print(f"\n✅ versionCode {vc} is now LIVE on Internal testing.")
+              else:
+                  print("\n❌ commit failed — see above.")
+          else:
+              requests.delete(f"{base}/edits/{eid}", headers=H)
+              print("\n❌ update failed — discarded.")
+          PY

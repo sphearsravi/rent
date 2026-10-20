@@ -26,6 +26,6 @@
         <domain includeSubdomains="false">127.0.0.1</domain>
         <!-- SmarterASP demo backend is HTTP-only for now. Remove this once the
              site is served over HTTPS. -->
-        <domain includeSubdomains="false">demo.example.com</domain>
+        <domain includeSubdomains="false"><DEMO_HOST></domain>
     </domain-config>
 </network-security-config>

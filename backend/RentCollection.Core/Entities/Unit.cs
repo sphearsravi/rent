@@ -15,8 +15,9 @@ public class Unit
     public DateTime? ModifiedDate { get; set; }
 
     // ── Classification fields (Unit revamp plan, Phase A) ──
-    /// <summary>Floor on which this unit sits (null = unknown / single-floor property).</summary>
-    public int? FloorNumber { get; set; }
+    /// <summary>Floor this unit sits on — free text so non-numeric floors like
+    /// "Mezzanine", "Ground" or "Basement" are allowed (null/empty = unknown).</summary>
+    public string? FloorNumber { get; set; }
 
     /// <summary>Derived size band — see <see cref="Core.Enums.UnitSizeBands"/>.
     /// Populated on Create/Edit from Bedrooms + UnitType. Stored so chip

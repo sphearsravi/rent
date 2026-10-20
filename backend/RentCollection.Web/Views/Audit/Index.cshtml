@@ -67,11 +67,11 @@
                 {
                     "Created"        => ("fa-circle-plus", "#10b981"),
                     "Edited"         => ("fa-pen", "#3b82f6"),
-                    "Renewed"        => ("fa-arrows-rotate", "#6366f1"),
+                    "Renewed"        => ("fa-arrows-rotate", "#8a6d1f"),
                     "Terminated"     => ("fa-circle-stop", "#ef4444"),
                     "Transferred"    => ("fa-arrow-right-arrow-left", "#f59e0b"),
                     "Activated"      => ("fa-circle-play", "#10b981"),
-                    "RoleChanged"    => ("fa-user-shield", "#6366f1"),
+                    "RoleChanged"    => ("fa-user-shield", "#8a6d1f"),
                     "CredentialIssued" => ("fa-key", "#06b6d4"),
                     "DepositRefunded"  => ("fa-rotate-left", "#a855f7"),
                     "StatusChanged"  => ("fa-toggle-on", "#f59e0b"),
@@ -89,10 +89,20 @@
                         <div class="tl-actor"><i class="fas fa-user"></i> @ev.ByUser</div>
                         @if (!string.IsNullOrWhiteSpace(ev.PayloadJson))
                         {
-                            <details class="tl-payload">
-                                <summary>@L["Payload"]</summary>
-                                <pre>@ev.PayloadJson</pre>
-                            </details>
+                            var _pairs = RentCollection.Web.Services.AuditPayloadFormatter.ToPairs(ev.PayloadJson);
+                            @if (_pairs.Count > 0)
+                            {
+                                <div class="tl-payload">
+                                    @foreach (var (label, val) in _pairs)
+                                    {
+                                        <span class="tl-kv"><strong>@label:</strong> @val</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="tl-payload"><span class="tl-kv">@ev.PayloadJson</span></div>
+                            }
                         }
                     </div>
                 </li>

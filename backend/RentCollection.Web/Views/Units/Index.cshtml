@@ -1,5 +1,6 @@
 @model List<RentCollection.Core.Entities.Unit>
 @using RentCollection.Core.Enums
+@using RentCollection.Core.Entities
 @{
     ViewData["Title"] = "Units";
     var properties = ViewBag.Properties as dynamic;
@@ -7,19 +8,35 @@
     string? curStatus = f?.Status;
     string? curUnitType = f?.UnitType;
     int? curPropertyId = f?.PropertyId;
-    int? curFloor = f?.Floor;
+    string? curFloor = f?.Floor;
     string? curSizeBand = f?.SizeBand;
     string? curSearch = f?.Search;
 
-    // Distinct floors actually used in the current data — drives the
-    // floor chip set.
     var distinctFloors = Model
-        .Where(u => u.FloorNumber.HasValue)
-        .Select(u => u.FloorNumber!.Value)
-        .Distinct().OrderBy(n => n).ToList();
+        .Where(u => !string.IsNullOrWhiteSpace(u.FloorNumber))
+        .Select(u => u.FloorNumber!)
+        .Distinct().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+
+    // Natural order for unit numbers ("1", "2", "10", "101", "A101").
+    static string NatKey(string s) => System.Text.RegularExpressions.Regex.Replace(s ?? "", @"\d+", m => m.Value.PadLeft(8, '0'));
+
+    var groups = Model
+        .GroupBy(u => u.Property)
+        .OrderBy(g => g.Key?.PropertyName)
+        .ToList();
+    var openAll = Model.Count <= 60 || groups.Count == 1;
+
+    string ChipClass(string status) => status switch
+    {
+        "Occupied" => "lp-chip-blue",
+        "Vacant" => "lp-chip-green",
+        "Maintenance" => "lp-chip-amber",
+        "Reserved" => "lp-chip-purple",
+        _ => "lp-chip-grey",
+    };
 }
 
-<div class="page-container">
+<div class="lp-page" data-lp-scope>
     @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
     {
         ["Title"] = L["Units"].Value,
@@ -36,308 +53,263 @@
     @await Html.PartialAsync("_AlertMessages")
     @Html.AntiForgeryToken()
 
-    @* ── KPI strip ── *@
-    <div class="unit-strip" id="unitStrip" aria-live="polite">
-        <div class="kpi-card"><div class="kpi-icon ki-total"><i class="fas fa-th-large"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Total units"]</div><div class="kpi-value skel" data-k="totalUnits">&nbsp;</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-vacant"><i class="fas fa-door-open"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Vacant"]</div><div class="kpi-value skel" data-k="vacant">&nbsp;</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-occupied"><i class="fas fa-house-user"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Occupied"]</div><div class="kpi-value skel" data-k="occupied">&nbsp;</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-maint"><i class="fas fa-screwdriver-wrench"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Maintenance"]</div><div class="kpi-value skel" data-k="maintenance">&nbsp;</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-rent"><i class="fas fa-coins"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Avg rent"]</div><div class="kpi-value skel" data-k="avgRent">&nbsp;</div></div></div>
+    @* ── KPI strip (Snapshot) ── *@
+    <div class="od od-grid-kpi lp-kpi-5" id="unitStrip" aria-live="polite">
+        <div class="od-card od-kpi-hero">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Occupancy"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="occupancyPercent">&nbsp;</div>
+            <div class="od-kpi-sub"><span data-k="totalUnits">—</span> @L["units"]</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Vacant"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="vacant">&nbsp;</div>
+            <div class="od-kpi-sub">@L["available now"]</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Occupied"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="occupied">&nbsp;</div>
+            <div class="od-kpi-sub">@L["currently leased"]</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Maintenance"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="maintenance">&nbsp;</div>
+            <div class="od-kpi-sub">@L["under maintenance"]</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Avg rent"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="avgRent">&nbsp;</div>
+            <div class="od-kpi-sub">@L["per month, all units"]</div>
+        </div>
     </div>
 
-    @* ── Filter form ── *@
-    <form method="get" class="unit-filter-form">
-        <input type="hidden" name="propertyId" value="@curPropertyId" id="propertyIdHidden" />
-        <div class="filter-row">
-            <div class="filter-search">
+    @* ── Toolbar: server filters (persisted in the URL) + instant search ── *@
+    <form method="get" class="lp-toolbar" id="unitFilters">
+        <div class="lp-toolbar-row">
+            <label class="lp-search">
                 <i class="fas fa-search"></i>
-                <input type="search" name="search" value="@curSearch" placeholder="@(L["Unit # or property name…"].Value)" />
-            </div>
-            <select name="propertyId" onchange="document.getElementById('propertyIdHidden').value=this.value; this.form.submit();">
+                <input type="search" name="search" value="@curSearch" data-lp-search placeholder="@(L["Unit # or property name…"].Value)" />
+            </label>
+            <select name="propertyId" class="lp-select" onchange="this.form.submit()">
                 <option value="">@L["All properties"]</option>
                 @if (properties != null)
                 {
                     @foreach (var p in properties)
                     {
-                        if (curPropertyId == (int?)p.PropertyId)
-                        {
-                            <option value="@p.PropertyId" selected>@p.PropertyName</option>
-                        }
-                        else
-                        {
-                            <option value="@p.PropertyId">@p.PropertyName</option>
-                        }
+                        <option value="@p.PropertyId" selected="@(curPropertyId == (int?)p.PropertyId)">@p.PropertyName</option>
                     }
                 }
             </select>
-            <button type="submit" class="btn-filter"><i class="fas fa-filter"></i> @L["Apply"]</button>
-            <a class="btn-link" href="/Units">@L["Clear filters"]</a>
-            <a class="btn-export" href="@Url.Action("ExportExcel", new { propertyId = curPropertyId, status = curStatus, unitType = curUnitType, floor = curFloor, sizeBand = curSizeBand, search = curSearch })">
+            <span class="lp-result-count" data-lp-count data-all="@(L["Showing all {0} units"].Value)" data-some="@(L["Showing {0} of {1} units"].Value)"></span>
+            <div class="lp-toolbar-spacer"></div>
+            <a class="lp-btn" href="/Units">@L["Clear filters"]</a>
+            <a class="lp-btn lp-btn-export" download href="@Url.Action("ExportExcel", new { propertyId = curPropertyId, status = curStatus, unitType = curUnitType, floor = curFloor, sizeBand = curSizeBand, search = curSearch })">
                 <i class="fas fa-file-excel"></i> @L["Export"]
             </a>
         </div>
 
-        @* Chip rows — submit the form on click via JS *@
-        <div class="chip-row" data-axis="status">
-            <span class="chip-label">@L["Status"]</span>
-            @{
-                var statusChips = new[]
+        <div class="lp-toolbar-row">
+            <div class="lp-chips">
+                <span class="lp-chips-label">@L["Status"]</span>
+                @{
+                    var statusChips = new (string Label, string? Value)[]
+                    {
+                        (L["All"].Value, null),
+                        (L["Vacant"].Value, UnitStatuses.Vacant),
+                        (L["Occupied"].Value, UnitStatuses.Occupied),
+                        (L["Maintenance"].Value, UnitStatuses.Maintenance),
+                        (L["Reserved"].Value, UnitStatuses.Reserved),
+                    };
+                }
+                @foreach (var c in statusChips)
                 {
-                    (L["All"].Value, (string?)null, "fa-layer-group"),
-                    (L["Vacant"].Value, UnitStatuses.Vacant, "fa-door-open"),
-                    (L["Occupied"].Value, UnitStatuses.Occupied, "fa-house-user"),
-                    (L["Maintenance"].Value, UnitStatuses.Maintenance, "fa-screwdriver-wrench"),
-                    (L["Reserved"].Value, UnitStatuses.Reserved, "fa-bookmark"),
-                };
-            }
-            @foreach (var c in statusChips)
-            {
-                var active = curStatus == c.Item2;
-                <button type="submit" name="status" value="@(c.Item2 ?? "")" class="chip @(active ? "is-on" : "")">
-                    <i class="fas @c.Item3"></i> @c.Item1
-                </button>
-            }
-        </div>
-
-        <div class="chip-row" data-axis="sizeBand">
-            <span class="chip-label">@L["Size"]</span>
-            @{
-                var sizeChips = new (string Label, string? Value)[]
-                {
-                    (L["All"].Value, null),
-                    (L["Studio"].Value, UnitSizeBands.Studio),
-                    ("1BHK", UnitSizeBands.OneBhk),
-                    ("2BHK", UnitSizeBands.TwoBhk),
-                    ("3BHK+", UnitSizeBands.ThreeBhkPlus),
-                    (L["Commercial"].Value, UnitSizeBands.Commercial),
-                };
-            }
-            @foreach (var c in sizeChips)
-            {
-                var active = curSizeBand == c.Value;
-                <button type="submit" name="sizeBand" value="@(c.Value ?? "")" class="chip @(active ? "is-on" : "")">@c.Label</button>
-            }
-        </div>
-
-        <div class="chip-row" data-axis="unitType">
-            <span class="chip-label">@L["Type"]</span>
-            <button type="submit" name="unitType" value="" class="chip @(curUnitType == null ? "is-on" : "")">@L["All"]</button>
-            @foreach (var t in UnitTypes.All)
-            {
-                var active = curUnitType == t;
-                <button type="submit" name="unitType" value="@t" class="chip @(active ? "is-on" : "")">@t</button>
-            }
-        </div>
-
-        @if (distinctFloors.Any())
-        {
-            <div class="chip-row" data-axis="floor">
-                <span class="chip-label">@L["Floor"]</span>
-                <button type="submit" name="floor" value="" class="chip @(curFloor == null ? "is-on" : "")">@L["All"]</button>
-                @foreach (var fl in distinctFloors)
-                {
-                    var active = curFloor == fl;
-                    <button type="submit" name="floor" value="@fl" class="chip @(active ? "is-on" : "")">@L["Floor"] @fl</button>
+                    <button type="submit" name="status" value="@(c.Value ?? "")" class="lp-chip-btn @(curStatus == c.Value ? "is-on" : "")">@c.Label</button>
                 }
             </div>
-        }
-    </form>
-
-    @if (Model.Any())
-    {
-        <div class="unit-grid">
-            @foreach (var u in Model)
+            <div class="lp-chips">
+                <span class="lp-chips-label">@L["Size"]</span>
+                @{
+                    var sizeChips = new (string Label, string? Value)[]
+                    {
+                        (L["All"].Value, null),
+                        (L["Studio"].Value, UnitSizeBands.Studio),
+                        ("1BHK", UnitSizeBands.OneBhk),
+                        ("2BHK", UnitSizeBands.TwoBhk),
+                        ("3BHK+", UnitSizeBands.ThreeBhkPlus),
+                        (L["Commercial"].Value, UnitSizeBands.Commercial),
+                    };
+                }
+                @foreach (var c in sizeChips)
+                {
+                    <button type="submit" name="sizeBand" value="@(c.Value ?? "")" class="lp-chip-btn @(curSizeBand == c.Value ? "is-on" : "")">@c.Label</button>
+                }
+            </div>
+        </div>
+        <div class="lp-toolbar-row">
+            <div class="lp-chips">
+                <span class="lp-chips-label">@L["Type"]</span>
+                <button type="submit" name="unitType" value="" class="lp-chip-btn @(curUnitType == null ? "is-on" : "")">@L["All"]</button>
+                @foreach (var t in UnitTypes.All)
+                {
+                    <button type="submit" name="unitType" value="@t" class="lp-chip-btn @(curUnitType == t ? "is-on" : "")">@L[t]</button>
+                }
+            </div>
+            @if (distinctFloors.Any())
             {
-                var active = u.Leases?.FirstOrDefault();
-                <a class="unit-card unit-@u.Status.ToLowerInvariant()" href="/Units/Details/@u.UnitId">
-                    <div class="unit-card-head">
-                        <strong class="unit-number">@L["Unit"] @u.UnitNumber</strong>
-                        <span class="unit-status">@u.Status</span>
-                    </div>
-                    <div class="unit-card-property">@u.Property?.PropertyName</div>
-                    <div class="unit-card-specs">
-                        @if (u.FloorNumber.HasValue) { <span>Floor @u.FloorNumber</span> }
-                        @if (!string.IsNullOrEmpty(u.SizeBand)) { <span>@u.SizeBand</span> }
-                        @if (!string.IsNullOrEmpty(u.UnitType)) { <span>@u.UnitType</span> }
-                    </div>
-                    <div class="unit-card-rent">
-                        <strong>@u.MonthlyRent.ToString("N3") KWD</strong>
-                        <small>@L["/month"]</small>
-                    </div>
-                    @if (active?.Tenant != null)
+                <div class="lp-chips">
+                    <span class="lp-chips-label">@L["Floor"]</span>
+                    <button type="submit" name="floor" value="" class="lp-chip-btn @(curFloor == null ? "is-on" : "")">@L["All"]</button>
+                    @foreach (var fl in distinctFloors)
                     {
-                        <div class="unit-card-tenant"><i class="fas fa-user"></i> @active.Tenant.FirstName @active.Tenant.LastName</div>
+                        <button type="submit" name="floor" value="@fl" class="lp-chip-btn @(curFloor == fl ? "is-on" : "")">@fl</button>
                     }
-                    else if (u.Status == "Vacant" && u.AvailableFromDate.HasValue)
-                    {
-                        <div class="unit-card-available"><i class="fas fa-calendar-check"></i> @L["Available from"] @u.AvailableFromDate.Value.ToString("dd MMM yyyy")</div>
-                    }
-                </a>
+                </div>
             }
         </div>
-    }
-    else
+    </form>
+
+    @if (!Model.Any())
     {
-        <div class="empty-state">
+        <div class="lp-empty">
             <i class="fas fa-th-large"></i>
             <h3>@L["No units match these filters"]</h3>
             <p><a href="/Units">@L["Clear filters"]</a> @L["to see the whole portfolio."]</p>
         </div>
     }
+
+    @* ── Units grouped by property ── *@
+    @foreach (var g in groups)
+    {
+        var prop = g.Key;
+        var total = g.Count();
+        var occ = g.Count(u => u.Status == UnitStatuses.Occupied);
+        var vac = g.Count(u => u.Status == UnitStatuses.Vacant);
+        var pct = total == 0 ? 0 : (int)Math.Round(100.0 * occ / total);
+        var vacancyCost = g.Where(u => u.Status == UnitStatuses.Vacant).Sum(u => u.MonthlyRent);
+        var unpriced = g.Count(u => u.MonthlyRent <= 0);
+        var initials = string.Concat((prop?.PropertyName ?? "?").Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0])).ToUpperInvariant();
+
+        <details class="lp-group" @(openAll ? "open" : "")>
+            <summary>
+                <span class="lp-group-mark">@initials</span>
+                <div>
+                    <div class="lp-group-title">@(prop?.PropertyName ?? L["Unknown property"].Value)</div>
+                    <div class="lp-group-meta">
+                        <span data-lp-group-count>@total</span> @L["units"]
+                        @if (!string.IsNullOrWhiteSpace(prop?.Area) || !string.IsNullOrWhiteSpace(prop?.Governorate))
+                        {
+                            <text> · @string.Join(", ", new[] { prop?.Area, prop?.Governorate }.Where(s => !string.IsNullOrWhiteSpace(s)))</text>
+                        }
+                        @if (unpriced > 0)
+                        {
+                            <text> · </text><span class="lp-chip lp-chip-amber" title="@(L["Units with no monthly rent set"].Value)">@unpriced @L["without rent"]</span>
+                        }
+                    </div>
+                </div>
+                <div class="lp-group-stats">
+                    <div class="lp-group-stat" style="min-width:160px">
+                        <b>@occ / @total <small style="font-weight:500;color:#64748b">(@pct%)</small></b>
+                        <span>@L["Occupied"]</span>
+                        <div class="lp-bar @(pct == 0 ? "is-zero" : pct < 50 ? "is-low" : "")" style="margin-top:4px"><span style="width:@pct%"></span></div>
+                    </div>
+                    <div class="lp-group-stat"><b>@vac</b><span>@L["Vacant"]</span></div>
+                    <div class="lp-group-stat"><b class="@(vacancyCost > 0 ? "lp-amount-bad" : "")">@vacancyCost.ToString("N3", System.Globalization.CultureInfo.InvariantCulture)</b><span>@L["Vacancy cost / mo"]</span></div>
+                    <a class="lp-btn" href="/Properties/Details/@prop?.PropertyId" onclick="event.stopPropagation()"><i class="fas fa-building"></i> @L["Property"]</a>
+                    <i class="fas fa-chevron-down lp-group-chevron"></i>
+                </div>
+            </summary>
+            <div class="lp-table-wrap">
+                <table class="lp-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="unit">@L["Unit"]</th>
+                            <th>@L["Details"]</th>
+                            <th class="lp-num" data-sort="rent">@L["Listed rent"]</th>
+                            <th data-sort="status">@L["Status"]</th>
+                            <th>@L["Tenant / availability"]</th>
+                            <th class="lp-right">@L["Actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in g.OrderBy(x => NatKey(x.FloorNumber ?? "")).ThenBy(x => NatKey(x.UnitNumber)))
+                        {
+                            var lease = u.Leases?.OrderBy(l => l.Status == LeaseStatuses.Active ? 0 : 1).FirstOrDefault();
+                            var tenant = lease?.Tenant;
+                            // A Vacant unit with a Pending (deposit-awaiting) lease is shown as Reserved.
+                            var isPendingHold = u.Status == UnitStatuses.Vacant && lease?.Status == LeaseStatuses.Pending;
+                            var displayStatus = isPendingHold ? UnitStatuses.Reserved : u.Status;
+                            var daysLeft = lease != null ? (lease.LeaseEndDate.Date - DateTime.Today).Days : (int?)null;
+                            var specs = new List<string>();
+                            if (!string.IsNullOrWhiteSpace(u.UnitType)) specs.Add(L[u.UnitType].Value);
+                            if (!string.IsNullOrWhiteSpace(u.SizeBand)) specs.Add(u.SizeBand);
+                            if (u.Bedrooms.HasValue) specs.Add($"{u.Bedrooms} {L["bed"].Value}");
+                            if (u.SquareFeet.HasValue) specs.Add($"{u.SquareFeet} m²");
+                            var search = $"{u.UnitNumber} {prop?.PropertyName} {u.UnitType} {u.FloorNumber} {tenant?.FirstName} {tenant?.LastName} {u.Status}".ToLowerInvariant();
+
+                            <tr data-search="@search" data-sort-unit="@NatKey(u.UnitNumber)" data-sort-rent="@u.MonthlyRent" data-sort-status="@displayStatus">
+                                <td data-label="@L["Unit"]">
+                                    <a class="lp-link lp-primary" href="/Units/Details/@u.UnitId">@L["Unit"] @u.UnitNumber</a>
+                                    @if (!string.IsNullOrWhiteSpace(u.FloorNumber)) { <span class="lp-sub">@L["Floor"] @u.FloorNumber</span> }
+                                </td>
+                                <td data-label="@L["Details"]"><span class="lp-sub" style="margin:0;font-size:0.8rem;color:#475569">@(specs.Count > 0 ? string.Join(" · ", specs) : "—")</span></td>
+                                <td class="lp-num" data-label="@L["Listed rent"]">
+                                    @if (u.MonthlyRent > 0) { <span class="lp-amount">@u.MonthlyRent.ToString("N3", System.Globalization.CultureInfo.InvariantCulture)</span><span class="lp-sub">KWD / @L["month"]</span> }
+                                    else { <span class="lp-chip lp-chip-amber">@L["No rent set"]</span> }
+                                </td>
+                                <td data-label="@L["Status"]"><span class="lp-chip @ChipClass(displayStatus)">@L[displayStatus]</span>@if (isPendingHold) { <span class="lp-sub">@L["Pending lease"]</span> }</td>
+                                <td data-label="@L["Tenant / availability"]">
+                                    @if (tenant != null)
+                                    {
+                                        <a class="lp-link lp-primary" href="/Tenants/Details/@tenant.TenantId">@tenant.FirstName @tenant.LastName</a>
+                                        <span class="lp-sub">
+                                            @if (lease!.Status == LeaseStatuses.Pending) { <span class="lp-chip lp-chip-amber">@L["Pending"]</span> <text>@L["activate to occupy"]</text> }
+                                            else { <text>@L["Lease ends"] @lease.LeaseEndDate.ToString("dd MMM yyyy")</text> }
+                                            @if (lease.Status == LeaseStatuses.Pending) { }
+                                            else if (daysLeft < 0) { <span class="lp-chip lp-chip-red">@L["past end"]</span> }
+                                            else if (daysLeft <= 30) { <span class="lp-chip lp-chip-amber">@daysLeft @L["days"]</span> }
+                                        </span>
+                                    }
+                                    else if (u.Status == UnitStatuses.Vacant)
+                                    {
+                                        <span class="lp-amount-good">@L["Available"]</span>
+                                        @if (u.AvailableFromDate.HasValue && u.AvailableFromDate.Value.Date > DateTime.Today)
+                                        { <span class="lp-sub">@L["from"] @u.AvailableFromDate.Value.ToString("dd MMM yyyy")</span> }
+                                        else { <span class="lp-sub">@L["ready to lease"]</span> }
+                                    }
+                                    else
+                                    {
+                                        <span class="lp-sub" style="margin:0">—</span>
+                                    }
+                                </td>
+                                <td class="lp-right" data-label="@L["Actions"]">
+                                    <div class="lp-row-actions">
+                                        @if (u.Status == UnitStatuses.Vacant && tenant == null)
+                                        {
+                                            <a class="lp-btn lp-btn-primary" style="padding:0.3rem 0.6rem;font-size:0.76rem" href="/Leases/Create?unitId=@u.UnitId"><i class="fas fa-file-signature"></i> @L["Lease"]</a>
+                                        }
+                                        else if (lease != null)
+                                        {
+                                            <a class="lp-icon-btn" title="@(L["Lease"].Value)" href="/Leases/Details/@lease.LeaseId"><i class="fas fa-file-contract"></i></a>
+                                        }
+                                        <a class="lp-icon-btn" title="@(L["View"].Value)" href="/Units/Details/@u.UnitId"><i class="fas fa-eye"></i></a>
+                                        <a class="lp-icon-btn" title="@(L["Edit"].Value)" href="/Units/Edit/@u.UnitId"><i class="fas fa-pen"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+
+    <div class="lp-empty" data-lp-empty hidden>
+        <i class="fas fa-search"></i>
+        <h3>@L["No units match your search"]</h3>
+    </div>
 </div>
-
-<style>
-    .page-container { padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto; }
-    .skel {
-        display: inline-block; min-width: 3rem; min-height: 1.1rem;
-        background: linear-gradient(90deg, #eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
-        background-size: 200% 100%; border-radius: 6px;
-        animation: u-shimmer 1.4s infinite;
-    }
-    @@keyframes u-shimmer { 0% {background-position:200% 0;} 100% {background-position:-200% 0;} }
-
-    .unit-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.85rem; margin-bottom: 1rem; }
-    @@media (max-width: 1100px) { .unit-strip { grid-template-columns: repeat(2, 1fr); } }
-    @@media (max-width: 600px) { .unit-strip { grid-template-columns: 1fr; } }
-    .unit-strip .kpi-card {
-        display: flex; align-items: center; gap: 0.65rem;
-        padding: 0.85rem 1rem;
-        background: rgba(255,255,255,0.95);
-        border: 1px solid rgba(99,102,241,0.12);
-        border-radius: 12px;
-    }
-    .unit-strip .kpi-icon {
-        width: 34px; height: 34px; border-radius: 9px;
-        display: flex; align-items: center; justify-content: center;
-        color: white;
-        background: linear-gradient(135deg,#6366f1,#8b5cf6);
-    }
-    .ki-vacant   { background: linear-gradient(135deg,#10b981,#22c55e) !important; }
-    .ki-occupied { background: linear-gradient(135deg,#3b82f6,#06b6d4) !important; }
-    .ki-maint    { background: linear-gradient(135deg,#f59e0b,#f97316) !important; }
-    .ki-rent     { background: linear-gradient(135deg,#a855f7,#d946ef) !important; }
-    .kpi-label { font-size: 0.65rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
-    .kpi-value { font-size: 1.2rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
-
-    .unit-filter-form {
-        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-        padding: 1rem 1.25rem; margin-bottom: 1.25rem;
-    }
-    .filter-row {
-        display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;
-        margin-bottom: 0.85rem;
-    }
-    .filter-search {
-        flex: 1; min-width: 220px;
-        display: flex; align-items: center; gap: 0.5rem;
-        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
-        padding: 0.5rem 0.85rem;
-    }
-    .filter-search i { color: #94a3b8; }
-    .filter-search input { flex: 1; border: 0; outline: none; background: transparent; font-size: 0.9rem; }
-    .filter-row select {
-        padding: 0.55rem 0.8rem; border: 1px solid #e2e8f0; border-radius: 8px;
-        font-size: 0.85rem; background: white; min-width: 160px;
-    }
-    .btn-filter, .btn-export {
-        display: inline-flex; align-items: center; gap: 0.4rem;
-        padding: 0.55rem 0.95rem; border-radius: 8px;
-        background: linear-gradient(135deg,#6366f1,#8b5cf6);
-        color: white; border: 0; text-decoration: none;
-        font-size: 0.85rem; font-weight: 500; cursor: pointer;
-    }
-    .btn-export { background: linear-gradient(135deg,#10b981,#22c55e); }
-    .btn-link { color: #64748b; text-decoration: none; font-size: 0.85rem; }
-    .btn-link:hover { color: #6366f1; }
-
-    .chip-row {
-        display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center;
-        margin-bottom: 0.6rem;
-    }
-    .chip-row .chip-label {
-        font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
-        color: #94a3b8; font-weight: 700; min-width: 64px;
-    }
-    .chip {
-        display: inline-flex; align-items: center; gap: 0.35rem;
-        padding: 0.3rem 0.7rem; border-radius: 999px;
-        background: #f1f5f9; color: #475569;
-        border: 1px solid transparent;
-        font-size: 0.78rem; font-weight: 500;
-        cursor: pointer;
-    }
-    .chip:hover { background: #e2e8f0; }
-    .chip.is-on {
-        background: linear-gradient(135deg,#6366f1,#8b5cf6);
-        color: white; border-color: transparent;
-    }
-    .chip i { font-size: 0.7rem; }
-
-    .unit-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 0.85rem;
-    }
-    .unit-card {
-        display: block; padding: 0.9rem 1rem;
-        background: white; border: 1px solid #e2e8f0;
-        border-left: 4px solid #cbd5e1;
-        border-radius: 10px; text-decoration: none; color: inherit;
-        transition: all 0.15s ease;
-    }
-    .unit-card:hover { border-color: #6366f1; box-shadow: 0 6px 20px rgba(99,102,241,0.12); transform: translateY(-2px); }
-    .unit-card.unit-vacant      { border-left-color: #10b981; }
-    .unit-card.unit-occupied    { border-left-color: #3b82f6; }
-    .unit-card.unit-maintenance { border-left-color: #f59e0b; }
-    .unit-card.unit-reserved    { border-left-color: #a855f7; }
-    .unit-card-head {
-        display: flex; justify-content: space-between; align-items: center;
-        margin-bottom: 0.25rem;
-    }
-    .unit-number { font-size: 0.95rem; color: #0f172a; }
-    .unit-status {
-        font-size: 0.65rem; font-weight: 700;
-        padding: 0.1rem 0.45rem; border-radius: 999px;
-        text-transform: uppercase; letter-spacing: 0.04em;
-    }
-    .unit-vacant .unit-status      { background: rgba(16,185,129,0.15); color: #065f46; }
-    .unit-occupied .unit-status    { background: rgba(59,130,246,0.15); color: #1e40af; }
-    .unit-maintenance .unit-status { background: rgba(245,158,11,0.15); color: #92400e; }
-    .unit-reserved .unit-status    { background: rgba(168,85,247,0.15); color: #6b21a8; }
-    .unit-card-property { font-size: 0.8rem; color: #64748b; margin-bottom: 0.35rem; }
-    .unit-card-specs {
-        display: flex; gap: 0.45rem; flex-wrap: wrap;
-        font-size: 0.7rem; color: #94a3b8;
-        margin-bottom: 0.45rem;
-    }
-    .unit-card-specs span {
-        background: #f1f5f9; padding: 0.1rem 0.45rem; border-radius: 4px;
-    }
-    .unit-card-rent { font-size: 0.9rem; color: #0f172a; }
-    .unit-card-rent small { color: #94a3b8; font-weight: 400; }
-    .unit-card-tenant, .unit-card-available {
-        font-size: 0.78rem; color: #475569; margin-top: 0.45rem;
-        border-top: 1px dashed #f1f5f9; padding-top: 0.45rem;
-    }
-    .unit-card-tenant i, .unit-card-available i { color: #94a3b8; margin-right: 0.3rem; }
-
-    .empty-state {
-        text-align: center; padding: 3rem 1.5rem;
-        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-    }
-    .empty-state i { font-size: 2.5rem; color: #cbd5e1; display: block; margin-bottom: 0.75rem; }
-    .empty-state h3 { margin: 0 0 0.5rem; color: #334155; font-size: 1.05rem; }
-    .empty-state a { color: #6366f1; }
-</style>
 
 @section Scripts {
     <script>
-        // KPI strip loader
         (async function () {
             const propertyId = new URLSearchParams(location.search).get('propertyId');
             const url = '/Units/Snapshot' + (propertyId ? '?propertyId=' + propertyId : '');
@@ -346,16 +318,17 @@
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const d = await res.json();
                 const fmt = {
-                    avgRent: v => (v ?? 0).toLocaleString(undefined, { maximumFractionDigits: 3 }) + ' KWD',
+                    avgRent: v => (v ?? 0).toLocaleString("en-US", { maximumFractionDigits: 3 }) + ' KWD',
+                    occupancyPercent: v => (v ?? 0).toLocaleString("en-US", { maximumFractionDigits: 1 }) + '%',
                 };
                 document.querySelectorAll('#unitStrip [data-k]').forEach(el => {
                     const k = el.dataset.k;
                     if (d[k] === undefined) return;
-                    el.classList.remove('skel');
-                    el.textContent = (fmt[k] || (v => Math.round(v ?? 0).toLocaleString()))(d[k]);
+                    el.classList.remove('lp-skel');
+                    el.textContent = (fmt[k] || (v => Math.round(v ?? 0).toLocaleString("en-US")))(d[k]);
                 });
             } catch (e) {
-                document.querySelectorAll('#unitStrip .skel').forEach(el => { el.classList.remove('skel'); el.textContent = '—'; });
+                document.querySelectorAll('#unitStrip .lp-skel').forEach(el => { el.classList.remove('lp-skel'); el.textContent = '—'; });
             }
         })();
     </script>

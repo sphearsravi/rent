@@ -1,7 +1,7 @@
 ﻿@{
     ViewData["Title"] = "Role Permissions";
 
-    // Hand-curated matrix Ã¢â‚¬” kept next to the [Authorize] attributes on the
+    // Hand-curated matrix - kept next to the [Authorize] attributes on the
     // controllers so drift is visible in one place. When you add a new
     // capability, add a row here. Cells: "Y" = full access, "R" = read only,
     // "-" = no access. The rendering layer turns each into a coloured tile.
@@ -27,7 +27,7 @@
 
         ("Leases",       "Create lease (Pending)",                    new[] {"Y","Y","Y","-","-"}),
         ("Leases",       "Edit lease (open status)",                  new[] {"Y","Y","Y","-","-"}),
-        ("Leases",       "Activate (Pending Ã¢â€ ’ Active + deposit invoice)", new[] {"Y","Y","-","-","-"}),
+        ("Leases",       "Activate (Pending → Active + deposit invoice)", new[] {"Y","Y","-","-","-"}),
         ("Leases",       "Renew lease",                               new[] {"Y","Y","-","-","-"}),
         ("Leases",       "Terminate lease",                           new[] {"Y","Y","-","-","-"}),
         ("Leases",       "Transfer to another unit",                  new[] {"Y","Y","-","-","-"}),
@@ -73,7 +73,7 @@
     <div class="perm-legend">
         <span class="perm-cell perm-y">Y</span> @L["= full access"]
         <span class="perm-cell perm-r" style="margin-left:0.75rem;">R</span> @L["= read-only"]
-        <span class="perm-cell perm-n" style="margin-left:0.75rem;">Ã¢â‚¬“</span> @L["= no access"]
+        <span class="perm-cell perm-n" style="margin-left:0.75rem;">&ndash;</span> @L["= no access"]
     </div>
 
     @foreach (var sect in grouped)
@@ -104,7 +104,7 @@
                                     "R" => "perm-r",
                                     _    => "perm-n",
                                 };
-                                <td><span class="perm-cell @cls">@(v == "-" ? "Ã¢â‚¬“" : v)</span></td>
+                                <td><span class="perm-cell @cls">@(v == "-" ? "–" : v)</span></td>
                             }
                         </tr>
                     }
@@ -131,7 +131,7 @@
     .perm-section { margin-bottom: 1.5rem; }
     .perm-section-title {
         font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
-        color: #6366f1; margin: 0 0 0.5rem; font-weight: 700;
+        color: #8a6d1f; margin: 0 0 0.5rem; font-weight: 700;
     }
     .perm-table {
         width: 100%; border-collapse: separate; border-spacing: 0;
@@ -148,7 +148,7 @@
         font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em;
     }
     .perm-table tbody tr:last-child td { border-bottom: 0; }
-    .perm-table tbody tr:hover td { background: rgba(99, 102, 241,0.04); }
+    .perm-table tbody tr:hover td { background: rgba(138, 109, 31,0.04); }
     .perm-table td.cap, .perm-table th.cap {
         text-align: left; min-width: 280px; font-weight: 500;
     }
@@ -162,7 +162,7 @@
     .perm-cell.perm-n { background: #f1f5f9; color: #94a3b8; }
     .perm-footnote {
         margin-top: 1.5rem; padding: 0.85rem 1rem;
-        background: rgba(99, 102, 241,0.06); border-left: 3px solid #6366f1;
+        background: rgba(138, 109, 31,0.06); border-left: 3px solid #8a6d1f;
         font-size: 0.85rem; color: #475569; border-radius: 4px;
     }
     .perm-footnote code {

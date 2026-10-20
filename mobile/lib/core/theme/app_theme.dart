@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// App theme configuration matching the admin panel indigo/purple gradient theme
+/// App theme configuration — Alrtam brand: gold + charcoal (matches the logo).
 class AppTheme {
-  // Primary Colors (matching tenant portal)
-  static const Color primaryIndigo = Color(0xFF6366F1);
-  static const Color secondaryPurple = Color(0xFF8B5CF6);
+  // Primary Colors (Alrtam gold). A deep goldenrod is used so white text on
+  // gold buttons/app-bars and gold text/icons on white both stay readable —
+  // the logo's bright gold only has contrast on black, so decorative gradients
+  // pair it with charcoal instead (see primaryGradient).
+  // (Names kept as primaryIndigo/secondaryPurple to avoid churn across refs.)
+  static const Color primaryIndigo = Color(0xFF8A6D1F);   // deep Alrtam gold
+  static const Color secondaryPurple = Color(0xFFB8860B); // brighter gold accent
 
-  // Background Colors
-  static const Color backgroundLight = Color(0xFFF8FAFC);
-  static const Color backgroundGradientMid = Color(0xFFE0E7FF);
-  static const Color backgroundGradientEnd = Color(0xFFC7D2FE);
+  // Background Colors (warm light-gold tints)
+  static const Color backgroundLight = Color(0xFFFAF8F2);
+  static const Color backgroundGradientMid = Color(0xFFF2E8C8);
+  static const Color backgroundGradientEnd = Color(0xFFE6D4A0);
   static const Color surfaceWhite = Color(0xFFFFFFFF);
 
   // Text Colors
@@ -18,11 +22,19 @@ class AppTheme {
   static const Color textMuted = Color(0xFF64748B);
   static const Color textLight = Color(0xFF94A3B8);
 
-  // Status Colors
+  // Status Colors (fills, icons, badges)
   static const Color successGreen = Color(0xFF059669);
   static const Color errorRed = Color(0xFFDC2626);
   static const Color warningAmber = Color(0xFFD97706);
   static const Color infoBlue = Color(0xFF3B82F6);
+
+  // Status colours for SMALL TEXT on light backgrounds. The fill colours above
+  // are ~3.2–3.8:1 against white, which fails WCAG AA for body-size text; these
+  // darker variants pass (≥4.5:1). Use them whenever a status word is rendered
+  // as text rather than as an icon/badge fill.
+  static const Color successText = Color(0xFF047857);
+  static const Color warningText = Color(0xFFB45309);
+  static const Color infoText = Color(0xFF1D4ED8);
 
   // Border Colors
   static const Color borderLight = Color(0xFFE2E8F0);
@@ -32,11 +44,14 @@ class AppTheme {
   static const Color cardBackground = Color(0xFFFFFFFF);
   static const Color cardBorder = Color(0xFFE5E7EB);
 
-  // Gradient
+  // Gradient — charcoal → gold (the logo's black + gold). Dark enough that the
+  // white text screens place over it stays readable, while reading as premium
+  // gold rather than a flat colour.
+  static const Color gradientCharcoal = Color(0xFF2E2614);
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [primaryIndigo, secondaryPurple],
+    colors: [gradientCharcoal, primaryIndigo],
   );
 
   static const LinearGradient backgroundGradient = LinearGradient(
@@ -55,12 +70,9 @@ class AppTheme {
     colorScheme: const ColorScheme.light(
       primary: primaryIndigo,
       secondary: secondaryPurple,
-      surface: surfaceWhite,
       error: errorRed,
-      onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: textPrimary,
-      onError: Colors.white,
     ),
     appBarTheme: const AppBarTheme(
       elevation: 0,
@@ -252,16 +264,16 @@ class AppTheme {
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    primaryColor: const Color(0xFFA5B4FC),
-    scaffoldBackgroundColor: const Color(0xFF0F172A),
+    primaryColor: const Color(0xFFD4B254),
+    scaffoldBackgroundColor: const Color(0xFF141210),
     colorScheme: const ColorScheme.dark(
-      primary: Color(0xFFA5B4FC),
-      secondary: Color(0xFFC4B5FD),
-      surface: Color(0xFF1E293B),
+      primary: Color(0xFFD4B254),
+      secondary: Color(0xFFE8C86A),
+      surface: Color(0xFF221F19),
       error: Color(0xFFFCA5A5),
-      onPrimary: Color(0xFF1E1B4B),
-      onSecondary: Color(0xFF2E1065),
-      onSurface: Color(0xFFE2E8F0),
+      onPrimary: Color(0xFF231B06),
+      onSecondary: Color(0xFF231B06),
+      onSurface: Color(0xFFEDE6D6),
       onError: Color(0xFF7F1D1D),
     ),
     appBarTheme: const AppBarTheme(

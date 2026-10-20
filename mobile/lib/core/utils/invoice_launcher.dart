@@ -29,12 +29,19 @@ class InvoiceLauncher {
     required int tenantId,
     required int invoiceId,
   }) async {
+    // Resolve everything that needs `context` BEFORE the first await — using
+    // the BuildContext across async gaps can hit a disposed widget.
     final messenger = ScaffoldMessenger.of(context);
+    final l = AppLocalizations.of(context)!;
+    // The server renders the PDF in the requested language (Arabic = RTL
+    // layout + Arabic labels); without this it falls back to English.
+    final culture =
+        Localizations.localeOf(context).languageCode.startsWith('ar') ? 'ar' : 'en';
+    final path = '/tenant/$tenantId/invoices/$invoiceId/invoice.pdf?culture=$culture';
 
     try {
       if (kIsWeb) {
-        final uri = Uri.parse(
-            '${AppConstants.baseUrl}/tenant/$tenantId/invoices/$invoiceId/invoice.pdf');
+        final uri = Uri.parse('${AppConstants.baseUrl}$path');
         await launchUrl(uri, webOnlyWindowName: '_blank');
         return;
       }
@@ -43,7 +50,7 @@ class InvoiceLauncher {
       await storage.init();
       final token = await storage.getToken();
       if (token == null || token.isEmpty) {
-        messenger.showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.sessionRelogin)));
+        messenger.showSnackBar(SnackBar(content: Text(l.sessionRelogin)));
         return;
       }
 
@@ -51,14 +58,13 @@ class InvoiceLauncher {
         baseUrl: AppConstants.baseUrl,
         responseType: ResponseType.bytes,
         headers: {'Authorization': 'Bearer $token'},
-      ));
+      ),);
 
-      final response = await dio.get(
-          '/tenant/$tenantId/invoices/$invoiceId/invoice.pdf');
+      final response = await dio.get(path);
       if (response.statusCode != 200 || response.data == null) {
         messenger.showSnackBar(SnackBar(
-          content: Text(AppLocalizations.of(context)!.invoiceDownloadFailed(response.statusCode.toString())),
-        ));
+          content: Text(l.invoiceDownloadFailed(response.statusCode.toString())),
+        ),);
         return;
       }
 
@@ -69,11 +75,11 @@ class InvoiceLauncher {
       final result = await OpenFilex.open(filePath);
       if (result.type != ResultType.done) {
         messenger.showSnackBar(SnackBar(
-          content: Text(AppLocalizations.of(context)!.pdfOpenFailed(result.message)),
-        ));
+          content: Text(l.pdfOpenFailed(result.message)),
+        ),);
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.invoicePdfError(e.toString()))));
+      messenger.showSnackBar(SnackBar(content: Text(l.invoicePdfError(e.toString()))));
     }
   }
 }

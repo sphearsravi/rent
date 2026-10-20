@@ -1,770 +1,466 @@
 @model RentCollection.Web.Models.DashboardViewModel
+@using System.Globalization
+@using RentCollection.Web.Helpers
 @{
     ViewData["Title"] = "Dashboard";
+    var ci = CultureInfo.CurrentUICulture;
+    var todayLabel = DateTime.Now.ToString("dddd, d MMMM yyyy", ci);
+    bool loadError = (ViewBag.LoadError as bool?) == true;
+    var expiring = Model.UpcomingLeaseExpirations;
 }
 
-<div class="dashboard-container">
-    <div class="dashboard-header">
-        <h1>@L["Dashboard"]</h1>
-        <p class="text-muted">@L["Welcome back! Here's an overview of your rental properties."]</p>
-    </div>
+<div class="od" style="max-width:1280px;margin:0 auto;">
 
-    @* ── Today section (Dashboard revamp) ──
-       Six clickable action cards, each linking to a filtered list view so
-       an operator can land here and immediately see what they need to do
-       this morning. Counts come from the new fields on DashboardViewModel. *@
-    <div class="today-section">
-        <div class="today-head">
-            <h2><i class="fas fa-bolt"></i> @L["Needs your attention today"]</h2>
-            <span class="today-date">@DateTime.Today.ToString("dddd, dd MMM yyyy")</span>
-        </div>
-        <div class="today-grid">
-            <a class="action-card @(Model.OverdueInvoicesCount > 0 ? "action-red" : "action-muted")"
-               href="/Invoices?status=Overdue">
-                <div class="action-count">@Model.OverdueInvoicesCount</div>
-                <div class="action-label">@L["Overdue invoices"]</div>
-                @if (Model.OverdueAmount > 0)
-                {
-                    <div class="action-sub">@Model.OverdueAmount.ToString("N3") @L["KWD outstanding"]</div>
-                }
-            </a>
-            <a class="action-card @(Model.PendingLeasesAwaitingActivation > 0 ? "action-amber" : "action-muted")"
-               href="/Leases?status=Pending">
-                <div class="action-count">@Model.PendingLeasesAwaitingActivation</div>
-                <div class="action-label">@L["Leases to activate"]</div>
-                <div class="action-sub">@L["Deposit invoice will be issued"]</div>
-            </a>
-            <a class="action-card @(Model.PendingPaymentApprovals > 0 ? "action-amber" : "action-muted")"
-               href="/PaymentApproval">
-                <div class="action-count">@Model.PendingPaymentApprovals</div>
-                <div class="action-label">@L["Bank transfers to approve"]</div>
-                <div class="action-sub">@L["Awaiting your review"]</div>
-            </a>
-            <a class="action-card @(Model.LeasesExpiringIn30Days > 0 ? "action-blue" : "action-muted")"
-               href="/Leases">
-                <div class="action-count">@Model.LeasesExpiringIn30Days</div>
-                <div class="action-label">@L["Leases expiring ≤30d"]</div>
-                <div class="action-sub">@L["Renew or terminate soon"]</div>
-            </a>
-            <a class="action-card @(Model.DepositsAwaitingPayment > 0 ? "action-blue" : "action-muted")"
-               href="/Invoices?type=Deposit&status=Pending">
-                <div class="action-count">@Model.DepositsAwaitingPayment</div>
-                <div class="action-label">@L["Deposits unpaid"]</div>
-                <div class="action-sub">@L["Issued, awaiting receipt"]</div>
-            </a>
-            <a class="action-card @(Model.VacantUnitsAvailableSoon > 0 ? "action-green" : "action-muted")"
-               href="/Units?status=Vacant">
-                <div class="action-count">@Model.VacantUnitsAvailableSoon</div>
-                <div class="action-label">@L["Vacant units"]</div>
-                <div class="action-sub">@L["Available now or within 30d"]</div>
-            </a>
-        </div>
-    </div>
+    @await Html.PartialAsync("_AlertMessages")
 
-    @* ── Recent activity (latest 8 AuditLog rows) ──
-       Pulls from the polymorphic AuditLog so it shows everything the
-       system did recently — lease renewals, role changes, terminations.
-       Each row links to the entity-specific audit viewer when one exists. *@
-    @if (Model.RecentActivity.Any())
+    @if (loadError)
     {
-        <div class="activity-section">
-            <div class="activity-head">
-                <h2><i class="fas fa-clock-rotate-left"></i> @L["Recent system activity"]</h2>
-                <a href="/Audit" class="activity-more">@L["View all →"]</a>
-            </div>
-            <ul class="activity-list">
-                @foreach (var ev in Model.RecentActivity)
-                {
-                    var (icon, colour) = ev.Action switch
-                    {
-                        "Created"        => ("fa-circle-plus",          "#10b981"),
-                        "Edited"         => ("fa-pen",                  "#3b82f6"),
-                        "Renewed"        => ("fa-arrows-rotate",        "#6366f1"),
-                        "Terminated"     => ("fa-circle-stop",          "#ef4444"),
-                        "Transferred"    => ("fa-arrow-right-arrow-left", "#f59e0b"),
-                        "Activated"      => ("fa-circle-play",          "#10b981"),
-                        "RoleChanged"    => ("fa-user-shield",          "#6366f1"),
-                        "CredentialIssued" => ("fa-key",                "#06b6d4"),
-                        "DepositRefunded"  => ("fa-rotate-left",        "#a855f7"),
-                        "StatusChanged"  => ("fa-toggle-on",            "#f59e0b"),
-                        "Deleted"        => ("fa-trash",                "#dc2626"),
-                        _                 => ("fa-circle",              "#64748b"),
-                    };
-                    <li class="activity-row">
-                        <i class="fas @icon" style="color:@colour;"></i>
-                        <div class="activity-body">
-                            <div class="activity-text">
-                                <strong>@ev.Action</strong>
-                                on <a href="/Audit/@ev.EntityType/@ev.EntityId">@ev.EntityType #@ev.EntityId</a>
-                                by <span class="activity-who">@ev.ByUser</span>
-                            </div>
-                        </div>
-                        <span class="activity-when" title="@ev.At.ToString("u")">@FormatRelative(ev.At)</span>
-                    </li>
-                }
-            </ul>
+        <div class="od-note" role="alert">
+            <strong>@L["Couldn't load live figures."]</strong>
+            @L["The numbers below are placeholders — please refresh, or contact support if this keeps happening."]
         </div>
     }
 
-    <!-- Stats Cards Row -->
-    <div class="stats-row">
-        <div class="stat-card stat-card-blue">
-            <div class="stat-icon">
-                <i class="fas fa-building"></i>
-            </div>
-            <div class="stat-details">
-                <h3>@Model.TotalProperties</h3>
-                <p>@L["Total Properties"]</p>
-            </div>
+    @* ===== Header ===== *@
+    <header class="od-header">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="od-eyebrow">@(todayLabel + (string.IsNullOrWhiteSpace(Model.CompanyName) ? "" : " · " + Model.CompanyName))</div>
+            <h1 class="od-title">@L[Model.GreetingKey]@(string.IsNullOrWhiteSpace(Model.FirstName) ? "" : ", " + Model.FirstName)</h1>
+            <div class="od-sub">@L["Here's how your portfolio is doing this month."]</div>
         </div>
-
-        <div class="stat-card stat-card-green">
-            <div class="stat-icon">
-                <i class="fas fa-home"></i>
-            </div>
-            <div class="stat-details">
-                <h3>@Model.OccupiedUnits / @Model.TotalUnits</h3>
-                <p>@L["Occupied Units"]</p>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: @Model.OccupancyRate%"></div>
-                </div>
-                <span class="text-sm">@Model.OccupancyRate% @L["Occupancy"]</span>
-            </div>
+        <div class="od-toolbar">
+            <span class="od-card-meta">@L["Period"]</span>
+            <span class="od-pill od-pill-gold">@L["This month"] · @DateTime.Now.ToString("MMM yyyy", ci)</span>
+            <a class="od-btn od-btn-primary" asp-controller="Reports" asp-action="ExecutiveDashboardExcel">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/></svg>
+                @L["Export report"]
+            </a>
         </div>
+    </header>
 
-        <div class="stat-card stat-card-purple">
-            <div class="stat-icon">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-details">
-                <h3>@Model.TotalTenants</h3>
-                <p>@L["Active Tenants"]</p>
-            </div>
-        </div>
+    @* ===== Money row ===== *@
+    <section class="od-grid-kpi" aria-label="@(L["This month in numbers"].Value)">
 
-        <div class="stat-card stat-card-orange">
-            <div class="stat-icon">
-                <i class="fas fa-dollar-sign"></i>
+        <article class="od-card od-kpi-hero">
+            <div class="od-kpi-row">
+                <span class="od-kpi-label">@L["Collected this month"]</span>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linecap="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
             </div>
-            <div class="stat-details">
-                <h3>@("KWD " + Model.TotalRevenue.ToString("N3"))</h3>
-                <p>@L["Revenue (This Month)"]</p>
+            <div class="od-kpi-value">@CurrencyHelper.FormatKWD(Model.CollectedThisMonth)</div>
+            <div class="od-kpi-sub">@L["of {0} expected rent roll", CurrencyHelper.FormatKWD(Model.ExpectedThisMonth)]</div>
+            <div class="od-bar"><span style="width:@(Math.Min(100, Model.CollectionRate))%"></span></div>
+            <div class="od-kpi-row" style="font-size:13px;">
+                <span style="font-weight:700;">@L["{0}% collected", Model.CollectionRate]</span>
+                <span class="od-kpi-sub">@L["{0} days left", Model.DaysLeftInMonth]</span>
             </div>
-        </div>
+        </article>
 
-        <div class="stat-card stat-card-red">
-            <div class="stat-icon">
-                <i class="fas fa-exclamation-circle"></i>
+        <article class="od-card">
+            <div class="od-kpi-row">
+                <span class="od-kpi-label">@L["Outstanding"]</span>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             </div>
-            <div class="stat-details">
-                <h3>@("KWD " + Model.PendingPayments.ToString("N3"))</h3>
-                <p>@L["Pending Payments"]</p>
-            </div>
-        </div>
+            <div class="od-kpi-value">@CurrencyHelper.FormatKWD(Model.OutstandingAmount)</div>
+            <div class="od-kpi-sub">@L["{0} invoices not yet paid", Model.OutstandingInvoiceCount]</div>
+            <a class="od-card-link" href="/Invoices">@L["View outstanding →"]</a>
+        </article>
 
-        <div class="stat-card stat-card-teal">
-            <div class="stat-icon">
-                <i class="fas fa-tools"></i>
+        <article class="od-card">
+            <div class="od-kpi-row">
+                <span class="od-kpi-label">@L["Overdue"]</span>
+                <span class="od-pill @(Model.OverdueTenantCount > 0 ? "od-pill-red" : "od-pill-grey")">@L["{0} tenants", Model.OverdueTenantCount]</span>
             </div>
-            <div class="stat-details">
-                <h3>@Model.MaintenanceRequests</h3>
-                <p>@L["Open Maintenance"]</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Content Row -->
-    <div class="content-row">
-        <!-- Recent Payments -->
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h2>@L["Recent Payments"]</h2>
-                <a href="/Payments" class="view-all-link">@L["View All"]</a>
-            </div>
-            <div class="card-body">
-                @if (Model.RecentPayments.Any())
+            <div class="od-kpi-value @(Model.OverdueAmount > 0 ? "is-red" : "")">@CurrencyHelper.FormatKWD(Model.OverdueAmount)</div>
+            <div class="od-kpi-sub">
+                @if (Model.OverdueOver30Amount > 0)
                 {
-                    <div class="table-responsive">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>@L["Tenant"]</th>
-                                    <th>@L["Property"]</th>
-                                    <th>@L["Amount"]</th>
-                                    <th>@L["Date"]</th>
-                                    <th>@L["Status"]</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var payment in Model.RecentPayments)
+                    @L["{0} of it is over 30 days late", CurrencyHelper.FormatKWD(Model.OverdueOver30Amount)]
+                }
+                else if (Model.OverdueAmount > 0)
+                {
+                    @L["Nothing is more than 30 days late"]
+                }
+                else
+                {
+                    @L["No overdue rent right now"]
+                }
+            </div>
+            <a class="od-card-link" href="/Invoices?status=Overdue">@L["Chase overdue →"]</a>
+        </article>
+
+        <article class="od-card">
+            <div class="od-kpi-row">
+                <span class="od-kpi-label">@L["Occupancy"]</span>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" stroke-linecap="round"><path d="M3 21V9l9-6 9 6v12M9 21v-6h6v6"/></svg>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+                <span class="od-kpi-value is-green">@Model.OccupancyRate.ToString("0")%</span>
+                <span class="od-kpi-sub">@L["{0} of {1} units", Model.OccupiedUnits, Model.TotalUnits]</span>
+            </div>
+            <div class="od-kpi-sub">
+                @if (Model.VacantUnits > 0)
+                {
+                    @L["{0} vacant · costing about {1}", Model.VacantUnits, Html.Raw("<strong style=\"color:var(--od-ink)\">" + Html.Encode(CurrencyHelper.FormatKWD(Model.VacancyCostPerMonth)) + "/" + Html.Encode(L["month"].Value) + "</strong>")]
+                }
+                else
+                {
+                    @L["Every unit is let"]
+                }
+            </div>
+            <a class="od-card-link" href="/Units?status=Vacant">@L["See vacant units →"]</a>
+        </article>
+    </section>
+
+    @* ===== Attention queue + trend ===== *@
+    <section class="od-grid-2">
+
+        <article class="od-card">
+            <div class="od-card-head">
+                <h2 class="od-card-title">@L["Needs your attention"]</h2>
+                <span class="od-card-meta">@L["{0} items", Model.AttentionItemCount]</span>
+            </div>
+
+            @if (Model.AttentionItemCount == 0)
+            {
+                <div class="od-empty">@L["Nothing needs your attention right now — enjoy the quiet."]</div>
+            }
+            else
+            {
+                <div class="od-queue">
+                    @if (Model.PaymentsToVerifyCount > 0)
+                    {
+                        <a class="od-queue-row" href="/PaymentApproval">
+                            <span class="od-count od-count-gold">@Model.PaymentsToVerifyCount</span>
+                            <span class="od-queue-text">
+                                <strong>@L["Payments waiting for your verification"]</strong>
+                                <span>@L["{0} bank transfers · {1} cash — {2}", Model.PaymentsToVerifyBankCount, Model.PaymentsToVerifyCashCount, CurrencyHelper.FormatKWD(Model.PaymentsToVerifyAmount)]</span>
+                            </span>
+                            <span class="od-queue-cta">@L["Verify →"]</span>
+                        </a>
+                    }
+                    @if (Model.OverdueTenantCount > 0)
+                    {
+                        <a class="od-queue-row" href="/Invoices?status=Overdue">
+                            <span class="od-count od-count-red">@Model.OverdueTenantCount</span>
+                            <span class="od-queue-text">
+                                <strong>@L["Overdue tenants to follow up"]</strong>
+                                <span>@L["{0} are over 30 days late", Model.OverdueOver30TenantCount]</span>
+                            </span>
+                            <span class="od-queue-cta">@L["Remind →"]</span>
+                        </a>
+                    }
+                    @if (Model.PendingLeasesAwaitingActivation > 0)
+                    {
+                        <a class="od-queue-row" href="/Leases?status=Pending">
+                            <span class="od-count od-count-gold">@Model.PendingLeasesAwaitingActivation</span>
+                            <span class="od-queue-text">
+                                <strong>@L["Leases waiting to be activated"]</strong>
+                                <span>@L["Deposit invoice will be issued on activation"]</span>
+                            </span>
+                            <span class="od-queue-cta">@L["Activate →"]</span>
+                        </a>
+                    }
+                    @if (Model.LeasesExpiringIn30Days > 0)
+                    {
+                        <a class="od-queue-row" href="/Leases">
+                            <span class="od-count od-count-amber">@Model.LeasesExpiringIn30Days</span>
+                            <span class="od-queue-text">
+                                <strong>@L["Leases ending within 30 days"]</strong>
+                                <span>@L["Renew or plan the vacancy now"]</span>
+                            </span>
+                            <span class="od-queue-cta">@L["Review →"]</span>
+                        </a>
+                    }
+                    @if (Model.MaintenanceOpenCount > 0)
+                    {
+                        <a class="od-queue-row" href="/Maintenance">
+                            <span class="od-count od-count-amber">@Model.MaintenanceOpenCount</span>
+                            <span class="od-queue-text">
+                                <strong>@L["Open maintenance requests"]</strong>
+                                @if (Model.MaintenanceSlaBreachedCount > 0)
                                 {
-                                    <tr>
-                                        <td>
-                                            <div class="tenant-info">
-                                                <div class="tenant-avatar">@payment.Tenant.FirstName[0]@payment.Tenant.LastName[0]</div>
-                                                <div>
-                                                    <strong>@payment.Tenant.FirstName @payment.Tenant.LastName</strong>
-                                                    <br/><small class="text-muted">@payment.Tenant.Email</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <strong>@payment.Lease.Unit.Property.PropertyName</strong>
-                                            <br/><small class="text-muted">@L["Unit"] @payment.Lease.Unit.UnitNumber</small>
-                                        </td>
-                                        <td><strong class="text-success">@("KWD " + payment.AmountPaid.ToString("N3"))</strong></td>
-                                        <td>@payment.PaymentDate.ToString("MMM dd, yyyy")</td>
-                                        <td><span class="badge badge-success">@payment.PaymentStatus</span></td>
-                                    </tr>
+                                    <span style="color:var(--od-red);font-weight:600;">@L["{0} have passed their SLA", Model.MaintenanceSlaBreachedCount]</span>
                                 }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <div class="empty-state">
-                        <i class="fas fa-receipt"></i>
-                        <p>@L["No recent payments"]</p>
-                    </div>
-                }
-            </div>
-        </div>
+                                else
+                                {
+                                    <span>@L["All within SLA"]</span>
+                                }
+                            </span>
+                            <span class="od-queue-cta">@L["Assign →"]</span>
+                        </a>
+                    }
+                    @if (Model.VacantUnits > 0)
+                    {
+                        <a class="od-queue-row" href="/Units?status=Vacant">
+                            <span class="od-count od-count-green">@Model.VacantUnits</span>
+                            <span class="od-queue-text">
+                                <strong>@L["Vacant units to let"]</strong>
+                                @if (Model.LongestVacantDays > 0 && !string.IsNullOrEmpty(Model.LongestVacantUnitLabel))
+                                {
+                                    <span>@L["Longest vacant: {0} days ({1})", Model.LongestVacantDays, Model.LongestVacantUnitLabel]</span>
+                                }
+                                else
+                                {
+                                    <span>@L["Ready to list today"]</span>
+                                }
+                            </span>
+                            <span class="od-queue-cta">@L["List →"]</span>
+                        </a>
+                    }
+                </div>
+            }
+        </article>
 
-        <!-- Upcoming Lease Expirations -->
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h2>@L["Upcoming Lease Expirations"]</h2>
-                <a href="/Leases" class="view-all-link">@L["View All"]</a>
+        <article class="od-card" style="gap:14px;">
+            <div class="od-card-head">
+                <h2 class="od-card-title">@L["Collections — last 6 months"]</h2>
+                <div class="od-legend">
+                    <span><span class="od-swatch od-trend-expected"></span>@L["Expected"]</span>
+                    <span><span class="od-swatch od-trend-collected"></span>@L["Collected"]</span>
+                </div>
             </div>
-            <div class="card-body">
-                @if (Model.UpcomingLeaseExpirations.Any())
-                {
-                    <div class="lease-list">
-                        @foreach (var lease in Model.UpcomingLeaseExpirations)
-                        {
-                            var daysRemaining = (lease.LeaseEndDate - DateTime.UtcNow).Days;
-                            var urgencyClass = daysRemaining <= 7 ? "lease-item-urgent" : daysRemaining <= 14 ? "lease-item-warning" : "lease-item-normal";
 
-                            <div class="lease-item @urgencyClass">
-                                <div class="lease-info">
-                                    <h4>@lease.Tenant.FirstName @lease.Tenant.LastName</h4>
-                                    <p class="text-muted">@lease.Unit.Property.PropertyName - Unit @lease.Unit.UnitNumber</p>
-                                </div>
-                                <div class="lease-expiry">
-                                    <span class="expiry-days">@daysRemaining @L["days"]</span>
-                                    <small class="text-muted">@lease.LeaseEndDate.ToString("MMM dd, yyyy")</small>
-                                </div>
+            @if (Model.CollectionTrend.Count == 0 || Model.CollectionTrend.All(t => t.Expected == 0 && t.Collected == 0))
+            {
+                <div class="od-empty">@L["No rent has been invoiced or collected in the last 6 months yet."]</div>
+            }
+            else
+            {
+                <div class="od-trend" role="img" aria-label="@(L["Expected versus collected rent, by month"].Value)">
+                    @foreach (var t in Model.CollectionTrend)
+                    {
+                        <div class="od-trend-col" title="@t.Label: @CurrencyHelper.FormatKWD(t.Collected) / @CurrencyHelper.FormatKWD(t.Expected)">
+                            <div class="od-trend-bars">
+                                <span class="od-trend-expected" style="height:@(t.ExpectedPx)px"></span>
+                                <span class="od-trend-collected @(t.IsCurrent ? "is-partial" : "")" style="height:@(t.CollectedPx)px"></span>
                             </div>
-                        }
+                            <span class="od-trend-label">
+                                @t.Label
+                                @if (t.IsCurrent)
+                                {
+                                    <em style="font-style:normal;color:var(--od-amber);">@L["(so far)"]</em>
+                                }
+                            </span>
+                        </div>
+                    }
+                </div>
+
+                <div class="od-grid-3 od-divider-top">
+                    <div class="od-stat">
+                        <span>@L["Avg collection rate"]</span>
+                        <strong style="color:var(--od-green);">@Model.AvgCollectionRate.ToString("0")%</strong>
                     </div>
-                }
-                else
+                    <div class="od-stat">
+                        <span>@L["Best month"]</span>
+                        <strong>@(string.IsNullOrEmpty(Model.BestMonthLabel) ? "—" : $"{Model.BestMonthLabel} · {Model.BestMonthRate:0}%")</strong>
+                    </div>
+                    <div class="od-stat">
+                        <span>@L["Avg days to pay"]</span>
+                        <strong>@L["{0} days", Model.AvgDaysToPay.ToString("0.#", ci)]</strong>
+                    </div>
+                </div>
+            }
+        </article>
+    </section>
+
+    @* ===== Property health ===== *@
+    <section class="od-card" style="gap:14px;">
+        <div class="od-card-head">
+            <h2 class="od-card-title">@L["Property health"]</h2>
+            <span class="od-card-meta">@L["Sorted by collection rate — weakest first"]</span>
+        </div>
+        @if (Model.PropertyHealth.Count == 0)
+        {
+            <div class="od-empty">@L["No properties yet. Add your first property to see how it performs here."]</div>
+        }
+        else
+        {
+            <div class="od-table-wrap">
+                <table class="od-table">
+                    <thead>
+                        <tr>
+                            <th>@L["Property"]</th>
+                            <th>@L["Occupied"]</th>
+                            <th class="num">@L["Rent roll"]</th>
+                            <th class="num">@L["Collected"]</th>
+                            <th>@L["Collection"]</th>
+                            <th class="num">@L["Overdue"]</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.PropertyHealth)
+                        {
+                            var tone = row.RentRoll == 0 ? "grey" : row.CollectionRate < 60 ? "red" : row.CollectionRate < 90 ? "amber" : "green";
+                            var toneVar = tone == "grey" ? "var(--od-muted)" : $"var(--od-{tone})";
+                            <tr>
+                                <td style="font-weight:600;">
+                                    @if (tone != "grey")
+                                    {
+                                        <span class="od-dot od-dot-@tone"></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="od-dot" style="background:var(--od-line);"></span>
+                                    }@row.PropertyName
+                                </td>
+                                <td>@row.OccupiedUnits / @row.TotalUnits</td>
+                                <td class="num">@row.RentRoll.ToString("N3")</td>
+                                <td class="num">@row.Collected.ToString("N3")</td>
+                                <td>
+                                    <div class="od-rate">
+                                        <div class="od-bar is-thin"><span class="@(tone == "grey" ? "" : "is-" + tone)" style="width:@(row.CollectionRate)%"></span></div>
+                                        <strong style="color:@toneVar;">@row.CollectionRate.ToString("0")%</strong>
+                                    </div>
+                                </td>
+                                <td class="num" style="@(row.OverdueAmount > 0 ? $"color:{toneVar};font-weight:700;" : "color:var(--od-muted);")">
+                                    @(row.OverdueAmount > 0 ? row.OverdueAmount.ToString("N3") : "—")
+                                </td>
+                                <td class="num"><a href="/Properties/Details/@row.PropertyId" style="font-weight:700;font-size:13px;">@L["Open →"]</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @* ===== Arrears + expiries ===== *@
+    <section class="od-grid-2">
+
+        <article class="od-card">
+            <div class="od-card-head">
+                <h2 class="od-card-title">@L["Who owes the most"]</h2>
+                <a href="/Invoices?status=Overdue" style="font-size:13px;font-weight:700;">@L["All overdue →"]</a>
+            </div>
+            @if (Model.TopArrears.Count == 0)
+            {
+                <div class="od-empty">@L["Nobody is behind on rent. Nice work."]</div>
+            }
+            else
+            {
+                <div class="od-rows">
+                    @foreach (var a in Model.TopArrears)
+                    {
+                        var lateTone = a.DaysLate > 30 ? "var(--od-red)" : "var(--od-amber)";
+                        <div class="od-row">
+                            <span class="od-avatar" aria-hidden="true">@a.Initials</span>
+                            <span class="od-row-text">
+                                <strong>@a.TenantName</strong>
+                                <span>@a.PropertyName · @("U" + a.UnitNumber) · <span style="color:@lateTone;font-weight:600;">@L["{0} days late", a.DaysLate]</span></span>
+                            </span>
+                            <span class="od-amount is-red">@a.Amount.ToString("N3")</span>
+                            <a class="od-btn od-btn-ghost od-btn-sm" href="/Tenants/Details/@a.TenantId">@L["Remind"]</a>
+                        </div>
+                    }
+                </div>
+            }
+        </article>
+
+        <article class="od-card">
+            <div class="od-card-head">
+                <h2 class="od-card-title">@L["Leases ending soon"]</h2>
+                <a href="/Leases" style="font-size:13px;font-weight:700;">@L["All leases →"]</a>
+            </div>
+            @if (!expiring.Any())
+            {
+                <div class="od-empty">@L["No expiring leases in the next 30 days"]</div>
+            }
+            else
+            {
+                <div class="od-rows">
+                    @foreach (var lease in expiring)
+                    {
+                        var daysLeft = Math.Max(0, (lease.LeaseEndDate.Date - DateTime.UtcNow.Date).Days);
+                        var tenantName = $"{lease.Tenant?.FirstName} {lease.Tenant?.LastName}".Trim();
+                        var leaseWhere = $"{lease.Unit?.Property?.PropertyName} · U{lease.Unit?.UnitNumber}";
+                        <div class="od-row">
+                            <span class="od-days @(daysLeft <= 10 ? "od-days-red" : "od-days-amber")">
+                                <strong>@daysLeft</strong>
+                                <span>@L["days"]</span>
+                            </span>
+                            <span class="od-row-text">
+                                <strong>@(string.IsNullOrEmpty(tenantName) ? "—" : tenantName)</strong>
+                                <span>@leaseWhere · @L["ends {0}", lease.LeaseEndDate.ToString("d MMM yyyy", ci)] · @(CurrencyHelper.FormatKWD(lease.MonthlyRent) + "/")@L["mo"]</span>
+                            </span>
+                            <a class="od-btn od-btn-primary od-btn-sm" href="/Leases/Details/@lease.LeaseId">@L["Renew"]</a>
+                        </div>
+                    }
+                </div>
+                <div class="od-note" style="margin-top:4px;">
+                    @L["If none renew, rent roll drops by {0} from {1}.", Html.Raw("<strong>" + Html.Encode(CurrencyHelper.FormatKWD(Model.RentRollAtRisk)) + "/" + Html.Encode(L["month"].Value) + "</strong>"), DateTime.Now.AddMonths(1).ToString("MMMM", ci)]
+                </div>
+            }
+        </article>
+    </section>
+
+    @* ===== Recent payments (compact) ===== *@
+    <section class="od-card">
+        <div class="od-card-head">
+            <h2 class="od-card-title">@L["Money received recently"]</h2>
+            <a href="/Payments" style="font-size:13px;font-weight:700;">@L["All payments →"]</a>
+        </div>
+        @if (!Model.RecentPayments.Any())
+        {
+            <div class="od-empty">@L["No recent payments"]</div>
+        }
+        else
+        {
+            <div class="od-tiles">
+                @foreach (var payment in Model.RecentPayments)
                 {
-                    <div class="empty-state">
-                        <i class="fas fa-file-contract"></i>
-                        <p>@L["No expiring leases in the next 30 days"]</p>
+                    var psRaw = payment.PaymentStatus ?? "";
+                    var (tone, psLabel) = psRaw switch
+                    {
+                        "Completed" or "Approved" => ("green", L["Completed"].Value),
+                        "Pending" or "PendingVerification" => ("amber", L["Verify"].Value),
+                        "Rejected" or "Failed" or "Cancelled" => ("red", L[psRaw].Value),
+                        _ => ("grey", psRaw)
+                    };
+                    var methodLabel = payment.PaymentType switch
+                    {
+                        RentCollection.Core.Enums.PaymentType.BankTransfer => L["Bank transfer"].Value,
+                        RentCollection.Core.Enums.PaymentType.Cash => L["Cash"].Value,
+                        RentCollection.Core.Enums.PaymentType.Cheque => L["Cheque"].Value,
+                        _ => "KNET"
+                    };
+                    var iconBg = tone == "grey" ? "var(--od-line-soft)" : $"var(--od-{tone}-soft)";
+                    var iconStroke = tone == "grey" ? "var(--od-muted)" : $"var(--od-{tone})";
+                    var paymentWhere = $"{payment.Lease?.Unit?.Property?.PropertyName} U{payment.Lease?.Unit?.UnitNumber}";
+                    <div class="od-tile">
+                        <span class="od-tile-icon" style="background:@iconBg;">
+                            @if (tone == "green")
+                            {
+                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="@iconStroke" stroke-width="2.4" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg>
+                            }
+                            else if (tone == "red")
+                            {
+                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="@iconStroke" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                            }
+                            else
+                            {
+                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="@iconStroke" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                            }
+                        </span>
+                        <span class="od-tile-text">
+                            <strong>@CurrencyHelper.FormatKWD(payment.AmountPaid) · @methodLabel</strong>
+                            <span>@paymentWhere · @FormatWhen(payment.PaymentDate)</span>
+                        </span>
+                        <span class="od-pill od-pill-@tone">@psLabel</span>
                     </div>
                 }
             </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-        <h3>@L["Quick Actions"]</h3>
-        <div class="action-buttons">
-            <a href="/Properties/Create" class="action-btn btn-blue">
-                <i class="fas fa-plus-circle"></i>
-                <span>@L["Add Property"]</span>
-            </a>
-            <a href="/Tenants/Create" class="action-btn btn-green">
-                <i class="fas fa-user-plus"></i>
-                <span>@L["Add Tenant"]</span>
-            </a>
-            <a href="/CashPayment/Record" class="action-btn btn-purple">
-                <i class="fas fa-money-check-alt"></i>
-                <span>@L["Record Payment"]</span>
-            </a>
-            <a href="/Maintenance/Create" class="action-btn btn-orange">
-                <i class="fas fa-wrench"></i>
-                <span>@L["New Maintenance"]</span>
-            </a>
-            <a href="/Reports" class="action-btn btn-teal">
-                <i class="fas fa-chart-bar"></i>
-                <span>@L["View Reports"]</span>
-            </a>
-        </div>
-    </div>
+        }
+    </section>
 </div>
 
-@section Styles {
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <style>
-        :root {
-            --color-blue: #3b82f6;
-            --color-green: #10b981;
-            --color-purple: #8b5cf6;
-            --color-orange: #f59e0b;
-            --color-red: #ef4444;
-            --color-teal: #14b8a6;
-            --color-gray-50: #f9fafb;
-            --color-gray-100: #f3f4f6;
-            --color-gray-200: #e5e7eb;
-            --color-gray-600: #4b5563;
-            --color-gray-700: #374151;
-            --color-gray-900: #111827;
-        }
-
-        body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #1e293b;
-            min-height: 100vh;
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .dashboard-header {
-            margin-bottom: 2rem;
-        }
-
-        .dashboard-header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #334155;
-            margin-bottom: 0.5rem;
-        }
-
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 12px;
-            padding: 1.5rem;
-            display: flex;
-            align-items: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-        }
-
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-            margin-right: 1rem;
-            color: white;
-        }
-
-        .stat-card-blue .stat-icon { background: linear-gradient(135deg, var(--color-blue), #2563eb); }
-        .stat-card-green .stat-icon { background: linear-gradient(135deg, var(--color-green), #059669); }
-        .stat-card-purple .stat-icon { background: linear-gradient(135deg, var(--color-purple), #7c3aed); }
-        .stat-card-orange .stat-icon { background: linear-gradient(135deg, var(--color-orange), #d97706); }
-        .stat-card-red .stat-icon { background: linear-gradient(135deg, var(--color-red), #dc2626); }
-        .stat-card-teal .stat-icon { background: linear-gradient(135deg, var(--color-teal), #0d9488); }
-
-        .stat-details h3 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin: 0;
-            color: #1e293b;
-        }
-
-        .stat-details p {
-            margin: 0.25rem 0;
-            color: #475569;
-            font-size: 0.95rem;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: var(--color-gray-200);
-            border-radius: 3px;
-            margin: 0.5rem 0;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--color-green), #059669);
-            border-radius: 3px;
-            transition: width 0.3s ease;
-        }
-
-        .text-sm {
-            font-size: 0.875rem;
-            color: #475569;
-        }
-
-        .content-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .dashboard-card {
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .card-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--color-gray-200);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .card-header h2 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin: 0;
-            color: #334155;
-        }
-
-        .view-all-link {
-            color: var(--color-blue);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .view-all-link:hover {
-            text-decoration: underline;
-        }
-
-        .card-body {
-            padding: 1.5rem;
-        }
-
-        .modern-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .modern-table thead th {
-            text-align: left;
-            padding: 0.75rem;
-            font-weight: 600;
-            color: #475569;
-            border-bottom: 2px solid var(--color-gray-200);
-            font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .modern-table tbody td {
-            padding: 1rem 0.75rem;
-            border-bottom: 1px solid var(--color-gray-200);
-        }
-
-        .modern-table tbody tr:hover {
-            background-color: var(--color-gray-50);
-        }
-
-        .tenant-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .tenant-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--color-purple), var(--color-blue));
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 0.875rem;
-        }
-
-        .text-muted {
-            color: #475569;
-        }
-
-        .text-success {
-            color: var(--color-green);
-        }
-
-        .badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .badge-success {
-            background-color: #d1fae5;
-            color: #065f46;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: #475569;
-        }
-
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.3;
-        }
-
-        .lease-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .lease-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            border-radius: 8px;
-            border-left: 4px solid;
-            transition: background-color 0.2s;
-        }
-
-        .lease-item-normal {
-            border-left-color: var(--color-green);
-            background-color: var(--color-gray-50);
-        }
-
-        .lease-item-warning {
-            border-left-color: var(--color-orange);
-            background-color: #fef3c7;
-        }
-
-        .lease-item-urgent {
-            border-left-color: var(--color-red);
-            background-color: #fee2e2;
-        }
-
-        .lease-item:hover {
-            background-color: var(--color-gray-100);
-        }
-
-        .lease-info h4 {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        .lease-info p {
-            margin: 0.25rem 0 0 0;
-            font-size: 0.875rem;
-        }
-
-        .lease-expiry {
-            text-align: right;
-        }
-
-        .expiry-days {
-            display: block;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #1e293b;
-        }
-
-        .quick-actions {
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .quick-actions h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: #334155;
-        }
-
-        .action-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1rem;
-        }
-
-        .action-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            text-decoration: none;
-            color: white;
-            font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .action-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .btn-blue { background: linear-gradient(135deg, var(--color-blue), #2563eb); }
-        .btn-green { background: linear-gradient(135deg, var(--color-green), #059669); }
-        .btn-purple { background: linear-gradient(135deg, var(--color-purple), #7c3aed); }
-        .btn-orange { background: linear-gradient(135deg, var(--color-orange), #d97706); }
-        .btn-teal { background: linear-gradient(135deg, var(--color-teal), #0d9488); }
-
-        .action-btn i {
-            font-size: 1.25rem;
-        }
-
-        @@media (max-width: 768px) {
-            .dashboard-container {
-                padding: 1rem;
-            }
-
-            .stats-row {
-                grid-template-columns: 1fr;
-            }
-
-            .content-row {
-                grid-template-columns: 1fr;
-            }
-
-            .action-buttons {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* ── Dashboard revamp: Today + Activity sections ── */
-        .today-section, .activity-section {
-            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 1rem 1.25rem; margin-bottom: 1.25rem;
-        }
-        .today-head, .activity-head {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 0.85rem;
-        }
-        .today-head h2, .activity-head h2 {
-            margin: 0; font-size: 1.05rem; color: #334155;
-            display: flex; align-items: center; gap: 0.5rem;
-        }
-        .today-head h2 i { color: #f59e0b; }
-        .activity-head h2 i { color: #6366f1; }
-        .today-date {
-            font-size: 0.82rem; color: #64748b;
-            background: #f1f5f9; padding: 0.25rem 0.65rem; border-radius: 999px;
-        }
-        .activity-more {
-            color: #6366f1; text-decoration: none; font-size: 0.85rem; font-weight: 500;
-        }
-        .today-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-            gap: 0.85rem;
-        }
-        .action-card {
-            display: flex; flex-direction: column; gap: 0.25rem;
-            padding: 0.85rem 1rem;
-            background: white; border: 1px solid #e2e8f0;
-            border-left: 4px solid #cbd5e1; border-radius: 10px;
-            text-decoration: none; color: inherit;
-            transition: all 0.15s ease;
-        }
-        .action-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(99,102,241,0.12);
-            border-color: #6366f1;
-        }
-        .action-card.action-red    { border-left-color: #ef4444; }
-        .action-card.action-amber  { border-left-color: #f59e0b; }
-        .action-card.action-blue   { border-left-color: #3b82f6; }
-        .action-card.action-green  { border-left-color: #10b981; }
-        .action-card.action-muted  { border-left-color: #cbd5e1; opacity: 0.65; }
-        .action-count {
-            font-size: 1.55rem; font-weight: 700; color: #0f172a; line-height: 1;
-        }
-        .action-card.action-muted .action-count { color: #94a3b8; }
-        .action-label {
-            font-size: 0.78rem; font-weight: 700; color: #475569;
-            text-transform: uppercase; letter-spacing: 0.04em;
-        }
-        .action-sub { font-size: 0.72rem; color: #94a3b8; }
-
-        /* Activity list */
-        .activity-list { list-style: none; padding: 0; margin: 0; }
-        .activity-row {
-            display: flex; align-items: center; gap: 0.7rem;
-            padding: 0.55rem 0; border-bottom: 1px dashed #f1f5f9;
-            font-size: 0.88rem;
-        }
-        .activity-row:last-child { border-bottom: 0; }
-        .activity-row > i { width: 22px; text-align: center; }
-        .activity-body { flex: 1; min-width: 0; }
-        .activity-text strong { color: #0f172a; margin-right: 0.3rem; }
-        .activity-text a { color: #6366f1; text-decoration: none; }
-        .activity-text a:hover { text-decoration: underline; }
-        .activity-who { color: #64748b; }
-        .activity-when {
-            color: #94a3b8; font-size: 0.75rem; white-space: nowrap;
-        }
-    </style>
-}
-
 @functions {
-    static string FormatRelative(DateTime when)
+    string FormatWhen(DateTime when)
     {
-        var delta = DateTime.UtcNow - when;
-        if (delta.TotalMinutes < 1) return "just now";
-        if (delta.TotalMinutes < 60) return $"{(int)delta.TotalMinutes}m ago";
-        if (delta.TotalHours < 24) return $"{(int)delta.TotalHours}h ago";
-        if (delta.TotalDays < 30) return $"{(int)delta.TotalDays}d ago";
-        return when.ToString("dd MMM yyyy");
+        var ci = CultureInfo.CurrentUICulture;
+        var today = DateTime.UtcNow.Date;
+        if (when.Date == today) return L["today"].Value + " " + when.ToString("HH:mm", ci);
+        if (when.Date == today.AddDays(-1)) return L["yesterday"].Value;
+        return when.ToString("d MMM", ci);
     }
 }

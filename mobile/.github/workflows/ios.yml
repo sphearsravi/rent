@@ -1,0 +1,68 @@
+name: iOS TestFlight
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-ios:
+    runs-on: macos-26
+    env:
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      CERTIFICATE_PRIVATE_KEY: ${{ secrets.CERTIFICATE_PRIVATE_KEY }}
+      BUNDLE_ID: com.viijar.tenant
+      APP_STORE_APPLE_ID: "6795531787"
+      API_BASE_URL: https://www.alrtam.co/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Install App Store Connect CLI
+        run: pip3 install --break-system-packages codemagic-cli-tools
+      - name: Flutter pub get
+        run: flutter pub get
+      - name: Show Podfile linkage
+        run: grep -nE "use_frameworks|CLANG_ALLOW" ios/Podfile || echo "PODFILE MISSING SETTINGS"
+      - name: CocoaPods
+        run: (cd ios && pod install)
+
+      - name: Set up code signing
+        run: |
+          set -ex
+          keychain initialize
+          # Use a PERSISTENT key from a secret so the same distribution certificate
+          # is reused every run (creating a fresh one each time hit Apple's cert cap).
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key=@env:CERTIFICATE_PRIVATE_KEY \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles --export-options-plist "$HOME/export_options.plist"
+          UD="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          MD="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$UD" "$MD"
+          cp -f "$UD/"*.mobileprovision "$MD/" 2>/dev/null || true
+          cp -f "$MD/"*.mobileprovision "$UD/" 2>/dev/null || true
+
+      - name: Build signed IPA
+        run: |
+          set -ex
+          BUILD_NUMBER=$(( $(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0) + 1 ))
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --build-number="$BUILD_NUMBER"
+          xcode-project build-ipa --workspace ios/Runner.xcworkspace --scheme Runner --disable-xcpretty
+
+      - name: Upload to TestFlight
+        run: app-store-connect publish --path "build/ios/ipa/*.ipa"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: ignore

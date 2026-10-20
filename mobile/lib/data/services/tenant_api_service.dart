@@ -72,12 +72,21 @@ class TenantApiService implements ITenantApi {
       // The api_service interceptor reads the token on the next request.
       await _apiService.storage.saveToken(newToken);
       return true;
-    } catch (_) {
-      return false;
+    } on ApiException catch (e) {
+      // Only a definite auth rejection (401/403) means "log in again". Network
+      // blips, rate limiting (the refresh endpoint is throttled per IP — easy to
+      // hit behind carrier NAT), and server errors must NOT log the user out:
+      // the stored token is very likely still valid, so rethrow and let the
+      // caller keep the session.
+      if (e.kind == ApiErrorKind.unauthenticated || e.kind == ApiErrorKind.forbidden) {
+        return false;
+      }
+      rethrow;
     }
   }
 
   /// Login with Civil ID and password
+  @override
   Future<LoginResponse> login(LoginRequest request) async {
     try {
       final response = await _apiService.post(
@@ -92,24 +101,36 @@ class TenantApiService implements ITenantApi {
     }
   }
 
-  /// Change password
+  /// Change password. The server rotates the security stamp and issues a NEW
+  /// token — persist it, otherwise the very next request 401s and the user is
+  /// logged out right after changing their password.
+  @override
   Future<bool> changePassword(ChangePasswordRequest request) async {
     final response = await _apiService.post(
       '/tenant/change-password',
       data: request.toJson(),
     );
-    return response.data['success'] ?? false;
+    final ok = response.data['success'] == true;
+    if (ok) {
+      final newToken = response.data['data']?['token'] as String?;
+      if (newToken != null && newToken.isNotEmpty) {
+        await _apiService.storage.saveToken(newToken);
+      }
+    }
+    return ok;
   }
 
   // ============ Profile ============
 
   /// Get tenant profile
+  @override
   Future<TenantModel> getProfile(int tenantId) async {
     final response = await _apiService.get('/tenant/$tenantId/profile');
     return TenantModel.fromJson(response.data['data']);
   }
 
   /// Update tenant profile
+  @override
   Future<bool> updateProfile(int tenantId, Map<String, dynamic> data) async {
     final response = await _apiService.put(
       '/tenant/$tenantId/profile',
@@ -121,12 +142,14 @@ class TenantApiService implements ITenantApi {
   // ============ Dashboard ============
 
   /// Get dashboard data
+  @override
   Future<DashboardModel> getDashboard(int tenantId) async {
     final response = await _apiService.get('/tenant/$tenantId/dashboard');
     return DashboardModel.fromJson(response.data['data']);
   }
 
   /// Get notifications
+  @override
   Future<List<NotificationModel>> getNotifications(int tenantId) async {
     final response = await _apiService.get('/tenant/$tenantId/notifications');
     final List<dynamic> data = response.data['data'] ?? [];
@@ -136,6 +159,7 @@ class TenantApiService implements ITenantApi {
   // ============ Leases ============
 
   /// Get all active leases
+  @override
   Future<List<LeaseModel>> getLeases(int tenantId) async {
     final response = await _apiService.get('/tenant/$tenantId/leases');
     final List<dynamic> data = response.data['data'] ?? [];
@@ -143,6 +167,7 @@ class TenantApiService implements ITenantApi {
   }
 
   /// Get lease details
+  @override
   Future<LeaseModel> getLeaseDetails(int tenantId, int leaseId) async {
     final response = await _apiService.get('/tenant/$tenantId/leases/$leaseId');
     return LeaseModel.fromJson(response.data['data']);
@@ -151,6 +176,7 @@ class TenantApiService implements ITenantApi {
   // ============ Payments ============
 
   /// Get payment history
+  @override
   Future<List<PaymentModel>> getPayments(
     int tenantId, {
     int pageNumber = 1,
@@ -168,12 +194,14 @@ class TenantApiService implements ITenantApi {
   }
 
   /// Get payment details
+  @override
   Future<PaymentModel> getPaymentDetails(int tenantId, int paymentId) async {
     final response = await _apiService.get('/tenant/$tenantId/payments/$paymentId');
     return PaymentModel.fromJson(response.data['data']);
   }
 
   /// Get pending invoices for payment
+  @override
   Future<List<InvoiceModel>> getPendingInvoices(int tenantId) async {
     final response = await _apiService.get('/tenant/$tenantId/invoices/pending');
     final List<dynamic> data = response.data['data'] ?? [];
@@ -209,6 +237,7 @@ class TenantApiService implements ITenantApi {
 
   /// Upload one or more photos to a maintenance request. `filePaths` are
   /// local file paths from image_picker. `kind` is "Before" / "After" / "Other".
+  @override
   Future<bool> uploadMaintenancePhotos({
     required int tenantId,
     required int requestId,
@@ -222,7 +251,7 @@ class TenantApiService implements ITenantApi {
       form.files.add(MapEntry(
         'photos',
         await MultipartFile.fromFile(path, filename: path.split('/').last),
-      ));
+      ),);
     }
     form.fields.add(MapEntry('kind', kind));
 
@@ -234,6 +263,7 @@ class TenantApiService implements ITenantApi {
   }
 
   /// Initiate KNET payment - returns redirect URL and payment details
+  @override
   Future<KnetPaymentResponse> initiateKNETPayment(KnetPaymentRequest request) async {
     final response = await _apiService.post(
       '/payments/knet/initiate',
@@ -247,6 +277,7 @@ class TenantApiService implements ITenantApi {
   /// not JSON — and the route is `/payments/bank/upload` (baseUrl already
   /// ends in `/api`, so no leading `/api`). TenantId is derived from the
   /// JWT server-side; we still send it for the DTO binder.
+  @override
   Future<bool> submitBankTransfer({
     required int tenantId,
     required int invoiceId,
@@ -278,9 +309,32 @@ class TenantApiService implements ITenantApi {
     return response.data['success'] ?? false;
   }
 
+  /// Tenant requests to pay an invoice in cash at the office. The server records
+  /// a cash payment as "pending verification" and puts it in the office's
+  /// approval queue — staff confirm it when the tenant pays at the counter.
+  /// Returns true on success.
+  /// [amount] is optional: null = the full outstanding balance. The server
+  /// re-validates it against the invoice balance (0 < amount ≤ balance).
+  Future<bool> requestCashPayment({
+    required int invoiceId,
+    double? amount,
+    String? notes,
+  }) async {
+    final response = await _apiService.post(
+      '/payments/cash/request',
+      data: {
+        'invoiceId': invoiceId,
+        if (amount != null) 'amount': amount,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      },
+    );
+    return response.data['success'] ?? false;
+  }
+
   // ============ Maintenance Requests ============
 
   /// Get maintenance requests
+  @override
   Future<List<MaintenanceModel>> getMaintenanceRequests(
     int tenantId, {
     String? status,
@@ -294,6 +348,7 @@ class TenantApiService implements ITenantApi {
   }
 
   /// Get maintenance request details
+  @override
   Future<MaintenanceModel> getMaintenanceRequestDetails(
     int tenantId,
     int requestId,
@@ -305,6 +360,7 @@ class TenantApiService implements ITenantApi {
   }
 
   /// Create maintenance request
+  @override
   Future<int> createMaintenanceRequest(
     int tenantId,
     CreateMaintenanceRequest request,

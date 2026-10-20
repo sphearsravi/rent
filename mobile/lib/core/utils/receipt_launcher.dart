@@ -21,11 +21,18 @@ import '../../l10n/app_localizations.dart';
 ///   param or routing through a signed-URL endpoint.
 class ReceiptLauncher {
   static Future<void> open(BuildContext context, int paymentId) async {
+    // Resolve everything that needs `context` BEFORE the first await — using
+    // the BuildContext across async gaps can hit a disposed widget.
     final messenger = ScaffoldMessenger.of(context);
+    final l = AppLocalizations.of(context)!;
+    // Same language rule as the invoice PDF.
+    final culture =
+        Localizations.localeOf(context).languageCode.startsWith('ar') ? 'ar' : 'en';
+    final path = '/payments/$paymentId/receipt.pdf?culture=$culture';
 
     try {
       if (kIsWeb) {
-        final uri = Uri.parse('${AppConstants.baseUrl}/payments/$paymentId/receipt.pdf');
+        final uri = Uri.parse('${AppConstants.baseUrl}$path');
         await launchUrl(uri, webOnlyWindowName: '_blank');
         return;
       }
@@ -34,7 +41,7 @@ class ReceiptLauncher {
       await storage.init();
       final token = await storage.getToken();
       if (token == null || token.isEmpty) {
-        messenger.showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.sessionRelogin)));
+        messenger.showSnackBar(SnackBar(content: Text(l.sessionRelogin)));
         return;
       }
 
@@ -42,13 +49,13 @@ class ReceiptLauncher {
         baseUrl: AppConstants.baseUrl,
         responseType: ResponseType.bytes,
         headers: {'Authorization': 'Bearer $token'},
-      ));
+      ),);
 
-      final response = await dio.get('/payments/$paymentId/receipt.pdf');
+      final response = await dio.get(path);
       if (response.statusCode != 200 || response.data == null) {
         messenger.showSnackBar(SnackBar(
-          content: Text(AppLocalizations.of(context)!.receiptDownloadFailed(response.statusCode.toString())),
-        ));
+          content: Text(l.receiptDownloadFailed(response.statusCode.toString())),
+        ),);
         return;
       }
 
@@ -59,11 +66,11 @@ class ReceiptLauncher {
       final result = await OpenFilex.open(filePath);
       if (result.type != ResultType.done) {
         messenger.showSnackBar(SnackBar(
-          content: Text(AppLocalizations.of(context)!.pdfOpenFailed(result.message)),
-        ));
+          content: Text(l.pdfOpenFailed(result.message)),
+        ),);
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.receiptError(e.toString()))));
+      messenger.showSnackBar(SnackBar(content: Text(l.receiptError(e.toString()))));
     }
   }
 }

@@ -1,7 +1,7 @@
 {
   "@@locale": "en",
 
-  "appName": "VIIJAR Tenant",
+  "appName": "Alrtam",
   "@appName": { "description": "Application display name" },
 
   "loginTitle": "Sign In",
@@ -71,6 +71,34 @@
   "dashboardMaintenanceTitle": "Maintenance Requests",
   "dashboardNewRequest": "New Request",
   "dashboardNoMaintenance": "No pending maintenance requests",
+
+  "dashboardAmountDue": "Amount due",
+  "dashboardAllPaidUp": "You're all paid up",
+  "dashboardAllPaidUpBody": "No outstanding invoices — nothing to pay right now.",
+  "dashboardOverdueChip": "{count} overdue",
+  "@dashboardOverdueChip": { "placeholders": { "count": { "type": "int" } } },
+  "dashboardNextPaymentDue": "Next payment due",
+  "dashboardDueToday": "Due today",
+  "dashboardDueInDays": "Due in {days} days",
+  "@dashboardDueInDays": { "placeholders": { "days": { "type": "int" } } },
+  "dashboardOverdueByDays": "Overdue by {days} days",
+  "@dashboardOverdueByDays": { "placeholders": { "days": { "type": "int" } } },
+  "dashboardPayNow": "Pay now",
+  "dashboardQuickActions": "Quick actions",
+  "dashboardActionPay": "Pay",
+  "dashboardActionRequest": "New request",
+  "dashboardActionLeases": "My leases",
+  "dashboardActionProfile": "Profile",
+  "dashboardStatOutstanding": "Outstanding",
+  "dashboardStatOverdue": "Overdue",
+  "dashboardStatOpenRequests": "Open requests",
+  "dashboardStatMonthlyRent": "Monthly rent",
+  "dashboardLeaseExpiring": "Lease expires in {days} days",
+  "@dashboardLeaseExpiring": { "placeholders": { "days": { "type": "int" } } },
+  "dashboardLeaseExpiringAction": "Contact office to renew",
+  "dashboardInvoicesDueOne": "1 invoice to pay",
+  "dashboardInvoicesDueMany": "{count} invoices to pay",
+  "@dashboardInvoicesDueMany": { "placeholders": { "count": { "type": "int" } } },
 
   "invoicesTitle": "Invoices",
   "invoicesFilterAll": "All",
@@ -177,7 +205,7 @@
   "@aboutVersion": {
     "placeholders": { "version": { "type": "String" } }
   },
-  "aboutTagline": "VIIJAR Rent Collection System - Tenant Mobile App",
+  "aboutTagline": "Alrtam Rent Collection System - Tenant Mobile App",
   "aboutDescription": "Manage your rentals, make payments, and submit maintenance requests all in one place.",
 
   "paymentViewReceipt": "View receipt",
@@ -210,6 +238,48 @@
   "paymentCash": "Cash Payment",
   "paymentCashDescription": "Pay at the management office. Quote the reference below so we apply your cash to the right invoice.",
   "paymentCashOfficeHours": "Office hours: Sun–Thu, 9 AM – 5 PM. A receipt is issued once the payment is verified.",
+  "paymentCashRequest": "Notify office — I'll pay cash",
+  "paymentCashRequestSuccess": "The office has been notified. Pay at the counter and staff will confirm it.",
+  "paymentCashRequestFailed": "Couldn't send the cash request. Please try again.",
+  "paymentCashRequestTitle": "Pay cash at the office",
+  "paymentCashRequestIntro": "Tell the office how much you will bring. You can pay part of the balance now and the rest later.",
+  "paymentCashRequestAmountLabel": "Amount I will pay (KWD)",
+  "paymentCashRequestAmountInvalid": "Enter an amount between 0.001 and {balance} KWD",
+  "@paymentCashRequestAmountInvalid": {
+    "placeholders": {
+      "balance": { "type": "String" }
+    }
+  },
+  "paymentCashRequestPartialHint": "Remaining after this payment: {remaining} KWD",
+  "@paymentCashRequestPartialHint": {
+    "placeholders": {
+      "remaining": { "type": "String" }
+    }
+  },
+  "paymentCashRequestFullBalance": "Full balance",
+  "paymentCashRequestConfirm": "Notify office",
+  "errorInvalidCredentials": "Invalid Civil ID or password.",
+  "statusPendingVerification": "Pending verification",
+  "maintCatPlumbing": "Plumbing",
+  "maintCatElectrical": "Electrical",
+  "maintCatHvac": "Air conditioning (HVAC)",
+  "maintCatAppliance": "Appliance",
+  "maintCatStructural": "Structural",
+  "maintCatOther": "Other",
+  "maintPrioLow": "Low",
+  "maintPrioMedium": "Medium",
+  "maintPrioHigh": "High",
+  "maintPrioEmergency": "Emergency",
+  "maintenanceSubmitFailed": "Couldn't submit the request. Please try again.",
+  "dashboardBalanceUnavailable": "Couldn't load your balance",
+  "dashboardBalanceUnavailableBody": "Check your connection and pull down to refresh.",
+  "paymentChooseMethodButton": "Choose payment method",
+  "paymentForInvoice": "Payment for invoice #{id}",
+  "@paymentForInvoice": { "placeholders": { "id": { "type": "String" } } },
+  "paymentAmountDueLabel": "Amount due",
+  "payOldestFirstTitle": "Pay your oldest invoice first",
+  "payOldestFirstGoTo": "Go to invoice #{id}",
+  "@payOldestFirstGoTo": { "placeholders": { "id": { "type": "String" } } },
   "paymentNoPendingInvoices": "No Pending Invoices",
   "paymentNoPendingInvoicesBody": "You don't have any unpaid invoices at the moment.",
   "paymentErrorLoadingInvoices": "Error loading invoices",
@@ -289,5 +359,19 @@
   "startWithInvoiceHint": "Start with invoice #{id}. The remaining {count} will unlock once it's fully paid.",
   "@startWithInvoiceHint": { "placeholders": { "id": { "type": "String" }, "count": { "type": "String" } } },
   "payInvoiceFirst": "Pay invoice #{id} first",
-  "@payInvoiceFirst": { "placeholders": { "id": { "type": "String" } } }
+  "@payInvoiceFirst": { "placeholders": { "id": { "type": "String" } } },
+  "legalCase": "Legal case",
+  "legalCaseNextHearing": "Next hearing: {date}",
+  "@legalCaseNextHearing": { "placeholders": { "date": { "type": "String" } } },
+  "caseStatusOpen": "Open",
+  "caseStatusHearing": "Hearing",
+  "caseStatusWon": "Won",
+  "caseStatusLost": "Lost",
+  "caseStatusSettled": "Settled",
+  "caseStatusWithdrawn": "Withdrawn",
+  "caseStatusClosed": "Closed",
+  "caseTypeEviction": "Eviction",
+  "caseTypeNonPayment": "Non-payment",
+  "caseTypeDamages": "Damages",
+  "caseTypeOther": "Other"
 }

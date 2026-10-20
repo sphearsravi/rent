@@ -88,6 +88,7 @@ public class PaymentVerificationService : IPaymentVerificationService
                 {
                     PaymentId = p.PaymentId,
                     ReceiptNumber = p.ReceiptNumber ?? $"RCPT-{p.PaymentId:D8}",
+                    ManualReceiptNumber = p.CashPayment != null ? p.CashPayment.ManualReceiptNumber : null,
                     PaymentDate = p.PaymentDate,
                     Amount = p.AmountPaid,
                     Status = p.Status.ToString(),

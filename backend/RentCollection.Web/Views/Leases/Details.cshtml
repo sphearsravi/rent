@@ -1,9 +1,13 @@
-﻿@model RentCollection.Core.Entities.Lease
+@model RentCollection.Core.Entities.Lease
+@inject RentCollection.Web.Services.ILookupService Lookups
 @using RentCollection.Core.Entities
 
 @{
-    ViewData["Title"] = "Lease Details";
-    // LEASE_AUDIT Flaw #14 Ã¢â‚¬” date-only math via shared helper.
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var tenantName = $"{Model.Tenant?.FirstName} {Model.Tenant?.LastName}".Trim();
+    ViewData["Title"] = $"{L["Lease"].Value} #{Model.LeaseId}";
+
+    // LEASE_AUDIT Flaw #14 - date-only math via shared helper.
     var daysRemaining = RentCollection.Core.Leases.LeaseMath.DaysRemaining(Model.LeaseEndDate);
     var isExpiring = daysRemaining <= 30 && daysRemaining >= 0;
     var isExpired = daysRemaining < 0;
@@ -14,24 +18,136 @@
     var canTerminate = Model.Status == LeaseStatuses.Active;
     var canTransfer  = Model.Status == LeaseStatuses.Active;
     var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
+
+    // Lifecycle stepper: Created → Deposit → Active → Closed.
+    var st = Model.Status;
+    var hasDeposit = Model.SecurityDeposit > 0;
+    var depositDone = !hasDeposit || Model.DepositInvoiced;
+    var isActive = st == LeaseStatuses.Active;
+    var isPending = st == LeaseStatuses.Pending;
+    var isClosedStatus = st == LeaseStatuses.Terminated || st == LeaseStatuses.Renewed || st == LeaseStatuses.Expired;
+    string closedLabel = st switch
+    {
+        "Terminated" => L["Terminated"].Value,
+        "Renewed" => L["Renewed"].Value,
+        "Expired" => L["Expired"].Value,
+        _ => L["Ends"].Value,
+    };
+    string closedValue = st switch
+    {
+        "Terminated" => Model.TerminationDate?.ToString("dd MMM yyyy", inv) ?? "—",
+        "Renewed" => Model.RenewedToLeaseId.HasValue ? $"→ #{Model.RenewedToLeaseId}" : "—",
+        _ => Model.LeaseEndDate.ToString("dd MMM yyyy", inv),
+    };
+    string closedSub = st switch
+    {
+        "Terminated" => Model.TerminationReason ?? "",
+        "Expired" => L["Renew or terminate"].Value,
+        "Renewed" => L["Successor lease created"].Value,
+        _ => isExpired ? $"{Math.Abs(daysRemaining)} {L["days ago"].Value}" : $"{daysRemaining} {L["days left"].Value}",
+    };
+
+    // Invoices / outstanding on this lease (loaded by the controller's Include).
+    var invoices = (Model.Invoices ?? new List<Invoice>()).OrderByDescending(i => i.InvoiceDate).ThenByDescending(i => i.InvoiceId).ToList();
+    var outstanding = invoices.Where(i => i.Status != "Paid" && i.Status != "Cancelled").Sum(i => Math.Max(0m, i.TotalAmount - i.PaidAmount));
+    var unpaidCount = invoices.Count(i => i.Status != "Paid" && i.Status != "Cancelled" && (i.TotalAmount - i.PaidAmount) > 0);
+    var payments = (Model.Payments ?? new List<Payment>()).OrderByDescending(p => p.PaymentDate).ToList();
+
+    string StatusChip(string s) => s switch
+    {
+        "Active" => "lp-chip-green",
+        "Pending" => "lp-chip-amber",
+        "Expired" => "lp-chip-red",
+        "Terminated" => "lp-chip-red",
+        "Renewed" => "lp-chip-blue",
+        _ => "lp-chip-grey",
+    };
+    string InvoiceChip(string s) => s switch
+    {
+        "Paid" => "lp-chip-green",
+        "Pending" => "lp-chip-amber",
+        "Overdue" => "lp-chip-red",
+        "PartiallyPaid" or "Partially Paid" => "lp-chip-blue",
+        _ => "lp-chip-grey",
+    };
+
+    var legalCase = ViewBag.LegalCase as LegalCase;
+    var caseOpen = legalCase != null && legalCase.IsOpen;
+    string CaseChip(string s) => s switch
+    {
+        LegalCaseStatuses.Won or LegalCaseStatuses.Settled => "lp-chip-green",
+        LegalCaseStatuses.Lost => "lp-chip-red",
+        LegalCaseStatuses.Withdrawn or LegalCaseStatuses.Closed => "lp-chip-grey",
+        _ => "lp-chip-amber"
+    };
+
+    var recent = (ViewBag.RecentEvents as List<RentCollection.Core.Entities.AuditLog>)
+                 ?? new List<RentCollection.Core.Entities.AuditLog>();
+
+    var subtitle = string.Join(" · ", new[] {
+        Model.Unit?.Property?.PropertyName,
+        Model.Unit == null ? null : $"{L["Unit"].Value} {Model.Unit.UnitNumber}",
+        $"{Model.LeaseStartDate.ToString("dd MMM yyyy", inv)} → {Model.LeaseEndDate.ToString("dd MMM yyyy", inv)}",
+    }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    var actions =
+        "<a class=\"lp-btn\" href=\"/Leases/History/" + Model.LeaseId + "\"><i class=\"fas fa-clock-rotate-left\"></i> " + L["History"].Value + "</a>" +
+        "<a class=\"lp-btn\" href=\"/Invoices?leaseId=" + Model.LeaseId + "\"><i class=\"fas fa-file-invoice-dollar\"></i> " + L["Invoices"].Value + "</a>" +
+        "<a class=\"lp-btn\" href=\"/CashPayment/Record?tenantId=" + Model.TenantId + "\"><i class=\"fas fa-money-bill\"></i> " + L["Record cash"].Value + "</a>";
+    if (!isClosedStatus)
+    {
+        actions += "<a class=\"lp-btn lp-btn-primary\" href=\"/Leases/Edit/" + Model.LeaseId + "\"><i class=\"fas fa-pen\"></i> " + L["Edit"].Value + "</a>";
+    }
 }
 
-<div class="container-fluid">
-    <div class="page-header">
-        <div>
-            <h1>@L["Lease Details"]</h1>
-            <p class="text-muted">@L["Complete lease agreement information"]</p>
+<div class="lp-page">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = $"{L["Lease"].Value} #{Model.LeaseId} — {tenantName}",
+        ["Subtitle"] = subtitle,
+        ["Crumbs"] = new (string label, string? href)[] { (L["Admin"].Value, "/Dashboard"), (L["Leases"].Value, "/Leases"), ($"#{Model.LeaseId}", null) },
+        ["ActionsHtml"] = Html.Raw(actions)
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <div class="lease-lifecycle" aria-label="@(L["Lease lifecycle"].Value)">
+        <div class="ll-step done">
+            <span class="ll-dot"><i class="fas fa-check"></i></span>
+            <div>
+                <div class="ll-label">@L["Created"]</div>
+                <div class="ll-value">@Model.CreatedDate.ToString("dd MMM yyyy", inv)</div>
+                <div class="ll-sub">@L["Lease"] #@Model.LeaseId</div>
+            </div>
         </div>
-        <div class="header-actions">
-            <a asp-action="History" asp-route-id="@Model.LeaseId" class="btn btn-secondary">
-                <i class="fas fa-clock-rotate-left"></i> @L["History"]
-            </a>
-            <a asp-action="Edit" asp-route-id="@Model.LeaseId" class="btn btn-primary">
-                <i class="fas fa-edit"></i> @L["Edit"]
-            </a>
-            <a asp-action="Index" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> @L["Back to List"]
-            </a>
+        <div class="ll-step @(hasDeposit ? (depositDone ? "done" : (isPending ? "current" : "")) : "done")">
+            <span class="ll-dot">@if (depositDone) { <i class="fas fa-check"></i> } else { <text>2</text> }</span>
+            <div>
+                <div class="ll-label">@L["Deposit"]</div>
+                <div class="ll-value">@(hasDeposit ? $"KWD {Model.SecurityDeposit.ToString("N3", inv)}" : L["No deposit"].Value)</div>
+                <div class="ll-sub">
+                    @if (!hasDeposit) { @L["Not required"] }
+                    else if (Model.DepositRefunded) { @L["Refunded"] }
+                    else if (Model.DepositInvoiced) { @L["Invoiced"] }
+                    else { @L["Issue on Activate"] }
+                </div>
+            </div>
+        </div>
+        <div class="ll-step @(isActive ? "current" : (isClosedStatus ? "done" : ""))">
+            <span class="ll-dot">@if (isActive || isClosedStatus) { <i class="fas fa-check"></i> } else { <text>3</text> }</span>
+            <div>
+                <div class="ll-label">@L["Active"]</div>
+                <div class="ll-value">@(isPending ? L["Awaiting activation"].Value : Model.LeaseStartDate.ToString("dd MMM yyyy", inv))</div>
+                <div class="ll-sub">@(isPending ? L["Unit is reserved for this tenant"].Value : L["Unit occupied, rent invoiced monthly"].Value)</div>
+            </div>
+        </div>
+        <div class="ll-step @(isClosedStatus ? (st == LeaseStatuses.Terminated ? "bad" : "done") : (isActive && isExpired ? "bad" : ""))">
+            <span class="ll-dot">@if (isClosedStatus) { <i class="fas fa-flag-checkered"></i> } else { <text>4</text> }</span>
+            <div>
+                <div class="ll-label">@closedLabel</div>
+                <div class="ll-value">@closedValue</div>
+                <div class="ll-sub">@closedSub</div>
+            </div>
         </div>
     </div>
 
@@ -39,7 +155,7 @@
     {
         @if (isExpired)
         {
-            <div class="alert alert-danger">
+            <div class="alert alert-danger ld-alert">
                 <i class="fas fa-exclamation-triangle"></i>
                 <div>
                     <strong>@L["Lease Expired!"]</strong>
@@ -49,7 +165,7 @@
         }
         else if (isExpiring)
         {
-            <div class="alert alert-warning">
+            <div class="alert alert-warning ld-alert">
                 <i class="fas fa-hourglass-half"></i>
                 <div>
                     <strong>@L["Lease Expiring Soon!"]</strong>
@@ -59,900 +175,540 @@
         }
     }
 
-    <div class="details-grid">
-        <div class="info-card">
-            <div class="card-header">
-                <h3><i class="fas fa-user"></i> @L["Tenant Information"]</h3>
-            </div>
-            <div class="card-body">
-                <div class="info-row">
-                    <span class="info-label">@L["Full Name"]</span>
-                    <span class="info-value">@Model.Tenant.FirstName @Model.Tenant.LastName</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Email"]</span>
-                    <span class="info-value"><a href="mailto:@Model.Tenant.Email">@Model.Tenant.Email</a></span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Phone"]</span>
-                    <span class="info-value"><a href="tel:@Model.Tenant.Phone">@Model.Tenant.Phone</a></span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Status"]</span>
-                    <span class="info-value">
-                        @if (Model.Tenant.Status == "Active")
-                        {
-                            <span class="badge badge-success">@L["Active"]</span>
-                        }
-                        else
-                        {
-                            <span class="badge badge-danger">@L["Inactive"]</span>
-                        }
-                    </span>
-                </div>
-            </div>
-        </div>
+    @if (TempData["CaseSaved"] != null)
+    {
+        <div class="alert alert-success ld-alert"><i class="fas fa-check-circle"></i><div>@TempData["CaseSaved"]</div></div>
+    }
 
-        <div class="info-card">
-            <div class="card-header">
-                <h3><i class="fas fa-building"></i> @L["Property & Unit"]</h3>
-            </div>
-            <div class="card-body">
-                <div class="info-row">
-                    <span class="info-label">@L["Property"]</span>
-                    <span class="info-value">@Model.Unit.Property.PropertyName</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Address"]</span>
-                    <span class="info-value">@Model.Unit.Property.Address</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Unit Number"]</span>
-                    <span class="info-value">@Model.Unit.UnitNumber</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Unit Type"]</span>
-                    <span class="info-value">@Model.Unit.UnitType</span>
-                </div>
-                @if (Model.Unit.Bedrooms.HasValue)
-                {
-                    <div class="info-row">
-                        <span class="info-label">@L["Bedrooms"]</span>
-                        <span class="info-value">@Model.Unit.Bedrooms</span>
-                    </div>
-                }
-                @if (Model.Unit.Bathrooms.HasValue)
-                {
-                    <div class="info-row">
-                        <span class="info-label">@L["Bathrooms"]</span>
-                        <span class="info-value">@Model.Unit.Bathrooms</span>
-                    </div>
-                }
-            </div>
+    @* ── KPI strip ── *@
+    <div class="od od-grid-kpi lp-kpi-5">
+        <div class="od-card od-kpi-hero">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Monthly rent"]</span></div>
+            <div class="od-kpi-value">@Model.MonthlyRent.ToString("N3", inv) <small>KWD</small></div>
+            <div class="od-kpi-sub">@L["Day"] @Model.PaymentDueDay @L["of each month"]</div>
         </div>
-
-        <div class="info-card">
-            <div class="card-header">
-                <h3><i class="fas fa-calendar-alt"></i> @L["Lease Period"]</h3>
-            </div>
-            <div class="card-body">
-                <div class="info-row">
-                    <span class="info-label">@L["Start Date"]</span>
-                    <span class="info-value">@Model.LeaseStartDate.ToString("MMMM dd, yyyy")</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["End Date"]</span>
-                    <span class="info-value">@Model.LeaseEndDate.ToString("MMMM dd, yyyy")</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Duration"]</span>
-                    <span class="info-value">@((Model.LeaseEndDate - Model.LeaseStartDate).Days) @L["days"]</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Days Remaining"]</span>
-                    <span class="info-value">
-                        @if (daysRemaining >= 0)
-                        {
-                            <span>@daysRemaining @L["days"]</span>
-                        }
-                        else
-                        {
-                            <span class="text-danger">@L["Expired ("]@Math.Abs(daysRemaining)@L[" days ago)"]</span>
-                        }
-                    </span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Lease Type"]</span>
-                    <span class="info-value">@Model.LeaseType</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Status"]</span>
-                    <span class="info-value">
-                        @if (Model.Status == "Active")
-                        {
-                            <span class="badge badge-success">@L["Active"]</span>
-                        }
-                        else if (Model.Status == "Expired")
-                        {
-                            <span class="badge badge-danger">@L["Expired"]</span>
-                        }
-                        else
-                        {
-                            <span class="badge badge-secondary">@Model.Status</span>
-                        }
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <div class="info-card">
-            <div class="card-header">
-                <h3><i class="fas fa-dollar-sign"></i> @L["Financial Details"]</h3>
-            </div>
-            <div class="card-body">
-                <div class="info-row">
-                    <span class="info-label">@L["Monthly Rent"]</span>
-                    <span class="info-value highlight-amount">@("KWD " + Model.MonthlyRent.ToString("N3"))</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">@L["Security Deposit"]</span>
-                    <span class="info-value">
-                        @("KWD " + Model.SecurityDeposit.ToString("N3"))
-                        @* Deposit lifecycle pill Ã¢â‚¬” Pending / Invoiced / Refunded *@
-                        @if (Model.SecurityDeposit > 0)
-                        {
-                            if (Model.DepositRefunded)
-                            {
-                                <span class="badge badge-secondary" style="margin-left:0.5rem;">
-                                    <i class="fas fa-rotate-left"></i>
-                                    @L["Refunded"] @(Model.DepositRefundedAmount?.ToString("N3") ?? Model.SecurityDeposit.ToString("N3")) KWD
-                                </span>
-                            }
-                            else if (Model.DepositInvoiced)
-                            {
-                                <span class="badge badge-success" style="margin-left:0.5rem;">
-                                    <i class="fas fa-check-circle"></i> @L["Invoiced"]
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="badge badge-warning" style="margin-left:0.5rem;">
-                                    <i class="fas fa-clock"></i> @L["Not yet invoiced"]
-                                </span>
-                            }
-                        }
-                    </span>
-                </div>
-                @if (Model.InsuranceAmount > 0 && Model.InsuranceFrequency != "None")
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Security deposit"]</span></div>
+            <div class="od-kpi-value">@Model.SecurityDeposit.ToString("N3", inv) <small>KWD</small></div>
+            <div class="od-kpi-sub">
+                @* Deposit lifecycle pill - Pending / Invoiced / Refunded *@
+                @if (Model.SecurityDeposit > 0)
                 {
-                    <div class="info-row">
-                        <span class="info-label">@L["Insurance Premium"]</span>
-                        <span class="info-value">
-                            @("KWD " + Model.InsuranceAmount.ToString("N3"))
-                            <span class="badge badge-info" style="margin-left:0.5rem;">
-                                <i class="fas fa-umbrella"></i> @Model.InsuranceFrequency
-                            </span>
-                        </span>
-                    </div>
-                    @if (Model.InsuranceStartDate.HasValue)
+                    if (Model.DepositRefunded)
                     {
-                        <div class="info-row">
-                            <span class="info-label">@L["Insurance Start"]</span>
-                            <span class="info-value">@Model.InsuranceStartDate.Value.ToString("MMMM dd, yyyy")</span>
-                        </div>
+                        <span class="lp-chip lp-chip-grey"><i class="fas fa-rotate-left"></i> @L["Refunded"] @(Model.DepositRefundedAmount?.ToString("N3", inv) ?? Model.SecurityDeposit.ToString("N3", inv)) KWD</span>
+                    }
+                    else if (Model.DepositInvoiced)
+                    {
+                        <span class="lp-chip lp-chip-green"><i class="fas fa-check-circle"></i> @L["Invoiced"]</span>
+                    }
+                    else
+                    {
+                        <span class="lp-chip lp-chip-amber"><i class="fas fa-clock"></i> @L["Not yet invoiced"]</span>
                     }
                 }
-                <div class="info-row">
-                    <span class="info-label">@L["Payment Due Date"]</span>
-                    <span class="info-value">@L["Day"] @Model.PaymentDueDay @L["of each month"]</span>
-                </div>
-                @if (Model.LateFeeAmount.HasValue)
+                else
                 {
-                    <div class="info-row">
-                        <span class="info-label">@L["Late Fee Amount"]</span>
-                        <span class="info-value">@("KWD " + Model.LateFeeAmount.Value.ToString("N3"))</span>
-                    </div>
-                }
-                @if (Model.LateFeeGracePeriod.HasValue)
-                {
-                    <div class="info-row">
-                        <span class="info-label">@L["Late Fee Grace Period"]</span>
-                        <span class="info-value">@Model.LateFeeGracePeriod @L["days"]</span>
-                    </div>
-                }
-                <div class="info-row">
-                    <span class="info-label">@L["Created Date"]</span>
-                    <span class="info-value">@Model.CreatedDate.ToString("MMMM dd, yyyy")</span>
-                </div>
-                @if (Model.ModifiedDate.HasValue)
-                {
-                    <div class="info-row">
-                        <span class="info-label">@L["Last Modified"]</span>
-                        <span class="info-value">@Model.ModifiedDate.Value.ToString("MMMM dd, yyyy")</span>
-                    </div>
+                    @L["No deposit"]
                 }
             </div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Days remaining"]</span></div>
+            @if (isExpired)
+            {
+                <div class="od-kpi-value od-count-red">@Math.Abs(daysRemaining)</div>
+                <div class="od-kpi-sub"><span class="lp-chip lp-chip-red">@L["past end"]</span> @L["Expired ("]@Math.Abs(daysRemaining)@L[" days ago)"]</div>
+            }
+            else
+            {
+                <div class="od-kpi-value" style="@(isExpiring ? "color:#b45309" : "")">@daysRemaining</div>
+                <div class="od-kpi-sub">@L["until"] @Model.LeaseEndDate.ToString("dd MMM yyyy", inv)@if (isExpiring) { <text> · </text><span class="lp-chip lp-chip-amber">@daysRemaining @L["days"]</span> }</div>
+            }
+        </div>
+        <a class="od-card od-card-link" href="/Invoices?leaseId=@Model.LeaseId">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Outstanding"]</span></div>
+            <div class="od-kpi-value @(outstanding > 0 ? "od-count-red" : "")">@outstanding.ToString("N3", inv) <small>KWD</small></div>
+            <div class="od-kpi-sub">@(unpaidCount > 0 ? $"{unpaidCount} {L["unpaid invoices"].Value}" : L["No unpaid invoices"].Value)</div>
+        </a>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Status"]</span></div>
+            <div class="od-kpi-value"><span class="lp-chip @StatusChip(Model.Status)" style="font-size:0.8rem">@L[Model.Status]</span></div>
+            <div class="od-kpi-sub">@L["Lease Type"]: @L[Model.LeaseType]</div>
         </div>
     </div>
 
-    @if (Model.Payments != null && Model.Payments.Any())
-    {
-        <div class="info-card">
-            <div class="card-header">
-                <h3><i class="fas fa-money-bill-wave"></i> @L["Payment History"]</h3>
-            </div>
-            <div class="card-body">
-                <table class="details-table">
-                    <thead>
-                        <tr>
-                            <th>@L["Payment Date"]</th>
-                            <th>@L["Amount"]</th>
-                            <th>@L["Method"]</th>
-                            <th>@L["Status"]</th>
-                            <th>@L["Reference"]</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var payment in Model.Payments.OrderByDescending(p => p.PaymentDate))
+    <div class="pd-grid">
+        <div class="pd-main">
+
+            @* ── Tenant + Property/Unit ── *@
+            <div class="ld-pair">
+                <div class="pd-card">
+                    <div class="pd-card-head"><i class="fas fa-user"></i> @L["Tenant Information"]</div>
+                    <dl class="pd-dl">
+                        <div><dt>@L["Full Name"]</dt><dd><a class="lp-link" href="/Tenants/Details/@Model.TenantId">@tenantName</a></dd></div>
+                        @if (!string.IsNullOrWhiteSpace(Model.Tenant?.PACINumber))
                         {
-                            <tr>
-                                <td>@payment.PaymentDate.ToString("MMM dd, yyyy")</td>
-                                <td class="amount">@("KWD " + payment.AmountPaid.ToString("N3"))</td>
-                                <td>@payment.PaymentMethod</td>
-                                <td>
-                                    @if (payment.PaymentStatus == "Completed")
-                                    {
-                                        <span class="badge badge-success">@L["Completed"]</span>
-                                    }
-                                    else if (payment.PaymentStatus == "Pending")
-                                    {
-                                        <span class="badge badge-warning">@L["Pending"]</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge badge-danger">@L["Failed"]</span>
-                                    }
-                                </td>
-                                <td>@payment.TransactionReference</td>
-                            </tr>
+                            <div><dt>@L["PACI Number"]</dt><dd class="lp-mono">@Model.Tenant!.PACINumber</dd></div>
                         }
-                    </tbody>
-                </table>
-
-                @if (Model.Payments.Any())
-                {
-                    <div class="payment-summary">
-                        <div class="summary-item">
-                            <span class="summary-label">@L["Total Payments:"]</span>
-                            <span class="summary-value">@Model.Payments.Count()</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">@L["Total Amount Paid:"]</span>
-                            <span class="summary-value highlight-amount">@("KWD " + Model.Payments.Where(p => p.PaymentStatus == "Completed").Sum(p => p.AmountPaid).ToString("N3"))</span>
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
-    }
-
-    @if (Model.Invoices != null && Model.Invoices.Any())
-    {
-        <div class="info-card">
-            <div class="card-header">
-                <h3><i class="fas fa-file-invoice-dollar"></i> @L["Invoice History"]</h3>
-            </div>
-            <div class="card-body">
-                <table class="details-table">
-                    <thead>
-                        <tr>
-                            <th>@L["Invoice ID"]</th>
-                            <th>@L["Issue Date"]</th>
-                            <th>@L["Due Date"]</th>
-                            <th>@L["Amount"]</th>
-                            <th>@L["Status"]</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var invoice in Model.Invoices.OrderByDescending(i => i.InvoiceDate))
-                        {
-                            <tr>
-                                <td>@invoice.InvoiceId</td>
-                                <td>@invoice.InvoiceDate.ToString("MMM dd, yyyy")</td>
-                                <td>@invoice.DueDate.ToString("MMM dd, yyyy")</td>
-                                <td class="amount">@("KWD " + invoice.TotalAmount.ToString("N3"))</td>
-                                <td>
-                                    @if (invoice.Status == "Paid")
-                                    {
-                                        <span class="badge badge-success">@L["Paid"]</span>
-                                    }
-                                    else if (invoice.Status == "Pending")
-                                    {
-                                        <span class="badge badge-warning">@L["Pending"]</span>
-                                    }
-                                    else if (invoice.Status == "Overdue")
-                                    {
-                                        <span class="badge badge-danger">@L["Overdue"]</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge badge-secondary">@invoice.Status</span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    }
-
-    @* Recent activity preview (Lease History Phase D). Last 3 events; full
-       timeline is one click away via the History button in the header. *@
-    @{
-        var recent = (ViewBag.RecentEvents as List<RentCollection.Core.Entities.AuditLog>)
-                     ?? new List<RentCollection.Core.Entities.AuditLog>();
-    }
-    @if (recent.Any())
-    {
-        <div class="info-card recent-activity">
-            <div class="info-card-header">
-                <h2 class="info-card-title"><i class="fas fa-clock-rotate-left"></i> @L["Recent activity"]</h2>
-                <a asp-action="History" asp-route-id="@Model.LeaseId" class="info-card-link">
-                    @L["Full history"] <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-            <ul class="recent-list">
-                @foreach (var ev in recent)
-                {
-                    var icon = ev.Action switch
-                    {
-                        "Created" => "fa-circle-plus",
-                        "Edited" => "fa-pen",
-                        "Renewed" => "fa-arrows-rotate",
-                        "Terminated" => "fa-circle-stop",
-                        "Transferred" => "fa-arrow-right-arrow-left",
-                        "Expired" => "fa-clock",
-                        _ => "fa-circle",
-                    };
-                    <li class="recent-item">
-                        <i class="fas @icon"></i>
-                        <div class="recent-body">
-                            <strong>@ev.Action</strong>
-                            <span class="recent-actor">@L["by"] @ev.ByUser</span>
-                        </div>
-                        <span class="recent-when" title="@ev.At.ToString("u")">@ev.At.ToString("dd MMM yyyy")</span>
-                    </li>
-                }
-            </ul>
-        </div>
-    }
-
-    @* LEASE_AUDIT Flaw #10 Ã¢â‚¬” the kebab on /Leases links to #renew / #terminate
-       / #transfer here. Those used to be dead anchors. Three lifecycle
-       cards live below, anchored correctly and visible only when the
-       transition is legal and the caller has AnyAdmin (matches the
-       controller's [Authorize] on the matching POSTs). *@
-    @if (isAdmin && (canActivate || canRenew || canTerminate || canTransfer))
-    {
-        <div class="lifecycle-grid">
-
-            @if (canActivate)
-            {
-                <div class="info-card lifecycle-card" id="activate">
-                    <div class="info-card-header">
-                        <h2 class="info-card-title"><i class="fas fa-circle-play"></i> @L["Activate lease"]</h2>
-                    </div>
-                    <p style="font-size:0.9rem; color:#475569; margin:0.25rem 0 0.75rem;">
-                        @L["Flips this lease from"] <strong>@L["Pending"]</strong> @L["to"] <strong>@L["Active"]</strong>.
-                        @if (Model.SecurityDeposit > 0 && !Model.DepositInvoiced)
-                        {
-                            <text>@L["A"] <strong>@L["Deposit invoice"]</strong> @L["for"] @Model.SecurityDeposit.ToString("0.000") @L["KWD is issued at the same time."]</text>
-                        }
-                        @if (Model.DepositInvoiced)
-                        {
-                            <text>@L["The deposit invoice has already been issued; activation will only flip the status."]</text>
-                        }
-                    </p>
-                    <form asp-action="Activate" method="post" class="lifecycle-form"
-                          onsubmit="return confirm('@(L["Activate this lease and issue the deposit invoice (if not already done)?"].Value)');">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@Model.LeaseId" />
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-circle-play"></i> @L["Activate"]</button>
-                    </form>
-                </div>
-            }
-
-            @if (canRenew)
-            {
-                <div class="info-card lifecycle-card" id="renew">
-                    <div class="info-card-header">
-                        <h2 class="info-card-title"><i class="fas fa-arrows-rotate"></i> @L["Renew lease"]</h2>
-                    </div>
-                    <form asp-action="Renew" method="post" class="lifecycle-form">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@Model.LeaseId" />
-                        <div class="form-row">
-                            <label>@L["New end date"] <span class="req">*</span></label>
-                            <input type="date" name="newEndDate" required
-                                   min="@(Model.LeaseEndDate.AddDays(1).ToString("yyyy-MM-dd"))" />
-                        </div>
-                        <div class="form-row">
-                            <label>@L["New start date"] <small>@L["(optional — default: day after current end, or today if past)"]</small></label>
-                            <input type="date" name="newStartDate" />
-                        </div>
-                        <div class="form-row">
-                            <label>@L["New monthly rent"] <small>@L["(optional — keeps current rent if blank)"]</small></label>
-                            <input type="number" step="0.001" min="0.001" name="newMonthlyRent"
-                                   placeholder="@Model.MonthlyRent.ToString("0.000")" />
-                        </div>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-circle-check"></i> @L["Renew"]</button>
-                    </form>
-                </div>
-            }
-
-            @if (canTerminate)
-            {
-                <div class="info-card lifecycle-card" id="terminate">
-                    <div class="info-card-header">
-                        <h2 class="info-card-title danger"><i class="fas fa-circle-stop"></i> @L["Terminate lease"]</h2>
-                    </div>
-                    <form asp-action="Terminate" method="post" class="lifecycle-form"
-                          onsubmit="return confirm('@(L["Terminate this lease and free its unit? This is irreversible — the lease becomes a closed historical record."].Value)');">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@Model.LeaseId" />
-                        <div class="form-row">
-                            <label>@L["Termination date"] <span class="req">*</span></label>
-                            <input type="date" name="terminationDate" required
-                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
-                        </div>
-                        <div class="form-row">
-                            <label>@L["Reason"]</label>
-                            <textarea name="reason" rows="2" placeholder="@(L["e.g. tenant moved out, breach of contract…"].Value)"></textarea>
-                        </div>
-                        <div class="form-row">
-                            <label>@L["Deposit refunded amount"] <small>@L["(0 if no refund)"]</small></label>
-                            <input type="number" step="0.001" min="0" name="depositRefundedAmount"
-                                   placeholder="@Model.SecurityDeposit.ToString("0.000")" />
-                        </div>
-                        <button type="submit" class="btn btn-danger"><i class="fas fa-circle-stop"></i> @L["Terminate"]</button>
-                    </form>
-                </div>
-            }
-
-            @if (canTransfer)
-            {
-                <div class="info-card lifecycle-card" id="transfer">
-                    <div class="info-card-header">
-                        <h2 class="info-card-title"><i class="fas fa-arrow-right-arrow-left"></i> @L["Transfer to another unit"]</h2>
-                    </div>
-                    <form asp-action="Transfer" method="post" class="lifecycle-form"
-                          onsubmit="return confirm('@(L["Transfer this tenant to the new unit? Old lease will be terminated; a new Active lease is opened on the target unit."].Value)');">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@Model.LeaseId" />
-                        <div class="form-row">
-                            <label>@L["Target unit"] <span class="req">*</span></label>
-                            @{
-                                dynamic? vacantUnits = ViewBag.VacantUnits;
+                        <div><dt>@L["Email"]</dt><dd>@if (!string.IsNullOrWhiteSpace(Model.Tenant?.Email)) { <a class="lp-link" href="mailto:@Model.Tenant!.Email">@Model.Tenant.Email</a> } else { <text>—</text> }</dd></div>
+                        <div><dt>@L["Phone"]</dt><dd>@if (!string.IsNullOrWhiteSpace(Model.Tenant?.Phone)) { <a class="lp-link" href="tel:@Model.Tenant!.Phone">@Model.Tenant.Phone</a> } else { <text>—</text> }</dd></div>
+                        <div><dt>@L["Status"]</dt><dd>
+                            @if (Model.Tenant?.Status == "Active")
+                            {
+                                <span class="lp-chip lp-chip-green">@L["Active"]</span>
                             }
-                            <select name="newUnitId" required>
-                                <option value="">@L["-- Select a vacant unit --"]</option>
-                                @if (vacantUnits != null)
+                            else
+                            {
+                                <span class="lp-chip lp-chip-red">@L["Inactive"]</span>
+                            }
+                        </dd></div>
+                    </dl>
+                </div>
+
+                <div class="pd-card">
+                    <div class="pd-card-head"><i class="fas fa-building"></i> @L["Property & Unit"]</div>
+                    <dl class="pd-dl">
+                        <div><dt>@L["Property"]</dt><dd>@if (Model.Unit?.Property != null) { <a class="lp-link" href="/Properties/Details/@Model.Unit.Property.PropertyId">@Model.Unit.Property.PropertyName</a> } else { <text>—</text> }</dd></div>
+                        <div><dt>@L["Address"]</dt><dd style="font-weight:500">@(string.IsNullOrWhiteSpace(Model.Unit?.Property?.Address) ? "—" : Model.Unit!.Property!.Address)</dd></div>
+                        <div><dt>@L["Unit Number"]</dt><dd>@if (Model.Unit != null) { <a class="lp-link" href="/Units/Details/@Model.UnitId">@Model.Unit.UnitNumber</a> } else { <text>—</text> }</dd></div>
+                        <div><dt>@L["Unit Type"]</dt><dd>@(string.IsNullOrWhiteSpace(Model.Unit?.UnitType) ? "—" : L[Model.Unit!.UnitType].Value)</dd></div>
+                        @if (Model.Unit?.Bedrooms != null)
+                        {
+                            <div><dt>@L["Bedrooms"]</dt><dd>@Model.Unit.Bedrooms</dd></div>
+                        }
+                        @if (Model.Unit?.Bathrooms != null)
+                        {
+                            <div><dt>@L["Bathrooms"]</dt><dd>@Model.Unit.Bathrooms</dd></div>
+                        }
+                    </dl>
+                </div>
+            </div>
+
+            @* ── Invoices ── *@
+            <section class="lp-table-wrap pd-section">
+                <div class="pd-section-head">
+                    <h2><i class="fas fa-file-invoice-dollar"></i> @L["Invoices"] <span class="lp-chip lp-chip-gold">@invoices.Count</span></h2>
+                    <div class="lp-row-actions">
+                        <a class="lp-btn" href="/Invoices?leaseId=@Model.LeaseId"><i class="fas fa-list"></i> @L["All invoices"]</a>
+                    </div>
+                </div>
+                @if (invoices.Count == 0)
+                {
+                    <div class="lp-empty" style="border:0"><i class="fas fa-file-invoice"></i><h3>@L["No invoices yet"]</h3><p>@L["Invoices are issued when the lease is activated and monthly thereafter."]</p></div>
+                }
+                else
+                {
+                    <table class="lp-table">
+                        <thead>
+                            <tr>
+                                <th>@L["Invoice"]</th>
+                                <th>@L["Issue Date"]</th>
+                                <th>@L["Due Date"]</th>
+                                <th class="lp-num">@L["Amount (KWD)"]</th>
+                                <th class="lp-num">@L["Paid (KWD)"]</th>
+                                <th class="lp-num">@L["Balance (KWD)"]</th>
+                                <th>@L["Status"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var invoice in invoices)
+                            {
+                                var balance = Math.Max(0m, invoice.TotalAmount - invoice.PaidAmount);
+                                <tr>
+                                    <td data-label="@L["Invoice"]"><a class="lp-link lp-primary lp-mono" href="/Invoices/Details/@invoice.InvoiceId">INV-@invoice.InvoiceId.ToString("D6", inv)</a><span class="lp-sub">@L[invoice.InvoiceType]</span></td>
+                                    <td data-label="@L["Issue Date"]" style="white-space:nowrap">@invoice.InvoiceDate.ToString("dd MMM yyyy", inv)</td>
+                                    <td data-label="@L["Due Date"]" style="white-space:nowrap">@invoice.DueDate.ToString("dd MMM yyyy", inv)</td>
+                                    <td class="lp-num" data-label="@L["Amount (KWD)"]"><span class="lp-amount">@invoice.TotalAmount.ToString("N3", inv)</span></td>
+                                    <td class="lp-num" data-label="@L["Paid (KWD)"]"><span class="@(invoice.PaidAmount > 0 ? "lp-amount lp-amount-good" : "lp-amount-muted")">@invoice.PaidAmount.ToString("N3", inv)</span></td>
+                                    <td class="lp-num" data-label="@L["Balance (KWD)"]"><span class="@(balance > 0 ? "lp-amount lp-amount-bad" : "lp-amount-muted")">@balance.ToString("N3", inv)</span></td>
+                                    <td data-label="@L["Status"]"><span class="lp-chip @InvoiceChip(invoice.Status)">@L[invoice.Status]</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </section>
+
+            @* ── Payments ── *@
+            @if (payments.Count > 0)
+            {
+                <section class="lp-table-wrap pd-section">
+                    <div class="pd-section-head">
+                        <h2><i class="fas fa-money-bill-wave"></i> @L["Payment History"] <span class="lp-chip lp-chip-gold">@payments.Count</span></h2>
+                        <div class="lp-chips">
+                            <span class="lp-result-count">@L["Total Amount Paid:"] <b class="lp-amount lp-amount-good">@payments.Where(p => p.PaymentStatus == "Completed").Sum(p => p.AmountPaid).ToString("N3", inv) KWD</b></span>
+                        </div>
+                    </div>
+                    <table class="lp-table">
+                        <thead>
+                            <tr>
+                                <th>@L["Payment Date"]</th>
+                                <th class="lp-num">@L["Amount (KWD)"]</th>
+                                <th>@L["Method"]</th>
+                                <th>@L["Status"]</th>
+                                <th>@L["Reference"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var payment in payments)
+                            {
+                                var psRaw = payment.PaymentStatus ?? "";
+                                var (psCls, psLabel) = psRaw switch
                                 {
-                                    @foreach (var u in vacantUnits)
-                                    {
-                                        <option value="@u.UnitId">@u.Label</option>
+                                    "Completed" or "Approved" => ("lp-chip-green", L[psRaw].Value),
+                                    "Pending" or "PendingVerification" or "Pending Verification" => ("lp-chip-amber", L["Pending verification"].Value),
+                                    "Rejected" or "Failed" or "Cancelled" => ("lp-chip-red", L[psRaw].Value),
+                                    _ => ("lp-chip-grey", psRaw)
+                                };
+                                <tr>
+                                    <td data-label="@L["Payment Date"]" style="white-space:nowrap">@payment.PaymentDate.ToString("dd MMM yyyy", inv)</td>
+                                    <td class="lp-num" data-label="@L["Amount (KWD)"]"><span class="lp-amount lp-amount-good">@payment.AmountPaid.ToString("N3", inv)</span></td>
+                                    <td data-label="@L["Method"]">@L[payment.PaymentMethod]</td>
+                                    <td data-label="@L["Status"]"><span class="lp-chip @psCls">@psLabel</span></td>
+                                    <td data-label="@L["Reference"]"><span class="lp-mono">@(string.IsNullOrWhiteSpace(payment.TransactionReference) ? "—" : payment.TransactionReference)</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </section>
+            }
+
+            @* LEASE_AUDIT Flaw #10 - the kebab on /Leases links to #renew / #terminate
+               / #transfer here. Lifecycle cards are anchored and visible only when the
+               transition is legal and the caller has AnyAdmin (matches the
+               controller's [Authorize] on the matching POSTs). *@
+            @if (isAdmin && (canActivate || canRenew || canTerminate || canTransfer))
+            {
+                <div class="lp-section-title"><h2>@L["Lifecycle actions"]</h2></div>
+                <div class="ld-actions">
+
+                    @if (canActivate)
+                    {
+                        <div class="pd-card" id="activate">
+                            <div class="pd-card-head"><i class="fas fa-circle-play"></i> @L["Activate lease"]</div>
+                            <p class="pd-note" style="padding-bottom:0">
+                                @L["Flips this lease from"] <strong>@L["Pending"]</strong> @L["to"] <strong>@L["Active"]</strong>.
+                                @if (Model.SecurityDeposit > 0 && !Model.DepositInvoiced)
+                                {
+                                    <text>@L["A"] <strong>@L["Deposit invoice"]</strong> @L["for"] @Model.SecurityDeposit.ToString("0.000", inv) @L["KWD is issued at the same time."]</text>
+                                }
+                                @if (Model.DepositInvoiced)
+                                {
+                                    <text>@L["The deposit invoice has already been issued; activation will only flip the status."]</text>
+                                }
+                            </p>
+                            <form asp-action="Activate" method="post" class="pd-form"
+                                  onsubmit="return confirm(@Json.Serialize(L["Activate this lease and issue the deposit invoice (if not already done)?"].Value));">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.LeaseId" />
+                                <div><button type="submit" class="lp-btn lp-btn-primary"><i class="fas fa-circle-play"></i> @L["Activate"]</button></div>
+                            </form>
+                        </div>
+                    }
+
+                    @if (canRenew)
+                    {
+                        <div class="pd-card" id="renew">
+                            <div class="pd-card-head"><i class="fas fa-arrows-rotate"></i> @L["Renew lease"]</div>
+                            <form asp-action="Renew" method="post" class="pd-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.LeaseId" />
+                                <div>
+                                    <label>@L["New end date"] <span class="ld-req">*</span></label>
+                                    <input type="date" name="newEndDate" required
+                                           min="@(Model.LeaseEndDate.AddDays(1).ToString("yyyy-MM-dd", inv))" />
+                                </div>
+                                <div>
+                                    <label>@L["New start date"]</label>
+                                    <input type="date" name="newStartDate" />
+                                    <small>@L["(optional — default: day after current end, or today if past)"]</small>
+                                </div>
+                                <div>
+                                    <label>@L["New monthly rent"]</label>
+                                    <input type="number" step="0.001" min="0.001" name="newMonthlyRent"
+                                           placeholder="@Model.MonthlyRent.ToString("0.000", inv)" />
+                                    <small>@L["(optional — keeps current rent if blank)"]</small>
+                                </div>
+                                <div><button type="submit" class="lp-btn lp-btn-primary"><i class="fas fa-circle-check"></i> @L["Renew"]</button></div>
+                            </form>
+                        </div>
+                    }
+
+                    @if (canTerminate)
+                    {
+                        <div class="pd-card pd-danger" id="terminate">
+                            <div class="pd-card-head"><i class="fas fa-circle-stop"></i> @L["Terminate lease"]</div>
+                            <form asp-action="Terminate" method="post" class="pd-form"
+                                  onsubmit="return confirm(@Json.Serialize(L["Terminate this lease and free its unit? This is irreversible — the lease becomes a closed historical record."].Value));">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.LeaseId" />
+                                <div>
+                                    <label>@L["Termination date"] <span class="ld-req">*</span></label>
+                                    <input type="date" name="terminationDate" required
+                                           value="@DateTime.Today.ToString("yyyy-MM-dd", inv)" />
+                                </div>
+                                <div>
+                                    <label>@L["Reason"]</label>
+                                    <textarea name="reason" rows="2" placeholder="@(L["e.g. tenant moved out, breach of contract…"].Value)"></textarea>
+                                </div>
+                                <div>
+                                    <label>@L["Deposit refunded amount"]</label>
+                                    <input type="number" step="0.001" min="0" name="depositRefundedAmount"
+                                           placeholder="@Model.SecurityDeposit.ToString("0.000", inv)" />
+                                    <small>@L["(0 if no refund)"]</small>
+                                </div>
+                                <div><button type="submit" class="lp-btn lp-btn-danger"><i class="fas fa-circle-stop"></i> @L["Terminate"]</button></div>
+                            </form>
+                        </div>
+                    }
+
+                    @if (canTransfer)
+                    {
+                        <div class="pd-card" id="transfer">
+                            <div class="pd-card-head"><i class="fas fa-arrow-right-arrow-left"></i> @L["Transfer to another unit"]</div>
+                            <form asp-action="Transfer" method="post" class="pd-form"
+                                  onsubmit="return confirm(@Json.Serialize(L["Transfer this tenant to the new unit? Old lease will be terminated; a new Active lease is opened on the target unit."].Value));">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.LeaseId" />
+                                <div>
+                                    <label>@L["Target unit"] <span class="ld-req">*</span></label>
+                                    @{
+                                        dynamic? vacantUnits = ViewBag.VacantUnits;
                                     }
+                                    <select name="newUnitId" required>
+                                        <option value="">@L["-- Select a vacant unit --"]</option>
+                                        @if (vacantUnits != null)
+                                        {
+                                            @foreach (var u in vacantUnits)
+                                            {
+                                                <option value="@u.UnitId">@u.Label</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>@L["Effective date"] <span class="ld-req">*</span></label>
+                                    <input type="date" name="effectiveDate" required
+                                           value="@DateTime.Today.ToString("yyyy-MM-dd", inv)" />
+                                </div>
+                                <div><button type="submit" class="lp-btn lp-btn-primary"><i class="fas fa-arrow-right-arrow-left"></i> @L["Transfer"]</button></div>
+                            </form>
+                        </div>
+                    }
+
+                </div>
+            }
+            else if ((canRenew || canTerminate || canTransfer) && !isAdmin)
+            {
+                <div class="alert alert-info ld-alert">
+                    <i class="fas fa-lock"></i>
+                    <div>
+                        <strong>@L["Admin only."]</strong>
+                        @L["Renew / Terminate / Transfer actions require Admin role."]
+                        @L["Operational managers can view leases but not run lifecycle transitions."]
+                    </div>
+                </div>
+            }
+        </div>
+
+        <aside class="pd-side">
+            @* ── Lease terms ── *@
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-file-contract"></i> @L["Lease terms"]</div>
+                <dl class="pd-dl">
+                    <div><dt>@L["Lease Type"]</dt><dd>@L[Model.LeaseType]</dd></div>
+                    <div><dt>@L["Start Date"]</dt><dd>@Model.LeaseStartDate.ToString("dd MMM yyyy", inv)</dd></div>
+                    <div><dt>@L["End Date"]</dt><dd>@Model.LeaseEndDate.ToString("dd MMM yyyy", inv)</dd></div>
+                    <div><dt>@L["Duration"]</dt><dd>@((Model.LeaseEndDate - Model.LeaseStartDate).Days) @L["days"]</dd></div>
+                    <div><dt>@L["Payment Due Date"]</dt><dd>@L["Day"] @Model.PaymentDueDay @L["of each month"]</dd></div>
+                    <div><dt>@L["Late Fee Amount"]</dt><dd>@(Model.LateFeeAmount.HasValue ? $"KWD {Model.LateFeeAmount.Value.ToString("N3", inv)}" : "—")</dd></div>
+                    <div><dt>@L["Late Fee Grace Period"]</dt><dd>@(Model.LateFeeGracePeriod.HasValue ? $"{Model.LateFeeGracePeriod} {L["days"].Value}" : "—")</dd></div>
+                    @if (Model.InsuranceAmount > 0 && Model.InsuranceFrequency != "None")
+                    {
+                        <div><dt>@L["Insurance Premium"]</dt><dd>KWD @Model.InsuranceAmount.ToString("N3", inv) <span class="lp-chip lp-chip-blue"><i class="fas fa-umbrella"></i> @L[Model.InsuranceFrequency]</span></dd></div>
+                        @if (Model.InsuranceStartDate.HasValue)
+                        {
+                            <div><dt>@L["Insurance Start"]</dt><dd>@Model.InsuranceStartDate.Value.ToString("dd MMM yyyy", inv)</dd></div>
+                        }
+                    }
+                    <div><dt>@L["Created Date"]</dt><dd>@Model.CreatedDate.ToString("dd MMM yyyy", inv)</dd></div>
+                    @if (Model.ModifiedDate.HasValue)
+                    {
+                        <div><dt>@L["Last Modified"]</dt><dd>@Model.ModifiedDate.Value.ToString("dd MMM yyyy", inv)</dd></div>
+                    }
+                    @if (Model.RenewedFromLeaseId.HasValue)
+                    {
+                        <div><dt>@L["Renewed from"]</dt><dd><a class="lp-link" href="/Leases/Details/@Model.RenewedFromLeaseId">@L["Lease"] #@Model.RenewedFromLeaseId</a></dd></div>
+                    }
+                    @if (Model.RenewedToLeaseId.HasValue)
+                    {
+                        <div><dt>@L["Renewed to"]</dt><dd><a class="lp-link" href="/Leases/Details/@Model.RenewedToLeaseId">@L["Lease"] #@Model.RenewedToLeaseId</a></dd></div>
+                    }
+                    @if (Model.Status == LeaseStatuses.Terminated)
+                    {
+                        <div><dt>@L["Terminated"]</dt><dd>@(Model.TerminationDate?.ToString("dd MMM yyyy", inv) ?? "—")</dd></div>
+                        @if (!string.IsNullOrWhiteSpace(Model.TerminationReason))
+                        {
+                            <div><dt>@L["Reason"]</dt><dd style="font-weight:500">@Model.TerminationReason</dd></div>
+                        }
+                    }
+                </dl>
+            </div>
+
+            @* ── Legal case ── *@
+            <div id="legal-case" class="pd-card @(caseOpen ? "ld-warn" : "")" style="scroll-margin-top:90px">
+                <div class="pd-card-head">
+                    <i class="fas fa-scale-balanced"></i> @L["Legal Case"]
+                    @if (legalCase != null)
+                    {
+                        <span class="lp-chip @CaseChip(legalCase.Status)" style="margin-inline-start:auto">@L[legalCase.Status]</span>
+                    }
+                </div>
+                @if (legalCase != null)
+                {
+                    <dl class="pd-dl">
+                        <div><dt>@L["Case Number"]</dt><dd class="lp-mono">@(string.IsNullOrWhiteSpace(legalCase.CaseNumber) ? "—" : legalCase.CaseNumber)</dd></div>
+                        <div><dt>@L["Type"]</dt><dd>@L[legalCase.CaseType]</dd></div>
+                        <div><dt>@L["Filed Date"]</dt><dd>@legalCase.FiledDate.ToString("dd MMM yyyy", inv)</dd></div>
+                        @if (legalCase.NextHearingDate.HasValue)
+                        {
+                            <div><dt>@L["Next Hearing"]</dt><dd>@legalCase.NextHearingDate.Value.ToString("dd MMM yyyy", inv)</dd></div>
+                        }
+                        @if (legalCase.AmountClaimed.HasValue)
+                        {
+                            <div><dt>@L["Amount Claimed"]</dt><dd>@("KWD " + legalCase.AmountClaimed.Value.ToString("N3", inv))</dd></div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(legalCase.Notes))
+                        {
+                            <div><dt>@L["Notes"]</dt><dd style="font-weight:500">@legalCase.Notes</dd></div>
+                        }
+                    </dl>
+                }
+                else
+                {
+                    <p class="pd-note">@L["No legal case has been filed on this lease."]</p>
+                }
+
+                <details class="ld-details">
+                    <summary class="lp-btn">
+                        <i class="fas fa-@(legalCase == null ? "plus" : "edit")"></i>
+                        @(legalCase == null ? L["Add Legal Case"] : L["Edit Case"])
+                    </summary>
+                    <form asp-controller="Cases" asp-action="Save" method="post" class="pd-form" style="padding-top:0.6rem">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="leaseId" value="@Model.LeaseId" />
+                        <input type="hidden" name="legalCaseId" value="@(legalCase?.LegalCaseId ?? 0)" />
+                        <div>
+                            <label>@L["Case Number"]</label>
+                            <input type="text" name="caseNumber" value="@legalCase?.CaseNumber" placeholder="2026/1234" />
+                        </div>
+                        <div>
+                            <label>@L["Type"]</label>
+                            <select name="caseType">
+                                @foreach (var opt in await Lookups.GetOptionsAsync("LegalCaseType"))
+                                {
+                                    <option value="@opt.Code" selected="@(legalCase?.CaseType == opt.Code)">@opt.Label</option>
                                 }
                             </select>
                         </div>
-                        <div class="form-row">
-                            <label>@L["Effective date"] <span class="req">*</span></label>
-                            <input type="date" name="effectiveDate" required
-                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        <div>
+                            <label>@L["Status"]</label>
+                            <select name="status">
+                                @foreach (var s in LegalCaseStatuses.All)
+                                {
+                                    <option value="@s" selected="@(legalCase?.Status == s)">@L[s]</option>
+                                }
+                            </select>
                         </div>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-arrow-right-arrow-left"></i> @L["Transfer"]</button>
+                        <div>
+                            <label>@L["Filed Date"]</label>
+                            <input type="date" name="filedDate" value="@((legalCase?.FiledDate ?? DateTime.Today).ToString("yyyy-MM-dd", inv))" />
+                        </div>
+                        <div>
+                            <label>@L["Next Hearing"]</label>
+                            <input type="date" name="nextHearingDate" value="@(legalCase?.NextHearingDate?.ToString("yyyy-MM-dd", inv))" />
+                        </div>
+                        <div>
+                            <label>@L["Amount Claimed"] (KWD)</label>
+                            <input type="number" step="0.001" name="amountClaimed" value="@legalCase?.AmountClaimed" />
+                        </div>
+                        <div>
+                            <label>@L["Notes"]</label>
+                            <textarea name="notes" rows="2">@legalCase?.Notes</textarea>
+                        </div>
+                        <div><button type="submit" class="lp-btn lp-btn-primary"><i class="fas fa-save"></i> @L["Save"]</button></div>
                     </form>
+                    @if (legalCase != null)
+                    {
+                        <form asp-controller="Cases" asp-action="Delete" method="post" class="pd-form" style="padding-top:0"
+                              onsubmit="return confirm(@Json.Serialize(L["Remove this legal case? This cannot be undone."].Value));">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="leaseId" value="@Model.LeaseId" />
+                            <input type="hidden" name="legalCaseId" value="@legalCase.LegalCaseId" />
+                            <div><button type="submit" class="lp-btn lp-btn-danger"><i class="fas fa-trash"></i> @L["Remove Case"]</button></div>
+                        </form>
+                    }
+                </details>
+            </div>
+
+            @* Recent activity preview (Lease History Phase D). Last 3 events; full
+               timeline is one click away via the History button in the header. *@
+            @if (recent.Any())
+            {
+                <div class="pd-card">
+                    <div class="pd-card-head">
+                        <i class="fas fa-clock-rotate-left"></i> @L["Recent activity"]
+                        <a class="lp-link" style="margin-inline-start:auto;text-transform:none;letter-spacing:0;font-weight:600" href="/Leases/History/@Model.LeaseId">@L["Full history"] <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                    <ul class="pd-timeline">
+                        @foreach (var ev in recent)
+                        {
+                            var icon = ev.Action switch
+                            {
+                                "Created" => "fa-circle-plus",
+                                "Edited" => "fa-pen",
+                                "Renewed" => "fa-arrows-rotate",
+                                "Terminated" => "fa-circle-stop",
+                                "Transferred" => "fa-arrow-right-arrow-left",
+                                "Expired" => "fa-clock",
+                                _ => "fa-circle",
+                            };
+                            <li>
+                                <time title="@ev.At.ToString("u", inv)">@ev.At.ToString("dd MMM yyyy", inv)</time>
+                                <div><i class="fas @icon" style="color:#8a6d1f;width:16px"></i> <strong>@L[ev.Action]</strong> <span class="lp-sub" style="display:inline">@L["by"] @ev.ByUser</span></div>
+                            </li>
+                        }
+                    </ul>
                 </div>
             }
-
-        </div>
-    }
-    else if ((canRenew || canTerminate || canTransfer) && !isAdmin)
-    {
-        <div class="alert alert-info" style="margin-top:1.5rem;">
-            <i class="fas fa-lock"></i>
-            <div>
-                <strong>@L["Admin only."]</strong>
-                @L["Renew / Terminate / Transfer actions require Admin role."]
-                @L["Operational managers can view leases but not run lifecycle transitions."]
-            </div>
-        </div>
-    }
+        </aside>
+    </div>
 </div>
 
 <style>
-    .lifecycle-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 1.25rem;
-        margin-top: 1.5rem;
-    }
-    .lifecycle-card { padding: 1rem 1.25rem 1.25rem; }
-    .lifecycle-card .info-card-title.danger { color: #b91c1c; }
-    .lifecycle-card .info-card-title.danger i { color: #dc2626; }
-    .lifecycle-form { display: flex; flex-direction: column; gap: 0.75rem; }
-    .lifecycle-form .form-row { display: flex; flex-direction: column; gap: 0.3rem; }
-    .lifecycle-form label { font-size: 0.85rem; font-weight: 600; color: #334155; }
-    .lifecycle-form label small { color: #94a3b8; font-weight: 400; }
-    .lifecycle-form .req { color: #dc2626; }
-    .lifecycle-form input, .lifecycle-form select, .lifecycle-form textarea {
-        padding: 0.5rem 0.7rem;
-        border: 1px solid #e2e8f0; border-radius: 6px;
-        background: white; font-size: 0.9rem;
-    }
-    .lifecycle-form input:focus, .lifecycle-form select:focus, .lifecycle-form textarea:focus {
-        outline: none; border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241,0.1);
-    }
-    .lifecycle-form button {
-        align-self: flex-start;
-        display: inline-flex; align-items: center; gap: 0.45rem;
-        padding: 0.55rem 1.1rem; border-radius: 8px;
-        border: 0; cursor: pointer; font-weight: 500;
-    }
-    .lifecycle-form .btn-primary {
-        background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white;
-    }
-    .lifecycle-form .btn-primary:hover { box-shadow: 0 4px 12px rgba(99, 102, 241,0.3); }
-    .lifecycle-form .btn-danger {
-        background: linear-gradient(135deg,#ef4444,#f43f5e); color: white;
-    }
-    .lifecycle-form .btn-danger:hover { box-shadow: 0 4px 12px rgba(239,68,68,0.3); }
-
-    /* Recent activity preview card */
-    .recent-activity { padding: 0.85rem 1.25rem 1rem; margin-top: 1.5rem; }
-    .recent-activity .info-card-link {
-        font-size: 0.82rem; color: #6366f1; text-decoration: none;
-        display: inline-flex; align-items: center; gap: 0.3rem;
-    }
-    .recent-activity .info-card-link:hover { text-decoration: underline; }
-    .recent-list { list-style: none; padding: 0; margin: 0.5rem 0 0; }
-    .recent-item {
-        display: flex; align-items: center; gap: 0.65rem;
-        padding: 0.5rem 0;
-        border-bottom: 1px dashed #f1f5f9;
-        font-size: 0.88rem;
-    }
-    .recent-item:last-child { border-bottom: 0; }
-    .recent-item > i { color: #6366f1; width: 18px; text-align: center; }
-    .recent-body { flex: 1; min-width: 0; }
-    .recent-body strong { color: #0f172a; margin-right: 0.5rem; }
-    .recent-actor { color: #64748b; font-size: 0.78rem; }
-    .recent-when { color: #94a3b8; font-size: 0.76rem; white-space: nowrap; }
-</style>
-
-<style>
-    body {
-        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
-        color: #1e293b;
-        min-height: 100vh;
-    }
-
-    .container-fluid {
-        color: #1e293b;
-    }
-
-    .details-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .info-card {
-        background: rgba(255, 255, 255, 0.8);
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-
-    .card-header {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        color: white;
-        padding: 1.25rem;
-    }
-
-    .card-header h3 {
-        margin: 0;
-        font-size: 1.25rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .card-body {
-        padding: 1.5rem;
-    }
-
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 1rem 0;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .info-row:last-child {
-        border-bottom: none;
-    }
-
-    .info-label {
-        font-weight: 600;
-        color: #475569;
-        flex: 0 0 40%;
-    }
-
-    .info-value {
-        color: #1e293b;
-        flex: 1;
-        text-align: right;
-    }
-
-    .info-value a {
-        color: #6366f1;
-        text-decoration: none;
-    }
-
-    .info-value a:hover {
-        text-decoration: underline;
-    }
-
-    .highlight-amount {
-        font-size: 1.25rem !important;
-        font-weight: 700 !important;
-        color: #10b981 !important;
-    }
-
-    .badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    .badge-success {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .badge-danger {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .badge-warning {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .badge-secondary {
-        background: #e5e7eb;
-        color: #374151;
-    }
-
-    .details-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 1.5rem;
-    }
-
-    .details-table thead {
-        background: rgba(99, 102, 241, 0.08);
-    }
-
-    .details-table th {
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
-        color: #334155;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .details-table td {
-        padding: 1rem;
-        border-bottom: 1px solid #e2e8f0;
-        color: #1e293b;
-    }
-
-    .details-table td.amount {
-        font-weight: 600;
-        color: #10b981;
-    }
-
-    .details-table tbody tr:hover {
-        background: rgba(99, 102, 241, 0.04);
-    }
-
-    .payment-summary {
-        display: flex;
-        gap: 2rem;
-        padding: 1rem;
-        background: rgba(99, 102, 241, 0.08);
-        border-radius: 8px;
-        margin-top: 1rem;
-    }
-
-    .summary-item {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-
-    .summary-label {
-        font-weight: 600;
-        color: #475569;
-    }
-
-    .summary-value {
-        font-weight: 700;
-        color: #1e293b;
-    }
-
-    .alert {
-        padding: 1.25rem;
-        border-radius: 8px;
-        margin-bottom: 2rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-
-    .alert i {
-        font-size: 1.5rem;
-        flex-shrink: 0;
-        margin-top: 0.25rem;
-    }
-
-    .alert strong {
-        display: block;
-        margin-bottom: 0.25rem;
-    }
-
-    .alert p {
-        margin: 0;
-    }
-
-    .alert-danger {
-        background-color: #fee2e2;
-        border: 1px solid #fecaca;
-        color: #991b1b;
-    }
-
-    .alert-warning {
-        background-color: #fef3c7;
-        border: 1px solid #fde68a;
-        color: #92400e;
-    }
-
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #e2e8f0;
-    }
-
-    .page-header h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #334155;
-        margin: 0;
-    }
-
-    .page-header .text-muted {
-        color: #475569;
-        margin: 0.5rem 0 0 0;
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 1rem;
-    }
-
-    .btn {
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 500;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
-
-    .btn-secondary {
-        background: #6b7280;
-        color: white;
-    }
-
-    .btn-secondary:hover {
-        background: #4b5563;
-    }
-
-    .text-danger {
-        color: #ef4444;
-    }
-
-    /* Scrollbar styling */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: #f1f5f9;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-    }
-
-    @@media (max-width: 768px) {
-        .details-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-
-        .header-actions {
-            width: 100%;
-        }
-
-        .info-row {
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .info-label {
-            flex: 1;
-        }
-
-        .info-value {
-            text-align: left;
-        }
-
-        .details-table {
-            font-size: 0.875rem;
-        }
-
-        .payment-summary {
-            flex-direction: column;
-            gap: 1rem;
-        }
-    }
+    /* Lease Details — page-local glue on top of list-pages.css */
+    .ld-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    @@media (max-width: 760px) { .ld-pair { grid-template-columns: 1fr; } }
+    .ld-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; align-items: start; }
+    .ld-req { color: #dc2626; }
+    .pd-form > div { min-width: 0; }
+    .pd-form small { display: block; margin-top: 0.25rem; }
+    .lp-btn-danger.lp-btn { background: #fef2f2; }
+    .lp-btn-danger.lp-btn:hover { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    .ld-warn { border-color: #fde68a; }
+    .ld-warn .pd-card-head { background: #fffbeb; color: #b45309; border-bottom-color: #fde68a; }
+    .ld-details { padding: 0 0.9rem 0.9rem; }
+    .ld-details > summary { list-style: none; display: inline-flex; }
+    .ld-details > summary::-webkit-details-marker { display: none; }
+    .ld-alert { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem 1rem; border-radius: 10px; margin: 0 0 1rem; }
+    .ld-alert i { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.15rem; }
+    .ld-alert strong { display: block; margin-bottom: 0.15rem; }
+    .ld-alert p { margin: 0; }
+    .ld-alert.alert-danger { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
+    .ld-alert.alert-warning { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
+    .ld-alert.alert-success { background: #d1fae5; border: 1px solid #a7f3d0; color: #065f46; }
+    .ld-alert.alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .lease-lifecycle { margin: 0.9rem 0 1rem; }
+    .lp-kpi-5 .lp-chip { vertical-align: middle; }
 </style>

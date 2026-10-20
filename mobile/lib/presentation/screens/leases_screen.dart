@@ -6,6 +6,7 @@ import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/lease_viewmodel.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/property_card.dart';
+import '../widgets/legal_case_banner.dart';
 
 /// Screen showing all leases/properties
 class LeasesScreen extends StatefulWidget {
@@ -19,7 +20,10 @@ class _LeasesScreenState extends State<LeasesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // Defer past the first frame: loadLeases() calls notifyListeners()
+    // synchronously, which throws "markNeedsBuild called during build" if any
+    // other Consumer<LeaseViewModel> is mounted (e.g. the maintenance sheet).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   Future<void> _loadData() async {
@@ -114,7 +118,13 @@ class _LeasesScreenState extends State<LeasesScreen> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.all(20),
-                  child: PropertyCard(lease: lease),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LegalCaseBanner(lease: lease),
+                      PropertyCard(lease: lease),
+                    ],
+                  ),
                 ),
               ),
             ],

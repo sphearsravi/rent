@@ -107,29 +107,37 @@ class PaymentModel {
     this.receiptNumber,
   });
 
-  /// Check if payment is completed/approved
-  bool get isCompleted =>
-      paymentStatus.toLowerCase() == 'completed' ||
-      paymentStatus.toLowerCase() == 'approved';
+  /// Normalised status key: lowercase with spaces/underscores removed, so the
+  /// backend's `PendingVerification` enum, "Pending Verification" and
+  /// "pending_verification" all compare equal.
+  String get _statusKey => paymentStatus
+      .toLowerCase()
+      .replaceAll(' ', '')
+      .replaceAll('_', '');
 
-  /// Check if payment is pending
-  bool get isPending => paymentStatus.toLowerCase() == 'pending';
+  /// Check if payment is completed/approved
+  bool get isCompleted => _statusKey == 'completed' || _statusKey == 'approved';
+
+  /// Check if payment is pending (incl. awaiting office verification — the
+  /// state every bank-transfer and cash payment sits in until approved).
+  bool get isPending => _statusKey == 'pending' || _statusKey == 'pendingverification';
 
   /// Check if payment is rejected
   bool get isRejected =>
-      paymentStatus.toLowerCase() == 'rejected' ||
-      paymentStatus.toLowerCase() == 'failed';
+      _statusKey == 'rejected' || _statusKey == 'failed' || _statusKey == 'cancelled';
 
   /// Get status color name for UI
   String get statusColorName {
-    switch (paymentStatus.toLowerCase()) {
+    switch (_statusKey) {
       case 'completed':
       case 'approved':
         return 'green';
       case 'pending':
+      case 'pendingverification':
         return 'orange';
       case 'rejected':
       case 'failed':
+      case 'cancelled':
         return 'red';
       default:
         return 'grey';
@@ -143,9 +151,9 @@ class PaymentModel {
       leaseId: json['leaseId'],
       propertyName: json['propertyName'],
       unitNumber: json['unitNumber'],
-      amountPaid: (json['amountPaid'] ?? 0).toDouble(),
-      paymentDate: DateTime.parse(
-          json['paymentDate'] ?? DateTime.now().toIso8601String()),
+      amountPaid: (num.tryParse('${json['amountPaid'] ?? 0}') ?? 0).toDouble(),
+      // tryParse: a missing/malformed date must not crash the whole list.
+      paymentDate: DateTime.tryParse('${json['paymentDate'] ?? ''}') ?? DateTime.now(),
       paymentMethod: json['paymentMethod'] ?? 'Unknown',
       paymentStatus: json['paymentStatus'] ?? 'Pending',
       transactionReference: json['transactionReference'],

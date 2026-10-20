@@ -11,6 +11,12 @@ public class CashPayment
     public DateTime PaymentDate { get; set; }
     public string CollectedBy { get; set; } = string.Empty; // Admin user who collected the cash
     public string? ReceiptNumber { get; set; }
+    /// <summary>
+    /// Number of the hand-written receipt from the office's receipt book,
+    /// typed by staff when the cash is taken. Printed on the PDF receipt so
+    /// the paper slip and the system record can be matched.
+    /// </summary>
+    public string? ManualReceiptNumber { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     public string CreatedBy { get; set; } = string.Empty;

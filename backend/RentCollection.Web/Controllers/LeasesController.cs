@@ -8,6 +8,7 @@ using RentCollection.Application.Interfaces;
 using RentCollection.Core.Entities;
 using RentCollection.Core.Enums;
 using RentCollection.Infrastructure.Data;
+using RentCollection.Web.Helpers;
 
 namespace RentCollection.Web.Controllers;
 
@@ -41,6 +42,83 @@ public class LeasesController : Controller
         || status == LeaseStatuses.Renewed
         || status == LeaseStatuses.Expired;
 
+    /// <summary>
+    /// A lease that still claims the unit: Active, or Pending (created with a
+    /// deposit and waiting for Activate). Pending was the hole that let two
+    /// leases land on one unit — only Active flipped the unit to Occupied and
+    /// only Active is covered by UQ_Leases_UnitId_Active.
+    /// </summary>
+    private static bool IsLive(string? status)
+        => status == LeaseStatuses.Active || status == LeaseStatuses.Pending;
+
+    /// <summary>Shape returned by <see cref="LiveLeaseConflictAsync"/> for messages + the view.</summary>
+    public sealed record LeaseConflict(int LeaseId, string Status, string TenantName, DateTime Start, DateTime End);
+
+    /// <summary>
+    /// The one rule that keeps a unit single-tenanted: no two LIVE leases may
+    /// overlap on the same unit. Period-aware on purpose — a unit may be
+    /// pre-leased for the day after the current lease ends (that is how
+    /// Renew and Transfer work), but never for a period that intersects a
+    /// live lease. The DB index is only a safety net for Active rows; this is
+    /// the real guard for Create / Activate / Edit / Renew / Transfer.
+    /// </summary>
+    private async Task<LeaseConflict?> LiveLeaseConflictAsync(
+        int unitId, DateTime start, DateTime end, int? excludeLeaseId = null)
+    {
+        var s = start.Date;
+        var e = end.Date;
+        return await _context.Leases
+            .AsNoTracking()
+            .Where(l => l.UnitId == unitId
+                && (l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Pending)
+                && (excludeLeaseId == null || l.LeaseId != excludeLeaseId)
+                && l.LeaseStartDate.Date <= e
+                && l.LeaseEndDate.Date >= s)
+            .OrderBy(l => l.LeaseStartDate)
+            .Select(l => new LeaseConflict(
+                l.LeaseId, l.Status,
+                (l.Tenant.FirstName + " " + l.Tenant.LastName).Trim(),
+                l.LeaseStartDate, l.LeaseEndDate))
+            .FirstOrDefaultAsync();
+    }
+
+    private static string Article(string status) =>
+        "aeiou".Contains(char.ToLowerInvariant(status[0])) ? "an" : "a";
+
+    private static string DescribeConflict(LeaseConflict c) =>
+        $"This unit already has {Article(c.Status)} {c.Status.ToLowerInvariant()} lease (#{c.LeaseId}, {c.TenantName}, " +
+        $"{c.Start:dd MMM yyyy} – {c.End:dd MMM yyyy}) for that period. " +
+        "Terminate or renew the existing lease, choose a start date after it ends, or pick another unit.";
+
+    // Company scope: Lease has no company query filter (only Property/Tenant/
+    // User/LegalCase do), so a raw LeaseId lookup is cross-company. Scope list
+    // queries and guard every mutating action via the owning Tenant's CompanyId.
+    // SuperAdmin is cross-company by design; a scoped admin with NO companyId
+    // claim resolves to -1 (deny) rather than "no filter".
+    private int? ScopedCompanyId() =>
+        User.IsInRole(Roles.SuperAdmin) ? null
+        : int.TryParse(User.FindFirst("companyId")?.Value, out var cid) ? cid : -1;
+
+    private bool CanAccessCompany(int? entityCompanyId)
+    {
+        if (User.IsInRole(Roles.SuperAdmin)) return true;
+        return int.TryParse(User.FindFirst("companyId")?.Value, out var cid)
+            && entityCompanyId == cid;
+    }
+
+    /// <summary>
+    /// The filtered unique index UQ_Leases_UnitId_Active rejects a second
+    /// Active lease on the same unit. Surface that as a user message instead
+    /// of a 500.
+    /// </summary>
+    private static bool IsActiveLeaseUniqueViolation(DbUpdateException ex)
+    {
+        for (Exception? e = ex; e != null; e = e.InnerException)
+            if (e.Message.Contains("UQ_Leases_UnitId_Active", StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
+    }
+
     #region Leases landing — Sprint 1 endpoints
 
     /// <summary>
@@ -48,28 +126,34 @@ public class LeasesController : Controller
     /// the view can reuse the same skeleton-shimmer pattern. Cached for
     /// 30 s — list page reloads cheap.
     /// </summary>
-    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any)]
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client)]
     public async Task<IActionResult> Snapshot()
     {
         var today = DateTime.Today;
         var soon = today.AddDays(30);
 
-        var totalLeases = await _context.Leases.CountAsync();
-        var activeLeases = await _context.Leases.CountAsync(l => l.Status == LeaseStatuses.Active);
+        // Company-scoped base set (see ScopedCompanyId). Cached per-client only —
+        // a shared/proxy cache would serve one company's numbers to another.
+        var scope = ScopedCompanyId();
+        var leases = _context.Leases
+            .Where(l => scope == null || l.Tenant.CompanyId == scope);
+
+        var totalLeases = await leases.CountAsync();
+        var activeLeases = await leases.CountAsync(l => l.Status == LeaseStatuses.Active);
 
         // Expiring soon = Active AND end ≤ today+30 AND end ≥ today.
-        var expiringSoon = await _context.Leases.CountAsync(l =>
+        var expiringSoon = await leases.CountAsync(l =>
             l.Status == LeaseStatuses.Active &&
             l.LeaseEndDate >= today &&
             l.LeaseEndDate <= soon);
 
         // Expired-but-still-Active = lease past end date but never closed.
         // These usually need the operator to renew or terminate.
-        var expired = await _context.Leases.CountAsync(l =>
+        var expired = await leases.CountAsync(l =>
             l.Status == LeaseStatuses.Active && l.LeaseEndDate < today);
 
         // Monthly rent roll from Active leases.
-        var monthlyRentRoll = await _context.Leases
+        var monthlyRentRoll = await leases
             .Where(l => l.Status == LeaseStatuses.Active)
             .SumAsync(l => (decimal?)l.MonthlyRent) ?? 0m;
 
@@ -91,9 +175,11 @@ public class LeasesController : Controller
     public async Task<IActionResult> ExportExcel(
         string? search, int? propertyId, string? status, int? expiring)
     {
+        var scope = ScopedCompanyId();
         var q = _context.Leases
             .Include(l => l.Tenant)
             .Include(l => l.Unit).ThenInclude(u => u.Property)
+            .Where(l => scope == null || l.Tenant.CompanyId == scope)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(status))
@@ -171,7 +257,7 @@ public class LeasesController : Controller
     /// month-to-date collected, last payment date. One round-trip for all
     /// visible row ids. Mirrors the Tenants/KpiBatch shape.
     /// </summary>
-    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "ids" })]
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "ids" })]
     public async Task<IActionResult> KpiBatch(string? ids)
     {
         var idList = (ids ?? "")
@@ -182,10 +268,15 @@ public class LeasesController : Controller
 
         var monthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
 
+        // Company scope — ids arrive from the client, so a scoped admin could
+        // otherwise probe another company's lease balances by id.
+        var scope = ScopedCompanyId();
+
         // Outstanding = sum of (TotalAmount − PaidAmount) over unpaid invoices
         // grouped by lease. Matches the same definition used on /Invoices.
         var outstandingRaw = await _context.Invoices
             .Where(i => idList.Contains(i.LeaseId)
+                        && (scope == null || i.Tenant.CompanyId == scope)
                         && i.Status != "Paid" && i.TotalAmount - i.PaidAmount > 0)
             .GroupBy(i => i.LeaseId)
             .Select(g => new { LeaseId = g.Key, Outstanding = g.Sum(i => i.TotalAmount - i.PaidAmount) })
@@ -195,6 +286,7 @@ public class LeasesController : Controller
         // in the current calendar month, grouped by lease.
         var mtdRaw = await _context.Payments
             .Where(p => idList.Contains(p.LeaseId)
+                        && (scope == null || p.Tenant.CompanyId == scope)
                         && p.Status == PaymentStatus.Completed
                         && p.PaymentDate >= monthStart)
             .GroupBy(p => p.LeaseId)
@@ -205,14 +297,25 @@ public class LeasesController : Controller
         // "Last paid" sub-label and the per-row health colour.
         var lastRaw = await _context.Payments
             .Where(p => idList.Contains(p.LeaseId)
+                        && (scope == null || p.Tenant.CompanyId == scope)
                         && p.Status == PaymentStatus.Completed)
             .GroupBy(p => p.LeaseId)
             .Select(g => new { LeaseId = g.Key, LastDate = g.Max(p => p.PaymentDate) })
             .ToListAsync();
 
+        // Invoice count — a lease with no invoices yet is "not billed", not
+        // "paid up"; the list used to show the latter for brand-new leases.
+        var invoiceCountRaw = await _context.Invoices
+            .Where(i => idList.Contains(i.LeaseId)
+                        && (scope == null || i.Tenant.CompanyId == scope))
+            .GroupBy(i => i.LeaseId)
+            .Select(g => new { LeaseId = g.Key, Count = g.Count() })
+            .ToListAsync();
+
         var outstandingMap = outstandingRaw.ToDictionary(x => x.LeaseId, x => x.Outstanding);
         var mtdMap = mtdRaw.ToDictionary(x => x.LeaseId, x => x.Mtd);
         var lastMap = lastRaw.ToDictionary(x => x.LeaseId, x => x.LastDate);
+        var countMap = invoiceCountRaw.ToDictionary(x => x.LeaseId, x => x.Count);
 
         var rows = idList.Select(id => new
         {
@@ -220,6 +323,7 @@ public class LeasesController : Controller
             outstanding = outstandingMap.GetValueOrDefault(id, 0m),
             mtdCollected = mtdMap.GetValueOrDefault(id, 0m),
             lastPaymentDate = lastMap.TryGetValue(id, out var d) ? d : (DateTime?)null,
+            invoiceCount = countMap.GetValueOrDefault(id, 0),
         });
         return Json(rows);
     }
@@ -230,17 +334,31 @@ public class LeasesController : Controller
     {
         try
         {
+            var scope = ScopedCompanyId();
             var leases = await _context.Leases
                 .Include(l => l.Tenant)
                 .Include(l => l.Unit)
                     .ThenInclude(u => u.Property)
+                .Where(l => scope == null || l.Tenant.CompanyId == scope)
                 .OrderByDescending(l => l.CreatedDate)
                 .ToListAsync();
 
+            // Latest legal case per lease → drives the ⚖️ badge in the list.
+            // The LegalCases table is tiny, so load it whole and map by lease.
+            var cases = await _context.LegalCases.AsNoTracking()
+                .OrderByDescending(c => c.FiledDate).ThenByDescending(c => c.LegalCaseId)
+                .ToListAsync();
+            ViewBag.CaseByLease = cases
+                .GroupBy(c => c.LeaseId)
+                .ToDictionary(g => g.Key, g => g.First());
+
             return View(leases);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Don't silently show an empty list — a DB/query failure here used to
+            // look identical to "no leases". Log it so it's diagnosable.
+            _logger.LogError(ex, "Error loading leases index");
             return View(new List<RentCollection.Core.Entities.Lease>());
         }
     }
@@ -260,7 +378,7 @@ public class LeasesController : Controller
             .Include(l => l.Invoices)
             .FirstOrDefaultAsync(m => m.LeaseId == id);
 
-        if (lease == null)
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId))
         {
             return NotFound();
         }
@@ -272,6 +390,14 @@ public class LeasesController : Controller
             .OrderByDescending(a => a.At)
             .Take(3)
             .ToListAsync();
+
+        // Legal case (if any) filed on this lease — most recent first. Drives the
+        // ⚖️ badge + the add/edit case panel on the Details page.
+        ViewBag.LegalCase = await _context.LegalCases
+            .Where(c => c.LeaseId == lease.LeaseId)
+            .OrderByDescending(c => c.FiledDate)
+            .ThenByDescending(c => c.LegalCaseId)
+            .FirstOrDefaultAsync();
 
         // LEASE_AUDIT Flaw #10 — Details now hosts the Transfer form. Load
         // vacant units server-side so the dropdown doesn't depend on an
@@ -305,7 +431,7 @@ public class LeasesController : Controller
             .Include(l => l.Tenant)
             .Include(l => l.Unit).ThenInclude(u => u.Property)
             .FirstOrDefaultAsync(l => l.LeaseId == id);
-        if (lease == null) return NotFound();
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId)) return NotFound();
 
         // Walk the renewal chain in both directions. Bounded: a lease can
         // only have one RenewedFrom and one RenewedTo so the chain is a
@@ -405,28 +531,43 @@ public class LeasesController : Controller
                     UnitId = unit.UnitId,
                     MonthlyRent = unit.MonthlyRent,            // copy from the unit; user can edit
                     LeaseStartDate = DateTime.Today,
-                    LeaseEndDate = DateTime.Today.AddYears(1), // sensible default — 1 year
+                    // A one-year term ends the day BEFORE the anniversary
+                    // (13 Oct 2026 → 12 Oct 2027), not on it.
+                    LeaseEndDate = DateTime.Today.AddYears(1).AddDays(-1),
                     PaymentDueDay = 1,                         // most common
                     LeaseType = "Fixed",
                     InsuranceFrequency = "None",
                 };
 
-                // Soft warning when the deep link targets a non-Vacant unit
-                // (the operator may have meant a renewal, transfer, or hold).
-                if (!string.Equals(unit.Status, "Vacant", StringComparison.OrdinalIgnoreCase))
+                // Deep link onto a unit that is still claimed by a live lease:
+                // say so up front, with the lease, so the operator renews /
+                // terminates that one instead of discovering it on submit.
+                var live = await LiveLeaseConflictAsync(unit.UnitId, DateTime.Today, DateTime.Today.AddYears(1));
+                if (live != null)
                     TempData["InfoMessage"] =
-                        $"Unit is currently {unit.Status}. Creating a new lease here will mark it Occupied; for a renewal use the existing lease's Renew action instead.";
+                        $"Unit already has {Article(live.Status)} {live.Status.ToLowerInvariant()} lease (#{live.LeaseId}, {live.TenantName}, " +
+                        $"until {live.End:dd MMM yyyy}). A new lease can only start after it ends — or use Renew / Terminate on that lease.";
+                else if (!string.Equals(unit.Status, "Vacant", StringComparison.OrdinalIgnoreCase))
+                    TempData["InfoMessage"] =
+                        $"Unit is marked {unit.Status}. Creating a lease will mark it Occupied.";
             }
         }
+        else
+        {
+            prefill = new Lease
+            {
+                LeaseStartDate = DateTime.Today,
+                LeaseEndDate = DateTime.Today.AddYears(1).AddDays(-1),
+                PaymentDueDay = 1,
+                LeaseType = "Fixed",
+                InsuranceFrequency = "None",
+            };
+        }
 
-        // includeAllUnits when prefilling so the linked unit still appears even
-        // if it isn't Vacant (e.g. the operator is reviewing a renewal flow on
-        // an Occupied unit). The Unit dropdown displays "(Status)" inline so
-        // they can tell at a glance which units are available.
         await PopulateCreateEditDropdownsAsync(
             selectedUnitId: prefill?.UnitId,
             selectedPropertyId: selectedPropertyId,
-            includeAllUnits: prefill != null);
+            includeAllUnits: true);
         return View(prefill ?? new Lease());
     }
 
@@ -450,6 +591,28 @@ public class LeasesController : Controller
             : LeaseStatuses.Active;
 
         ValidateLeaseFields(lease);
+
+        // Company scope: both the tenant and the unit's property must be visible
+        // through the filtered Tenants / Properties sets (SuperAdmin sees all).
+        // Without this a scoped admin could POST another company's ids.
+        if (!await _context.Tenants.AnyAsync(t => t.TenantId == lease.TenantId))
+            ModelState.AddModelError(nameof(Lease.TenantId), "Select a valid tenant.");
+        if (!await _context.Units.AnyAsync(u => u.UnitId == lease.UnitId
+                && _context.Properties.Any(p => p.PropertyId == u.PropertyId)))
+            ModelState.AddModelError(nameof(Lease.UnitId), "Select a valid unit.");
+
+        // One tenant per unit per period. This is what was missing: a unit
+        // with a Pending (deposit-awaiting) lease stayed "Vacant", stayed in
+        // the dropdown, and happily took a second lease.
+        if (ModelState.IsValid)
+        {
+            var conflict = await LiveLeaseConflictAsync(lease.UnitId, lease.LeaseStartDate, lease.LeaseEndDate);
+            if (conflict != null)
+            {
+                ModelState.AddModelError(nameof(Lease.UnitId), DescribeConflict(conflict));
+                ViewBag.Conflict = conflict;
+            }
+        }
 
         if (ModelState.IsValid)
         {
@@ -475,7 +638,25 @@ public class LeasesController : Controller
                 }
             }
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (IsActiveLeaseUniqueViolation(ex))
+            {
+                // UQ_Leases_UnitId_Active — the "Vacant" dropdown filter is a
+                // TOCTOU check; the DB index is the safety net. Show a message,
+                // not a 500. Detach so the failed insert doesn't linger in the
+                // change tracker for the re-render's dropdown queries.
+                _context.Entry(lease).State = EntityState.Detached;
+                TempData["ErrorMessage"] = "This unit already has an active lease.";
+                var failedPropertyId = await _context.Units
+                    .Where(u => u.UnitId == lease.UnitId)
+                    .Select(u => (int?)u.PropertyId)
+                    .FirstOrDefaultAsync();
+                await PopulateCreateEditDropdownsAsync(lease.TenantId, lease.UnitId, failedPropertyId);
+                return View(lease);
+            }
 
             // Sprint 20 — attach any documents uploaded inline on the Create
             // form. Same pattern as Tenant + Property forms (signed lease PDF,
@@ -523,11 +704,22 @@ public class LeasesController : Controller
     {
         await using var tx = await _context.Database.BeginTransactionAsync();
 
-        var lease = await _context.Leases.FirstOrDefaultAsync(l => l.LeaseId == id);
-        if (lease == null) return NotFound();
+        var lease = await _context.Leases
+            .Include(l => l.Tenant)
+            .FirstOrDefaultAsync(l => l.LeaseId == id);
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId)) return NotFound();
         if (lease.Status != LeaseStatuses.Pending)
         {
             TempData["InfoMessage"] = $"Lease is {lease.Status}; only Pending leases can be Activated.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // Re-check occupancy at activation time: another lease may have been
+        // created or activated on this unit since this one was drafted.
+        var activateConflict = await LiveLeaseConflictAsync(lease.UnitId, lease.LeaseStartDate, lease.LeaseEndDate, excludeLeaseId: id);
+        if (activateConflict != null)
+        {
+            TempData["ErrorMessage"] = "Cannot activate: " + DescribeConflict(activateConflict);
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -597,8 +789,10 @@ public class LeasesController : Controller
     {
         if (id == null) return NotFound();
 
-        var lease = await _context.Leases.FindAsync(id);
-        if (lease == null) return NotFound();
+        var lease = await _context.Leases
+            .Include(l => l.Tenant)
+            .FirstOrDefaultAsync(l => l.LeaseId == id);
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId)) return NotFound();
 
         // LEASE_AUDIT Flaw #9 — closed leases are historical records. Edit
         // can still display them (operators want to view detail), but the
@@ -618,14 +812,20 @@ public class LeasesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("LeaseId,TenantId,UnitId,LeaseStartDate,LeaseEndDate,MonthlyRent,SecurityDeposit,PaymentDueDay,LeaseType,LateFeeAmount,LateFeeGracePeriod,CreatedDate,RowVersion,InsuranceAmount,InsuranceFrequency,InsuranceStartDate")] Lease lease)
+    public async Task<IActionResult> Edit(int id, [Bind("LeaseId,TenantId,LeaseStartDate,LeaseEndDate,MonthlyRent,SecurityDeposit,PaymentDueDay,LeaseType,LateFeeAmount,LateFeeGracePeriod,RowVersion,InsuranceAmount,InsuranceFrequency,InsuranceStartDate")] Lease lease)
     {
         if (id != lease.LeaseId) return NotFound();
 
         // LEASE_AUDIT Flaw #9 — re-read DB status so a maliciously-crafted
-        // POST can't bypass the closed lock.
-        var existing = await _context.Leases.AsNoTracking().FirstOrDefaultAsync(l => l.LeaseId == id);
-        if (existing == null) return NotFound();
+        // POST can't bypass the closed lock. Loaded TRACKED: we copy the
+        // editable fields onto this row (load-then-copy) instead of
+        // _context.Update(lease), which marked every unbound column — Unit,
+        // renewal links, deposit flags, termination stamps, CreatedDate — as
+        // modified and overwrote them with defaults.
+        var existing = await _context.Leases
+            .Include(l => l.Tenant)
+            .FirstOrDefaultAsync(l => l.LeaseId == id);
+        if (existing == null || !CanAccessCompany(existing.Tenant?.CompanyId)) return NotFound();
         if (IsClosed(existing.Status))
         {
             TempData["ErrorMessage"] =
@@ -634,17 +834,55 @@ public class LeasesController : Controller
         }
 
         // Status field isn't bound from the form anymore (Flaw #8); carry
-        // the persisted value forward so the row keeps a valid state.
+        // the persisted value forward so the row keeps a valid state. UnitId
+        // is no longer bound either — unit moves must go through Transfer so
+        // both units' statuses stay in sync.
         lease.Status = existing.Status;
+        lease.UnitId = existing.UnitId;
 
         ValidateLeaseFields(lease);
+
+        // The tenant dropdown is still on the form; a change must point at a
+        // tenant visible through the filtered Tenants set (company scope).
+        if (lease.TenantId != existing.TenantId
+            && !await _context.Tenants.AnyAsync(t => t.TenantId == lease.TenantId))
+            ModelState.AddModelError(nameof(Lease.TenantId), "Select a valid tenant.");
+
+        // Moving the dates must not make this lease overlap another live
+        // lease on the same unit (e.g. extending into a pre-leased period).
+        if (ModelState.IsValid && IsLive(existing.Status)
+            && (lease.LeaseStartDate.Date != existing.LeaseStartDate.Date
+                || lease.LeaseEndDate.Date != existing.LeaseEndDate.Date))
+        {
+            var editConflict = await LiveLeaseConflictAsync(existing.UnitId, lease.LeaseStartDate, lease.LeaseEndDate, excludeLeaseId: id);
+            if (editConflict != null)
+                ModelState.AddModelError(nameof(Lease.LeaseEndDate), DescribeConflict(editConflict));
+        }
 
         if (ModelState.IsValid)
         {
             try
             {
-                lease.ModifiedDate = DateTime.UtcNow;
-                _context.Update(lease);
+                // Copy ONLY the fields the Edit form owns.
+                existing.TenantId = lease.TenantId;
+                existing.LeaseStartDate = lease.LeaseStartDate;
+                existing.LeaseEndDate = lease.LeaseEndDate;
+                existing.MonthlyRent = lease.MonthlyRent;
+                existing.SecurityDeposit = lease.SecurityDeposit;
+                existing.PaymentDueDay = lease.PaymentDueDay;
+                existing.LeaseType = lease.LeaseType;
+                existing.LateFeeAmount = lease.LateFeeAmount;
+                existing.LateFeeGracePeriod = lease.LateFeeGracePeriod;
+                existing.InsuranceAmount = lease.InsuranceAmount;
+                existing.InsuranceFrequency = lease.InsuranceFrequency;
+                existing.InsuranceStartDate = lease.InsuranceStartDate;
+                existing.ModifiedDate = DateTime.UtcNow;
+
+                // Optimistic concurrency: compare against the RowVersion the
+                // form was rendered with, not the one we just re-read.
+                if (lease.RowVersion != null)
+                    _context.Entry(existing).Property(l => l.RowVersion).OriginalValue = lease.RowVersion;
+
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Lease updated successfully!";
             }
@@ -654,15 +892,13 @@ public class LeasesController : Controller
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+                TempData["ErrorMessage"] = "Lease was changed by someone else — refresh and retry.";
+                return RedirectToAction(nameof(Edit), new { id });
             }
             return RedirectToAction(nameof(Index));
         }
 
-        // Sprint 11 — re-derive PropertyId from the submitted UnitId so the
+        // Sprint 11 — re-derive PropertyId from the lease's UnitId so the
         // cascade re-renders to the correct building when ModelState fails.
         var selectedPropertyId = await _context.Units
             .Where(u => u.UnitId == lease.UnitId)
@@ -689,7 +925,8 @@ public class LeasesController : Controller
     {
         // Tenants — alphabetical by first name. Inactive ones still listed so
         // an admin can resurrect a closed lease cycle if needed; the suffix
-        // makes the state obvious in the dropdown.
+        // makes the state obvious in the dropdown. The live-lease count feeds
+        // the "already holds N leases" hint on the Create form.
         var tenants = await _context.Tenants
             .OrderBy(t => t.FirstName)
             .Select(t => new
@@ -697,62 +934,108 @@ public class LeasesController : Controller
                 t.TenantId,
                 FullName = t.FirstName + " " + t.LastName
                     + (t.Status != "Active" ? " (inactive)" : ""),
+                t.PACINumber,
+                t.Phone,
+                LiveLeases = _context.Leases.Count(l => l.TenantId == t.TenantId
+                    && (l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Pending)),
             })
             .ToListAsync();
         ViewData["TenantId"] = new SelectList(tenants, "TenantId", "FullName", selectedTenantId);
+        ViewData["TenantsJson"] = System.Text.Json.JsonSerializer.Serialize(
+            tenants.ToDictionary(
+                t => t.TenantId.ToString(),
+                t => new { name = t.FullName, paci = t.PACINumber, phone = t.Phone, liveLeases = t.LiveLeases }));
 
-        // Buildings — all active properties, labelled with their vacant-unit
-        // count so the operator picks the building with availability without
-        // having to first drill into Units.
+        // Availability is LEASE-driven, not Unit.Status-driven: a unit is free
+        // only when no Active/Pending lease claims it today. Unit.Status alone
+        // let a Pending-leased unit show as Vacant and take a second lease.
+        var today = DateTime.Today;
+        var liveByUnit = (await _context.Leases
+                .AsNoTracking()
+                .Where(l => (l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Pending)
+                            && l.LeaseEndDate.Date >= today)
+                .Select(l => new { l.UnitId, l.Status, l.LeaseEndDate, l.LeaseId,
+                    Tenant = (l.Tenant.FirstName + " " + l.Tenant.LastName).Trim() })
+                .ToListAsync())
+            .GroupBy(l => l.UnitId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.LeaseEndDate).First());
+
+        var allUnits = await _context.Units
+            .Include(u => u.Property)
+            .Where(u => _context.Properties.Any(p => p.PropertyId == u.PropertyId))
+            .OrderBy(u => u.Property.PropertyName)
+            .ThenBy(u => u.UnitNumber)
+            .Select(u => new { u.UnitId, u.PropertyId, u.UnitNumber, u.UnitType, u.Status, u.MonthlyRent, u.Property.PropertyName })
+            .ToListAsync();
+
+        var unitRows = allUnits.Select(u =>
+        {
+            liveByUnit.TryGetValue(u.UnitId, out var live);
+            var onHold = u.Status == "Maintenance" || u.Status == "Reserved";
+            var available = live == null && !onHold;
+            string? note = live != null
+                ? $"{live.Status} lease #{live.LeaseId} · {live.Tenant} · until {live.LeaseEndDate:dd MMM yyyy}"
+                : onHold ? u.Status : null;
+            var suffix = live != null
+                ? $" ({live.Status.ToLowerInvariant()} until {live.LeaseEndDate:dd MMM yyyy})"
+                : onHold ? $" ({u.Status})" : "";
+            return new
+            {
+                u.UnitId,
+                u.PropertyId,
+                u.PropertyName,
+                DisplayName = $"{u.PropertyName} - Unit {u.UnitNumber}{suffix}",
+                ShortName = $"Unit {u.UnitNumber}{suffix}",
+                UnitNumber = u.UnitNumber,
+                u.UnitType,
+                u.MonthlyRent,
+                Available = available,
+                Note = note,
+                AvailableFrom = live?.LeaseEndDate.AddDays(1),
+            };
+        }).ToList();
+
+        // Buildings — active properties labelled with how many units can be
+        // leased right now (lease-aware), so the operator goes straight to
+        // the building with availability.
         var buildings = await _context.Properties
             .Where(p => p.Status == "Active")
-            .Select(p => new
-            {
-                p.PropertyId,
-                p.PropertyName,
-                VacantCount = _context.Units.Count(u => u.PropertyId == p.PropertyId && u.Status == "Vacant"),
-            })
             .OrderBy(p => p.PropertyName)
+            .Select(p => new { p.PropertyId, p.PropertyName })
             .ToListAsync();
         var buildingItems = buildings
             .Select(b => new
             {
                 b.PropertyId,
-                Display = $"{b.PropertyName} ({b.VacantCount} vacant)",
+                Display = $"{b.PropertyName} ({unitRows.Count(u => u.PropertyId == b.PropertyId && u.Available)} available)",
             })
             .ToList();
         ViewData["PropertyId"] = new SelectList(buildingItems, "PropertyId", "Display", selectedPropertyId);
 
-        // Units — same filter as before (Vacant only on Create, all on Edit so
-        // the existing lease's unit stays visible). Plus we also dump the same
-        // list grouped by PropertyId as JSON for the client-side filter.
-        var unitsQ = _context.Units.Include(u => u.Property).AsQueryable();
-        if (!includeAllUnits) unitsQ = unitsQ.Where(u => u.Status == "Vacant");
-        var units = await unitsQ
-            .OrderBy(u => u.Property.PropertyName)
-            .ThenBy(u => u.UnitNumber)
-            .Select(u => new
-            {
-                u.UnitId,
-                u.PropertyId,
-                DisplayName = u.Property.PropertyName + " - Unit " + u.UnitNumber
-                    + (u.Status != "Vacant" ? " (" + u.Status + ")" : ""),
-                ShortName = "Unit " + u.UnitNumber
-                    + (u.Status != "Vacant" ? " (" + u.Status + ")" : ""),
-            })
-            .ToListAsync();
-        // Keep the legacy SelectList so model binding on POST still works when
-        // ModelState is invalid and we re-render. The cascade JS rebuilds the
-        // options client-side anyway.
+        // Create lists every unit (unavailable ones disabled, with the reason)
+        // unless the caller asked for the old vacant-only behaviour. Edit
+        // always lists all so the lease's own unit stays visible.
+        var units = includeAllUnits ? unitRows : unitRows.Where(u => u.Available || u.UnitId == selectedUnitId).ToList();
         ViewData["UnitId"] = new SelectList(units, "UnitId", "DisplayName", selectedUnitId);
 
-        // JSON dict keyed by PropertyId for the client-side cascade.
-        // Shape: { "1": [{id:7, text:"Unit 102 (Vacant)"}, ...], "2": [...] }
+        // JSON dict keyed by PropertyId for the client-side cascade + summary.
+        // Shape: { "1": [{id, text, unit, type, rent, available, note, availableFrom}], ... }
         var grouped = units
             .GroupBy(u => u.PropertyId)
             .ToDictionary(
                 g => g.Key.ToString(),
-                g => g.Select(u => new { id = u.UnitId, text = u.ShortName }).ToList());
+                g => g.Select(u => new
+                {
+                    id = u.UnitId,
+                    text = u.ShortName,
+                    unit = u.UnitNumber,
+                    type = u.UnitType,
+                    rent = u.MonthlyRent,
+                    available = u.Available,
+                    note = u.Note,
+                    availableFrom = u.AvailableFrom?.ToString("yyyy-MM-dd"),
+                    property = u.PropertyName,
+                }).ToList());
         ViewData["UnitsByBuildingJson"] = System.Text.Json.JsonSerializer.Serialize(grouped);
     }
 
@@ -793,7 +1076,7 @@ public class LeasesController : Controller
             .Include(l => l.Invoices)
             .FirstOrDefaultAsync(m => m.LeaseId == id);
 
-        if (lease == null)
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId))
         {
             return NotFound();
         }
@@ -819,6 +1102,14 @@ public class LeasesController : Controller
     [Authorize(Roles = Roles.AnyAdmin)]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
+        // Company scope first so a cross-company id gets a plain 404 rather
+        // than leaking "this lease has invoices".
+        var lease = await _context.Leases
+            .Include(l => l.Tenant)
+            .Include(l => l.Unit)
+            .FirstOrDefaultAsync(l => l.LeaseId == id);
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId)) return NotFound();
+
         // LEASE_AUDIT Flaw #19 — pre-check Invoices/Payments so the hard
         // delete doesn't throw a raw DbUpdateException at the FK Restrict.
         var hasInvoices = await _context.Invoices.AnyAsync(i => i.LeaseId == id);
@@ -831,18 +1122,47 @@ public class LeasesController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var lease = await _context.Leases.FindAsync(id);
-        if (lease != null)
+        // LegalCase.LeaseId is DeleteBehavior.Restrict too — a case filed on
+        // this lease would make the delete 500. IgnoreQueryFilters: the FK
+        // bites regardless of which company the case row belongs to.
+        var hasLegalCases = await _context.LegalCases.IgnoreQueryFilters()
+            .AnyAsync(c => c.LeaseId == id);
+        if (hasLegalCases)
         {
-            _context.Leases.Remove(lease);
-            await _audit.WriteAsync(
-                entityType: "Lease",
-                entityId: id,
-                action: "Deleted",
-                byUser: User.Identity?.Name ?? "system",
-                payload: new { lease.UnitId, lease.TenantId, lease.Status });
+            TempData["ErrorMessage"] =
+                "This lease has a legal case filed against it and cannot be deleted. " +
+                "Close or withdraw the case first, or terminate the lease instead.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Deleting an Active lease must free its unit, otherwise the unit
+        // stays "Occupied" with no lease behind it until the nightly
+        // reconcile job runs. Honour operator holds (Maintenance/Reserved).
+        if (lease.Status == LeaseStatuses.Active
+            && lease.Unit != null
+            && lease.Unit.Status == "Occupied")
+        {
+            lease.Unit.Status = "Vacant";
+            lease.Unit.ModifiedDate = DateTime.UtcNow;
+        }
+
+        _context.Leases.Remove(lease);
+        await _audit.WriteAsync(
+            entityType: "Lease",
+            entityId: id,
+            action: "Deleted",
+            byUser: User.Identity?.Name ?? "system",
+            payload: new { lease.UnitId, lease.TenantId, lease.Status });
+        try
+        {
             await _context.SaveChangesAsync();
             TempData["SuccessMessage"] = "Lease deleted successfully!";
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Error deleting lease {LeaseId}", id);
+            TempData["ErrorMessage"] =
+                "This lease is referenced by other records and cannot be deleted. Terminate it instead.";
         }
 
         return RedirectToAction(nameof(Index));
@@ -866,21 +1186,42 @@ public class LeasesController : Controller
     {
         await using var tx = await _context.Database.BeginTransactionAsync();
 
-        var lease = await _context.Leases.Include(l => l.Unit).FirstOrDefaultAsync(l => l.LeaseId == id);
-        if (lease == null) return NotFound();
+        var lease = await _context.Leases
+            .Include(l => l.Tenant)
+            .Include(l => l.Unit)
+            .FirstOrDefaultAsync(l => l.LeaseId == id);
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId)) return NotFound();
         if (IsClosed(lease.Status))
         {
             TempData["InfoMessage"] = "Lease is already closed.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // The form marks the date required, but a hand-crafted POST (or a
+        // browser that doesn't honour type=date) binds default(DateTime) and
+        // we'd stamp 0001-01-01 as the termination date.
+        if (terminationDate == default || terminationDate == DateTime.MinValue)
+        {
+            TempData["ErrorMessage"] = "Termination date is required.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        if (depositRefundedAmount.HasValue && depositRefundedAmount.Value < 0)
+        {
+            TempData["ErrorMessage"] = "Deposit refund amount cannot be negative.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        // Never refund more than was ever held as deposit.
+        if (depositRefundedAmount.HasValue && depositRefundedAmount.Value > lease.SecurityDeposit)
+            depositRefundedAmount = lease.SecurityDeposit;
+
         lease.Status = LeaseStatuses.Terminated;
         lease.TerminationDate = terminationDate;
         lease.TerminationReason = reason;
         lease.TerminatedBy = User.Identity?.Name;
+        // DepositRefundedAmount records the operator's figure; DepositRefunded
+        // (the "money moved" flag) is only set below once a Refund row exists.
         if (depositRefundedAmount.HasValue)
         {
-            lease.DepositRefunded = depositRefundedAmount.Value > 0;
             lease.DepositRefundedAmount = depositRefundedAmount.Value;
         }
         lease.ModifiedDate = DateTime.UtcNow;
@@ -915,6 +1256,7 @@ public class LeasesController : Controller
                     CreatedBy = User.Identity?.Name,
                 };
                 _context.Refunds.Add(refund);
+                lease.DepositRefunded = true;
             }
         }
 
@@ -973,11 +1315,23 @@ public class LeasesController : Controller
     {
         await using var tx = await _context.Database.BeginTransactionAsync();
 
-        var lease = await _context.Leases.FindAsync(id);
-        if (lease == null) return NotFound();
+        var lease = await _context.Leases
+            .Include(l => l.Tenant)
+            .FirstOrDefaultAsync(l => l.LeaseId == id);
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId)) return NotFound();
         if (lease.Status != LeaseStatuses.Active && lease.Status != LeaseStatuses.Expired)
         {
             TempData["ErrorMessage"] = "Only Active or Expired leases can be renewed.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        if (newMonthlyRent.HasValue && newMonthlyRent.Value <= 0)
+        {
+            TempData["ErrorMessage"] = "New monthly rent must be greater than zero.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        if (newEndDate == default)
+        {
+            TempData["ErrorMessage"] = "New end date is required.";
             return RedirectToAction(nameof(Details), new { id });
         }
         if (newEndDate <= lease.LeaseEndDate)
@@ -995,6 +1349,14 @@ public class LeasesController : Controller
         if (renewalStart <= lease.LeaseEndDate)
         {
             TempData["ErrorMessage"] = "Renewal start must be after the current end date.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        // The unit may already be pre-leased to someone else for the renewal
+        // period (the lease being renewed is excluded — it becomes Renewed).
+        var renewConflict = await LiveLeaseConflictAsync(lease.UnitId, renewalStart, newEndDate, excludeLeaseId: id);
+        if (renewConflict != null)
+        {
+            TempData["ErrorMessage"] = "Cannot renew: " + DescribeConflict(renewConflict);
             return RedirectToAction(nameof(Details), new { id });
         }
         if (newEndDate <= renewalStart)
@@ -1020,6 +1382,11 @@ public class LeasesController : Controller
             Status = LeaseStatuses.Pending,
             LateFeeAmount = lease.LateFeeAmount,
             LateFeeGracePeriod = lease.LateFeeGracePeriod,
+            // Carry the insurance plan forward — otherwise the renewal silently
+            // drops to "None" and the insurance invoice job stops billing.
+            InsuranceAmount = lease.InsuranceAmount,
+            InsuranceFrequency = lease.InsuranceFrequency,
+            InsuranceStartDate = lease.InsuranceStartDate,
             RenewedFromLeaseId = lease.LeaseId,
             CreatedDate = DateTime.UtcNow,
         };
@@ -1073,15 +1440,26 @@ public class LeasesController : Controller
     {
         await using var tx = await _context.Database.BeginTransactionAsync();
 
-        var lease = await _context.Leases.Include(l => l.Unit).FirstOrDefaultAsync(l => l.LeaseId == id);
-        if (lease == null) return NotFound();
+        var lease = await _context.Leases
+            .Include(l => l.Tenant)
+            .Include(l => l.Unit)
+            .FirstOrDefaultAsync(l => l.LeaseId == id);
+        if (lease == null || !CanAccessCompany(lease.Tenant?.CompanyId)) return NotFound();
         if (lease.Status != LeaseStatuses.Active)
         {
             TempData["ErrorMessage"] = "Only Active leases can be transferred.";
             return RedirectToAction(nameof(Details), new { id });
         }
+        if (effectiveDate == default || effectiveDate == DateTime.MinValue)
+        {
+            TempData["ErrorMessage"] = "Effective date is required.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        // Target unit must belong to the caller's company too — Unit has no
+        // company filter, but its Property does, so check through Properties.
         var newUnit = await _context.Units.FindAsync(newUnitId);
-        if (newUnit == null)
+        if (newUnit == null
+            || !await _context.Properties.AnyAsync(p => p.PropertyId == newUnit.PropertyId))
         {
             TempData["ErrorMessage"] = "Target unit not found.";
             return RedirectToAction(nameof(Details), new { id });
@@ -1094,6 +1472,14 @@ public class LeasesController : Controller
         if (newUnitId == lease.UnitId)
         {
             TempData["ErrorMessage"] = "Cannot transfer to the same unit.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        // "Vacant" is the unit flag; the leases table is the truth. A unit can
+        // be flagged Vacant and still hold a Pending lease for the same dates.
+        var transferConflict = await LiveLeaseConflictAsync(newUnitId, effectiveDate, lease.LeaseEndDate);
+        if (transferConflict != null)
+        {
+            TempData["ErrorMessage"] = "Cannot transfer: " + DescribeConflict(transferConflict);
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -1112,6 +1498,13 @@ public class LeasesController : Controller
             Status = LeaseStatuses.Pending,
             LateFeeAmount = lease.LateFeeAmount,
             LateFeeGracePeriod = lease.LateFeeGracePeriod,
+            // Carry the insurance plan across the move (same tenant, same cover).
+            InsuranceAmount = lease.InsuranceAmount,
+            InsuranceFrequency = lease.InsuranceFrequency,
+            InsuranceStartDate = lease.InsuranceStartDate,
+            // Link back to the predecessor so /Leases/History walks the chain
+            // through the transfer (Lease has no Notes column to hold a link).
+            RenewedFromLeaseId = lease.LeaseId,
             CreatedDate = DateTime.UtcNow,
         };
         _context.Leases.Add(newLease);
@@ -1131,6 +1524,8 @@ public class LeasesController : Controller
             // Promote the new lease and occupy the new unit.
             newLease.Status = LeaseStatuses.Active;
             newUnit.Status = "Occupied";
+            lease.RenewedToLeaseId = newLease.LeaseId;
+            lease.TerminationReason = $"Transfer to unit {newUnitId} (new lease #{newLease.LeaseId})";
             await _audit.WriteAsync(
                 entityType: "Lease",
                 entityId: lease.LeaseId,
@@ -1175,7 +1570,8 @@ public class LeasesController : Controller
                 var file = documents[i];
                 if (file == null || file.Length <= 0
                     || i >= documentTypes.Count
-                    || string.IsNullOrEmpty(documentTypes[i]))
+                    || string.IsNullOrEmpty(documentTypes[i])
+                    || !UploadValidation.IsAllowed(file))
                     continue;
 
                 var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";

@@ -7,9 +7,10 @@
 #   2. Register the App ID `com.viijar.tenant` in App Store Connect and create
 #      the app record there (note its Apple ID number → APP_STORE_APPLE_ID).
 #   3. Create an App Store Connect API key (Users and Access → Integrations →
-#      App Store Connect API), then in Codemagic: Teams → Integrations →
-#      Developer Portal → connect it. Name the integration exactly
-#      `ViijarASCKey` (or change the name under `integrations` below).
+#      App Store Connect API). Then in Codemagic, create an environment
+#      variable group named `appstore_credentials` holding three SECRET vars:
+#      APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER and
+#      APP_STORE_CONNECT_PRIVATE_KEY (the whole .p8 file, BEGIN/END lines).
 #   4. Connect this git repository to a Codemagic application.
 #   5. Fill the TODOs marked below.
 #
@@ -20,20 +21,15 @@ workflows:
     name: iOS Release (IPA)
     instance_type: mac_mini_m2
     max_build_duration: 60
-    integrations:
-      # Must match the App Store Connect integration name set in the Codemagic UI.
-      app_store_connect: ViijarASCKey
     environment:
-      ios_signing:
-        # Codemagic fetches/creates the distribution certificate + provisioning
-        # profile automatically from the API key above (automatic signing).
-        distribution_type: app_store          # app_store | ad_hoc | development | enterprise
-        bundle_identifier: com.viijar.tenant
+      groups:
+        - appstore_credentials
       vars:
-        # TODO: point at your PRODUCTION HTTPS API (iOS ATS blocks cleartext http).
-        API_BASE_URL: "https://api.viijar.com/api"
-        # TODO: the app's Apple ID number from App Store Connect (used for build numbering).
-        APP_STORE_APPLE_ID: 0000000000
+        # Production HTTPS API — same backend as Android. iOS ATS requires HTTPS;
+        # alrtam.co is served over HTTPS so this satisfies ATS.
+        API_BASE_URL: "https://www.alrtam.co/api"
+        # Apple ID of the App Store Connect app record (com.viijar.tenant).
+        APP_STORE_APPLE_ID: 6795531787
         BUNDLE_ID: "com.viijar.tenant"
       flutter: 3.24.5
       xcode: latest
@@ -43,8 +39,20 @@ workflows:
         script: flutter pub get
       - name: Install CocoaPods dependencies
         script: find . -name "Podfile" -execdir pod install \;
-      - name: Apply signing profiles to the Xcode project
-        script: xcode-project use-profiles
+      - name: Set up code signing (create distribution cert + App Store profile)
+        script: |
+          set -e
+          keychain initialize
+          # This Apple account had NO signing certificate and NO provisioning profile.
+          # Generate a private key so fetch-signing-files --create makes BOTH the iOS
+          # Distribution certificate (from this key) AND the App Store profile.
+          openssl genrsa -out /tmp/ios_signing_key.pem 2048
+          app-store-connect fetch-signing-files "com.viijar.tenant" \
+            --type IOS_APP_STORE \
+            --certificate-key=@file:/tmp/ios_signing_key.pem \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Build signed IPA
         script: |
           # Auto-increment the build number off the latest TestFlight build.
@@ -68,5 +76,7 @@ workflows:
       # Uploads the IPA to TestFlight automatically. Set to false to just get
       # the artifact without publishing while you're still testing the pipeline.
       app_store_connect:
-        auth: integration
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using RentCollection.Application.DTOs;
 using RentCollection.Application.Interfaces;
 using RentCollection.Core.Entities;
@@ -35,6 +36,11 @@ public class CashPaymentService : ICashPaymentService
         // Validate invoice if provided and resolve the lease from it so the
         // cash Payment row participates in lease-level reconciliation just
         // like KNET / bank payments do.
+        // KWD is 3-decimal (fils); round once and use `amount` throughout.
+        var amount = decimal.Round(cashPaymentDto.Amount, 3);
+        if (amount <= 0)
+            throw new ArgumentException("Amount must be greater than zero.");
+
         int leaseId = 0;
         if (cashPaymentDto.InvoiceId.HasValue)
         {
@@ -42,14 +48,26 @@ public class CashPaymentService : ICashPaymentService
             if (invoice == null)
                 throw new ArgumentException($"Invoice with ID {cashPaymentDto.InvoiceId} not found.");
 
-            if (invoice.Status == "Paid")
+            if (invoice.Status == InvoiceStatuses.Paid)
                 throw new InvalidOperationException($"Invoice {cashPaymentDto.InvoiceId} is already paid.");
+
+            if (invoice.Status == InvoiceStatuses.Cancelled)
+                throw new InvalidOperationException($"Invoice {cashPaymentDto.InvoiceId} is cancelled and cannot be paid.");
+
+            // Never record more than is owed — approval would otherwise push
+            // PaidAmount past TotalAmount.
+            var balance = decimal.Round(invoice.TotalAmount - invoice.PaidAmount, 3);
+            if (amount > balance)
+                throw new ArgumentException(
+                    $"Amount {amount:0.000} KWD exceeds the outstanding balance of {balance:0.000} KWD on invoice {cashPaymentDto.InvoiceId}.");
 
             leaseId = invoice.LeaseId;
         }
 
-        // Generate receipt number
-        var receiptNumber = cashPaymentDto.ReceiptNumber ?? await GenerateReceiptNumberAsync();
+        // Receipt number is ALWAYS generated server-side. The DTO's
+        // ReceiptNumber was previously trusted verbatim, which let a caller
+        // forge or duplicate receipt numbers; it is now ignored.
+        var receiptNumber = await GenerateReceiptNumberAsync();
 
         // Create payment record
         var payment = new Payment
@@ -59,7 +77,7 @@ public class CashPaymentService : ICashPaymentService
             PropertyId = cashPaymentDto.PropertyId,
             LeaseId = leaseId,
             PaymentDate = cashPaymentDto.PaymentDate,
-            AmountPaid = cashPaymentDto.Amount,
+            AmountPaid = amount,
             PaymentType = PaymentType.Cash,
             Status = PaymentStatus.PendingVerification,
             CollectedBy = collectedBy,
@@ -77,10 +95,13 @@ public class CashPaymentService : ICashPaymentService
             TenantId = cashPaymentDto.TenantId,
             PropertyId = cashPaymentDto.PropertyId,
             InvoiceId = cashPaymentDto.InvoiceId,
-            Amount = cashPaymentDto.Amount,
+            Amount = amount,
             PaymentDate = cashPaymentDto.PaymentDate,
             CollectedBy = collectedBy,
             ReceiptNumber = receiptNumber,
+            ManualReceiptNumber = string.IsNullOrWhiteSpace(cashPaymentDto.ManualReceiptNumber)
+                ? null
+                : cashPaymentDto.ManualReceiptNumber.Trim()[..Math.Min(50, cashPaymentDto.ManualReceiptNumber.Trim().Length)],
             Notes = cashPaymentDto.Notes,
             CreatedBy = collectedBy,
             CreatedDate = DateTime.UtcNow
@@ -95,7 +116,7 @@ public class CashPaymentService : ICashPaymentService
             var invoice = await _invoiceRepository.GetByIdAsync(cashPaymentDto.InvoiceId.Value);
             if (invoice != null)
             {
-                invoice.Status = "Pending Verification";
+                invoice.Status = InvoiceStatuses.PendingVerification;
                 await _invoiceRepository.UpdateAsync(invoice);
             }
         }
@@ -109,7 +130,7 @@ public class CashPaymentService : ICashPaymentService
             PaymentId = createdPayment.PaymentId,
             CashPaymentId = createdCashPayment.CashPaymentId,
             ReceiptNumber = receiptNumber,
-            Amount = cashPaymentDto.Amount,
+            Amount = amount,
             PaymentDate = cashPaymentDto.PaymentDate,
             Status = PaymentStatus.PendingVerification.ToString(),
             TenantName = tenant != null ? $"{tenant.FirstName} {tenant.LastName}".Trim() : "Unknown",
@@ -197,9 +218,34 @@ public class CashPaymentService : ICashPaymentService
         return result;
     }
 
+    /// <summary>
+    /// Server-issued cash receipt number: <c>CASH-yyyyMMdd-XXXXXX</c>.
+    /// The old <c>COUNT(*)+1</c> scheme collided whenever two cashiers recorded
+    /// within the same request window (both read the same count) and used
+    /// server-local time for the date. Now: UTC date + a 6-char random base-36
+    /// suffix (≈2.2 billion per day), re-drawn until no CashPayment OR Payment
+    /// already carries it.
+    /// </summary>
     private async Task<string> GenerateReceiptNumberAsync()
     {
-        var count = await _cashPaymentRepository.CountAsync();
-        return $"CASH-{DateTime.Now:yyyyMMdd}-{(count + 1):D5}";
+        const int maxAttempts = 10;
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            var candidate = $"CASH-{DateTime.UtcNow:yyyyMMdd}-{RandomBase36(6)}";
+            var taken = await _cashPaymentRepository.ExistsAsync(cp => cp.ReceiptNumber == candidate)
+                     || await _paymentRepository.ExistsAsync(p => p.ReceiptNumber == candidate);
+            if (!taken) return candidate;
+        }
+        throw new InvalidOperationException("Could not allocate a unique cash receipt number; please retry.");
+    }
+
+    private static string RandomBase36(int length)
+    {
+        const string alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        return string.Create(length, alphabet, (span, a) =>
+        {
+            for (var i = 0; i < span.Length; i++)
+                span[i] = a[RandomNumberGenerator.GetInt32(a.Length)];
+        });
     }
 }

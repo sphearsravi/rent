@@ -2,272 +2,388 @@
 @using RentCollection.Core.Enums
 @using RentCollection.Core.Entities
 @{
-    ViewData["Title"] = $"Unit {Model.UnitNumber}";
-    var leases = ViewBag.Leases as List<RentCollection.Core.Entities.Lease> ?? new();
-    var maintenance = ViewBag.MaintenanceRequests as List<RentCollection.Core.Entities.MaintenanceRequest> ?? new();
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var unitTitle = $"{L["Unit"].Value} {Model.UnitNumber}";
+    ViewData["Title"] = unitTitle;
+
+    var leases = (ViewBag.Leases as List<Lease> ?? new())
+        .OrderByDescending(l => l.LeaseStartDate).ThenByDescending(l => l.LeaseId).ToList();
+    var maintenance = ViewBag.MaintenanceRequests as List<MaintenanceRequest> ?? new();
+
     var active = leases.FirstOrDefault(l => l.Status == LeaseStatuses.Active);
+    var pending = leases.FirstOrDefault(l => l.Status == LeaseStatuses.Pending);
+    var current = active ?? pending;                 // what the "Current tenant" card shows
+    var hasLiveLease = current != null;               // gates "New lease"
+    // A Vacant unit with a Pending (deposit-awaiting) lease is shown as Reserved.
+    var isPendingHold = Model.Status == UnitStatuses.Vacant && active == null && pending != null;
+    var displayStatus = isPendingHold ? UnitStatuses.Reserved : Model.Status;
+
     var lifetimeTenants = leases.Where(l => l.Tenant != null)
         .Select(l => l.Tenant!.TenantId).Distinct().Count();
     var totalMonthsOccupied = leases
         .Where(l => l.LeaseEndDate > l.LeaseStartDate)
         .Sum(l => ((l.TerminationDate ?? l.LeaseEndDate) - l.LeaseStartDate).TotalDays / 30.0);
+
+    var property = Model.Property;
+    var propertyName = property?.PropertyName ?? L["Property"].Value;
+    var propertyHref = $"/Properties/Details/{Model.PropertyId}";
+
+    string Chip(string status) => status switch
+    {
+        "Occupied" => "lp-chip-blue", "Vacant" => "lp-chip-green", "Maintenance" => "lp-chip-amber", "Reserved" => "lp-chip-purple", _ => "lp-chip-grey",
+    };
+    string LeaseChip(string status) => status switch
+    {
+        LeaseStatuses.Active => "lp-chip-green", LeaseStatuses.Pending => "lp-chip-amber", LeaseStatuses.Renewed => "lp-chip-gold",
+        LeaseStatuses.Terminated => "lp-chip-red", LeaseStatuses.Expired => "lp-chip-grey", _ => "lp-chip-grey",
+    };
+    string MaintChip(string status) => status switch
+    {
+        "Open" => "lp-chip-amber", "InProgress" => "lp-chip-blue", "In Progress" => "lp-chip-blue", "Assigned" => "lp-chip-blue",
+        "Completed" => "lp-chip-green", "Resolved" => "lp-chip-green", "Cancelled" => "lp-chip-grey", _ => "lp-chip-grey",
+    };
+    static string Initials(Tenant t) =>
+        string.Concat(new[] { t.FirstName, t.LastName }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s![0])).ToUpperInvariant();
+
+    var subtitle = string.Join(" · ", new[] {
+        property?.PropertyName,
+        string.IsNullOrWhiteSpace(Model.UnitType) ? null : L[Model.UnitType].Value,
+        string.IsNullOrWhiteSpace(Model.FloorNumber) ? null : $"{L["Floor"].Value} {Model.FloorNumber}",
+        string.IsNullOrWhiteSpace(Model.SizeBand) ? null : L[Model.SizeBand].Value,
+        L[displayStatus].Value,
+    }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    var address = property == null ? "" : string.Join(", ", new[] {
+        string.IsNullOrWhiteSpace(property.BuildingNumber) ? null : $"{L["Building"].Value} {property.BuildingNumber}",
+        string.IsNullOrWhiteSpace(property.Street) ? null : $"{L["Street"].Value} {property.Street}",
+        string.IsNullOrWhiteSpace(property.Block) ? null : $"{L["Block"].Value} {property.Block}",
+        string.IsNullOrWhiteSpace(property.Area) ? null : property.Area,
+        string.IsNullOrWhiteSpace(property.Governorate) ? null : property.Governorate,
+    }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    var actions =
+        "<a class=\"lp-btn\" href=\"/Units/History/" + Model.UnitId + "\"><i class=\"fas fa-clock-rotate-left\"></i> " + L["Full history"].Value + "</a>" +
+        (!hasLiveLease
+            ? "<a class=\"lp-btn\" href=\"/Leases/Create?unitId=" + Model.UnitId + "\"><i class=\"fas fa-file-signature\"></i> " + L["New lease"].Value + "</a>"
+            : "") +
+        "<a class=\"lp-btn lp-btn-primary\" href=\"/Units/Edit/" + Model.UnitId + "\"><i class=\"fas fa-pen\"></i> " + L["Edit unit"].Value + "</a>";
 }
 
-<div class="page-container">
+<div class="lp-page">
     @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
     {
-        ["Title"] = $"Unit {Model.UnitNumber}",
-        ["Subtitle"] = $"{Model.Property?.PropertyName} · {Model.Status}",
+        ["Title"] = unitTitle,
+        ["Subtitle"] = subtitle,
         ["Crumbs"] = new (string label, string? href)[]
         {
             (L["Admin"].Value, "/Dashboard"),
             (L["Properties"].Value, "/Properties"),
-            (Model.Property?.PropertyName ?? L["Property"].Value, $"/Properties/Details/{Model.PropertyId}"),
-            ($"Unit {Model.UnitNumber}", null),
-        }
+            (propertyName, propertyHref),
+            (unitTitle, null),
+        },
+        ["ActionsHtml"] = Html.Raw(actions)
     })
 
     @await Html.PartialAsync("_AlertMessages")
     @Html.AntiForgeryToken()
 
-    <div class="unit-actions">
-        <a asp-action="Edit" asp-route-id="@Model.UnitId" class="btn btn-primary">
-            <i class="fas fa-pen"></i> @L["Edit unit"]
-        </a>
-        <a asp-action="History" asp-route-id="@Model.UnitId" class="btn btn-secondary">
-            <i class="fas fa-clock-rotate-left"></i> @L["Full history"]
-        </a>
-        @if (Model.Status != "Occupied")
-        {
-            <div class="status-control">
-                <span>@L["Hold:"]</span>
-                <select id="statusSelect" data-current="@Model.Status">
-                    @foreach (var s in UnitStatuses.All)
-                    {
-                        if (s == Model.Status)
-                        {
-                            <option value="@s" selected>@s</option>
-                        }
-                        else
-                        {
-                            <option value="@s">@s</option>
-                        }
-                    }
-                </select>
-            </div>
-        }
-    </div>
-
     @* ── KPI strip ── *@
-    <div class="unit-strip">
-        <div class="kpi-card"><div class="kpi-icon ki-tenants"><i class="fas fa-users"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Lifetime tenants"]</div><div class="kpi-value">@lifetimeTenants</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-months"><i class="fas fa-calendar"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Months occupied"]</div><div class="kpi-value">@Math.Round(totalMonthsOccupied, 0)</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-leases"><i class="fas fa-file-contract"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Total leases"]</div><div class="kpi-value">@leases.Count</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-rent"><i class="fas fa-coins"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Current rent"]</div><div class="kpi-value">@Model.MonthlyRent.ToString("N3") <small>KWD</small></div></div></div>
-    </div>
-
-    <div class="unit-grid">
-        <div class="card">
-            <div class="card-head"><h2><i class="fas fa-cube"></i> @L["Specs"]</h2></div>
-            <div class="card-body">
-                <div class="spec-row"><span>@L["Type"]</span><strong>@Model.UnitType</strong></div>
-                <div class="spec-row"><span>@L["Size band"]</span><strong>@(string.IsNullOrEmpty(Model.SizeBand) ? "—" : Model.SizeBand)</strong></div>
-                <div class="spec-row"><span>@L["Floor"]</span><strong>@(Model.FloorNumber.HasValue ? Model.FloorNumber.ToString() : "—")</strong></div>
-                <div class="spec-row"><span>@L["Bedrooms"]</span><strong>@(Model.Bedrooms ?? 0)</strong></div>
-                <div class="spec-row"><span>@L["Bathrooms"]</span><strong>@(Model.Bathrooms ?? 0)</strong></div>
-                <div class="spec-row"><span>@L["Square feet"]</span><strong>@(Model.SquareFeet ?? 0)</strong></div>
-                <div class="spec-row"><span>@L["Status"]</span>
-                    <strong class="status-pill status-@Model.Status.ToLowerInvariant()">@Model.Status</strong>
-                </div>
-                @if (Model.Status != "Occupied" && Model.AvailableFromDate.HasValue)
-                {
-                    <div class="spec-row"><span>@L["Available from"]</span><strong>@Model.AvailableFromDate.Value.ToString("dd MMM yyyy")</strong></div>
-                }
+    <div class="od od-grid-kpi lp-kpi-5">
+        <div class="od-card od-kpi-hero">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Status"]</span></div>
+            <div class="od-kpi-value"><span class="lp-chip @Chip(displayStatus)" style="font-size:0.8rem">@L[displayStatus]</span></div>
+            <div class="od-kpi-sub">
+                @if (isPendingHold && current?.Tenant != null) { <span>@L["Pending lease"] · @current.Tenant.FirstName @current.Tenant.LastName</span> }
+                else if (current?.Tenant != null) { <span>@current.Tenant.FirstName @current.Tenant.LastName</span> }
+                else if (Model.Status == UnitStatuses.Vacant && Model.AvailableFromDate.HasValue) { <span>@L["Available from"] @Model.AvailableFromDate.Value.ToString("dd MMM yyyy", inv)</span> }
+                else if (Model.Status == UnitStatuses.Vacant) { <span>@L["Available"]</span> }
+                else { <span>@L["No active lease"]</span> }
             </div>
         </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Listed rent"]</span></div>
+            @if (Model.MonthlyRent > 0)
+            {
+                <div class="od-kpi-value">@Model.MonthlyRent.ToString("N3", inv) <small>KWD</small></div>
+                <div class="od-kpi-sub">@L["per month"]</div>
+            }
+            else
+            {
+                <div class="od-kpi-value"><span class="lp-chip lp-chip-amber">@L["No rent set"]</span></div>
+                <div class="od-kpi-sub"><a class="lp-link" href="/Units/Edit/@Model.UnitId">@L["Set a listed rent"]</a></div>
+            }
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Current rent"]</span></div>
+            @if (active != null)
+            {
+                <div class="od-kpi-value">@active.MonthlyRent.ToString("N3", inv) <small>KWD</small></div>
+                <div class="od-kpi-sub">@L["Lease #"]@active.LeaseId · @L["until"] @active.LeaseEndDate.ToString("dd MMM yyyy", inv)</div>
+            }
+            else
+            {
+                <div class="od-kpi-value"><span class="lp-amount-muted">—</span></div>
+                <div class="od-kpi-sub">@L["No active lease"]</div>
+            }
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Months occupied"]</span></div>
+            <div class="od-kpi-value">@Math.Round(totalMonthsOccupied, 0)</div>
+            <div class="od-kpi-sub">@L["across all leases"]</div>
+        </div>
+        <a class="od-card od-card-link" href="/Units/History/@Model.UnitId">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Lifetime tenants"]</span></div>
+            <div class="od-kpi-value">@lifetimeTenants</div>
+            <div class="od-kpi-sub">@L["Total leases"]: @leases.Count</div>
+        </a>
+    </div>
 
-        <div class="card">
-            <div class="card-head"><h2><i class="fas fa-user"></i> @L["Current tenant"]</h2></div>
-            <div class="card-body">
-                @if (active?.Tenant != null)
+    <div class="pd-grid">
+        <div class="pd-main">
+
+            @* ── Current tenant ── *@
+            <section class="lp-table-wrap pd-section">
+                <div class="pd-section-head">
+                    <h2><i class="fas fa-user"></i> @L["Current tenant"]</h2>
+                    @if (current != null)
+                    {
+                        <span class="lp-chip @LeaseChip(current.Status)">@L[current.Status]</span>
+                    }
+                </div>
+                @if (current?.Tenant != null)
                 {
-                    <div class="tenant-row">
-                        <div>
-                            <strong><a href="/Tenants/Details/@active.Tenant.TenantId">@active.Tenant.FirstName @active.Tenant.LastName</a></strong>
-                            <div class="tenant-meta">
-                                @active.Tenant.Phone @(string.IsNullOrEmpty(active.Tenant.Email) ? "" : "· " + active.Tenant.Email)
+                    var t = current.Tenant;
+                    var tInit = Initials(t);
+                    var daysLeft = (current.LeaseEndDate.Date - DateTime.Today).Days;
+                    <div style="padding:0.9rem 1rem;display:flex;flex-direction:column;gap:0.8rem">
+                        <div class="lp-cell-person">
+                            <span class="lp-avatar" style="width:44px;height:44px;font-size:0.95rem">@(tInit.Length == 0 ? "T" : tInit)</span>
+                            <div>
+                                <a class="lp-link lp-primary" style="font-size:1.02rem" href="/Tenants/Details/@t.TenantId">@t.FirstName @t.LastName</a>
+                                <span class="lp-sub">
+                                    @if (!string.IsNullOrWhiteSpace(t.PACINumber)) { <span class="lp-mono">@L["Civil ID"] @t.PACINumber</span> }
+                                    @if (!string.IsNullOrWhiteSpace(t.Phone)) { <span> · <a class="lp-link" href="tel:@t.Phone">@t.Phone</a></span> }
+                                    @if (!string.IsNullOrWhiteSpace(t.Email)) { <span> · <a class="lp-link" href="mailto:@t.Email">@t.Email</a></span> }
+                                </span>
                             </div>
                         </div>
+                        <dl class="pd-dl" style="padding:0;border-top:1px dashed #f1f5f9">
+                            <div><dt>@L["Lease"]</dt><dd><a class="lp-link" href="/Leases/Details/@current.LeaseId">@L["Lease #"]@current.LeaseId</a></dd></div>
+                            <div><dt>@L["Period"]</dt><dd>@current.LeaseStartDate.ToString("dd MMM yyyy", inv) → @current.LeaseEndDate.ToString("dd MMM yyyy", inv)</dd></div>
+                            <div><dt>@L["Rent"]</dt><dd><span class="lp-amount">@current.MonthlyRent.ToString("N3", inv)</span> @L["KWD/mo"]</dd></div>
+                            <div><dt>@L["Days remaining"]</dt><dd>
+                                @if (daysLeft < 0) { <span class="lp-chip lp-chip-red">@L["past end"]</span> }
+                                else if (daysLeft <= 30) { <span class="lp-chip lp-chip-amber">@daysLeft @L["days"]</span> }
+                                else { <span class="lp-chip lp-chip-green">@daysLeft @L["days"]</span> }
+                            </dd></div>
+                        </dl>
+                        <div class="lp-row-actions" style="flex-wrap:wrap">
+                            <a class="lp-btn lp-btn-primary" href="/Leases/Details/@current.LeaseId"><i class="fas fa-file-contract"></i> @L["Open lease"]</a>
+                            <a class="lp-btn" href="/CashPayment/Record?tenantId=@t.TenantId"><i class="fas fa-money-bill"></i> @L["Record cash"]</a>
+                            <a class="lp-btn" href="/Invoices?leaseId=@current.LeaseId"><i class="fas fa-file-invoice-dollar"></i> @L["Invoices"]</a>
+                        </div>
                     </div>
-                    <div class="tenant-lease">
-                        <a href="/Leases/Details/@active.LeaseId">@L["Lease #"]@active.LeaseId</a>
-                        · @active.LeaseStartDate.ToString("dd MMM yyyy") → @active.LeaseEndDate.ToString("dd MMM yyyy")
-                        · @active.MonthlyRent.ToString("N3") @L["KWD/mo"]
+                }
+                else if (Model.Status == UnitStatuses.Vacant)
+                {
+                    <div class="lp-empty" style="border:0">
+                        <i class="fas fa-door-open"></i>
+                        <h3>@L["Available"]</h3>
+                        @if (Model.AvailableFromDate.HasValue)
+                        {
+                            <p>@L["Available from"] @Model.AvailableFromDate.Value.ToString("dd MMM yyyy", inv)</p>
+                        }
+                        <p style="margin-top:0.6rem"><a class="lp-btn lp-btn-primary" href="/Leases/Create?unitId=@Model.UnitId"><i class="fas fa-file-signature"></i> @L["Open new lease"]</a></p>
                     </div>
                 }
                 else
                 {
-                    <p class="muted">@L["No active lease. The unit is currently"] <strong>@Model.Status</strong>.</p>
-                    @if (Model.Status == "Vacant")
+                    <div class="lp-empty" style="border:0">
+                        <i class="fas fa-user-slash"></i>
+                        <h3>@L[Model.Status]</h3>
+                        <p>@L["No active lease. The unit is currently"] <strong>@L[Model.Status]</strong>.</p>
+                        @if (Model.AvailableFromDate.HasValue)
+                        {
+                            <p>@L["Available from"] @Model.AvailableFromDate.Value.ToString("dd MMM yyyy", inv)</p>
+                        }
+                    </div>
+                }
+            </section>
+
+            @* ── Lease history ── *@
+            <section class="lp-table-wrap pd-section">
+                <div class="pd-section-head">
+                    <h2><i class="fas fa-clock-rotate-left"></i> @L["Lease history"] <span class="lp-chip lp-chip-gold">@leases.Count</span></h2>
+                    <div class="lp-row-actions">
+                        <a class="lp-btn" href="/Units/History/@Model.UnitId"><i class="fas fa-timeline"></i> @L["Full history"]</a>
+                    </div>
+                </div>
+                @if (leases.Count == 0)
+                {
+                    <div class="lp-empty" style="border:0"><i class="fas fa-file-contract"></i><h3>@L["No leases yet"]</h3><p>@L["This unit has never been leased."]</p></div>
+                }
+                else
+                {
+                    <table class="lp-table">
+                        <thead>
+                            <tr>
+                                <th>@L["Tenant"]</th>
+                                <th>@L["Period"]</th>
+                                <th class="lp-num">@L["Rent (KWD)"]</th>
+                                <th>@L["Status"]</th>
+                                <th class="lp-right">@L["Actions"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in leases)
+                            {
+                                var endShown = l.TerminationDate ?? l.LeaseEndDate;
+                                <tr class="@(l.LeaseId == current?.LeaseId ? "" : (l.Status == LeaseStatuses.Expired || l.Status == LeaseStatuses.Terminated ? "is-muted" : ""))">
+                                    <td data-label="@L["Tenant"]">
+                                        @if (l.Tenant != null)
+                                        {
+                                            var li = Initials(l.Tenant);
+                                            <div class="lp-cell-person">
+                                                <span class="lp-avatar">@(li.Length == 0 ? "T" : li)</span>
+                                                <div>
+                                                    <a class="lp-link lp-primary lp-trunc" style="max-width:170px" href="/Tenants/Details/@l.Tenant.TenantId">@l.Tenant.FirstName @l.Tenant.LastName</a>
+                                                    <span class="lp-sub lp-mono">@l.Tenant.PACINumber</span>
+                                                </div>
+                                            </div>
+                                        }
+                                        else { <span class="lp-amount-muted">—</span> }
+                                    </td>
+                                    <td data-label="@L["Period"]" style="white-space:nowrap;font-size:0.82rem">
+                                        <span>@l.LeaseStartDate.ToString("dd MMM yyyy", inv) → @endShown.ToString("dd MMM yyyy", inv)</span>
+                                        @if (l.TerminationDate.HasValue) { <span class="lp-sub">@L["Terminated"] · @L["planned end"] @l.LeaseEndDate.ToString("dd MMM yyyy", inv)</span> }
+                                    </td>
+                                    <td class="lp-num" data-label="@L["Rent (KWD)"]"><span class="lp-amount">@l.MonthlyRent.ToString("N3", inv)</span></td>
+                                    <td data-label="@L["Status"]"><span class="lp-chip @LeaseChip(l.Status)">@L[l.Status]</span></td>
+                                    <td class="lp-right" data-label="@L["Actions"]">
+                                        <a class="lp-btn" style="padding:0.3rem 0.6rem;font-size:0.76rem" href="/Leases/Details/@l.LeaseId"><i class="fas fa-file-contract"></i> @L["Open"]</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </section>
+
+            @* ── Maintenance ── *@
+            <section class="lp-table-wrap pd-section">
+                <div class="pd-section-head">
+                    <h2><i class="fas fa-screwdriver-wrench"></i> @L["Recent maintenance"] <span class="lp-chip lp-chip-gold">@maintenance.Count</span></h2>
+                </div>
+                @if (maintenance.Count == 0)
+                {
+                    <div class="lp-empty" style="border:0"><i class="fas fa-wrench"></i><h3>@L["No maintenance requests"]</h3></div>
+                }
+                else
+                {
+                    <table class="lp-table">
+                        <thead>
+                            <tr>
+                                <th>@L["Date"]</th>
+                                <th>@L["Request"]</th>
+                                <th>@L["Priority"]</th>
+                                <th>@L["Status"]</th>
+                                <th class="lp-right">@L["Actions"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var m in maintenance)
+                            {
+                                <tr>
+                                    <td data-label="@L["Date"]" style="white-space:nowrap">@m.RequestDate.ToString("dd MMM yyyy", inv)</td>
+                                    <td data-label="@L["Request"]">
+                                        <span class="lp-primary">@L[m.Category]</span>
+                                        @if (!string.IsNullOrWhiteSpace(m.Description)) { <span class="lp-sub lp-trunc" style="max-width:320px">@m.Description</span> }
+                                    </td>
+                                    <td data-label="@L["Priority"]"><span class="lp-chip @(m.Priority == "Emergency" || m.Priority == "High" ? "lp-chip-red" : m.Priority == "Low" ? "lp-chip-grey" : "lp-chip-amber")">@L[m.Priority]</span></td>
+                                    <td data-label="@L["Status"]">
+                                        <span class="lp-chip @MaintChip(m.Status)">@L[m.Status]</span>
+                                        @if (m.IsOverdue) { <span class="lp-chip lp-chip-red">@L["Overdue"]</span> }
+                                    </td>
+                                    <td class="lp-right" data-label="@L["Actions"]">
+                                        <a class="lp-btn" style="padding:0.3rem 0.6rem;font-size:0.76rem" href="/Maintenance/Details/@m.RequestId"><i class="fas fa-arrow-up-right-from-square"></i> @L["Open"]</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </section>
+        </div>
+
+        <aside class="pd-side">
+            @* ── Specs ── *@
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-cube"></i> @L["Specs"]</div>
+                <dl class="pd-dl">
+                    <div><dt>@L["Type"]</dt><dd>@(string.IsNullOrWhiteSpace(Model.UnitType) ? "—" : L[Model.UnitType].Value)</dd></div>
+                    <div><dt>@L["Size band"]</dt><dd>@(string.IsNullOrEmpty(Model.SizeBand) ? "—" : L[Model.SizeBand].Value)</dd></div>
+                    <div><dt>@L["Floor"]</dt><dd>@(string.IsNullOrWhiteSpace(Model.FloorNumber) ? "—" : Model.FloorNumber)</dd></div>
+                    <div><dt>@L["Bedrooms"]</dt><dd>@(Model.Bedrooms ?? 0)</dd></div>
+                    <div><dt>@L["Bathrooms"]</dt><dd>@(Model.Bathrooms ?? 0)</dd></div>
+                    <div><dt>@L["Square feet"]</dt><dd>@(Model.SquareFeet ?? 0)</dd></div>
+                    <div><dt>@L["Listed rent"]</dt><dd>@if (Model.MonthlyRent > 0) { <text>KWD @Model.MonthlyRent.ToString("N3", inv)</text> } else { <span class="lp-chip lp-chip-amber">@L["No rent set"]</span> }</dd></div>
+                    <div><dt>@L["Status"]</dt><dd><span class="lp-chip @Chip(displayStatus)">@L[displayStatus]</span>@if (isPendingHold) { <span class="lp-sub">@L["Pending lease"] #@pending!.LeaseId</span> }</dd></div>
+                    @if (Model.Status != UnitStatuses.Occupied && Model.AvailableFromDate.HasValue)
                     {
-                        <a class="btn btn-secondary" href="/Leases/Create?unitId=@Model.UnitId">
-                            <i class="fas fa-file-signature"></i> @L["Open new lease"]
-                        </a>
+                        <div><dt>@L["Available from"]</dt><dd>@Model.AvailableFromDate.Value.ToString("dd MMM yyyy", inv)</dd></div>
                     }
+                    <div><dt>@L["Created"]</dt><dd>@Model.CreatedDate.ToString("dd MMM yyyy", inv)</dd></div>
+                    <div><dt>@L["Modified"]</dt><dd>@(Model.ModifiedDate?.ToString("dd MMM yyyy", inv) ?? "—")</dd></div>
+                </dl>
+            </div>
+
+            @* ── Change status (existing inline form; ids/names unchanged, script in @section Scripts) ── *@
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-toggle-on"></i> @L["Change status"]</div>
+                @if (Model.Status != UnitStatuses.Occupied)
+                {
+                    <div class="pd-form">
+                        <div>
+                            <label for="statusSelect">@L["Hold:"]</label>
+                            <select id="statusSelect" data-current="@Model.Status">
+                                @foreach (var s in UnitStatuses.All)
+                                {
+                                    if (s == Model.Status)
+                                    {
+                                        <option value="@s" selected>@L[s]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@s">@L[s]</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <small>@L["Maintenance and Reserved are manual holds. Vacant and Occupied follow the lease and are refused while a lease is active."]</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="pd-note">@L["Status is managed by the active lease. Terminate or transfer the lease to release the unit."]</div>
                 }
             </div>
-        </div>
-    </div>
 
-    @* ── Past tenants strip (next-most-recent first) ── *@
-    @if (leases.Count > (active != null ? 1 : 0))
-    {
-        <div class="card" style="margin-top:1rem;">
-            <div class="card-head">
-                <h2><i class="fas fa-clock-rotate-left"></i> @L["Recent past tenants"]</h2>
-                <a asp-action="History" asp-route-id="@Model.UnitId" class="btn-link">@L["Full history"] →</a>
-            </div>
-            <div class="card-body">
-                <table class="lease-table">
-                    <thead>
-                        <tr><th>@L["Tenant"]</th><th>@L["Period"]</th><th>@L["Status"]</th><th>@L["Rent"]</th><th></th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var l in leases.Where(x => x.Status != LeaseStatuses.Active).Take(5))
-                        {
-                            <tr>
-                                <td>
-                                    @if (l.Tenant != null)
-                                    {
-                                        <a href="/Tenants/Details/@l.Tenant.TenantId">@l.Tenant.FirstName @l.Tenant.LastName</a>
-                                    }
-                                    else { <span class="muted">—</span> }
-                                </td>
-                                <td>@l.LeaseStartDate.ToString("MMM yyyy") → @((l.TerminationDate ?? l.LeaseEndDate).ToString("MMM yyyy"))</td>
-                                <td><span class="lease-status lease-@l.Status.ToLowerInvariant()">@l.Status</span></td>
-                                <td>@l.MonthlyRent.ToString("N3") KWD</td>
-                                <td><a class="btn-link" href="/Leases/Details/@l.LeaseId">@L["Open"]</a></td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    }
-
-    @if (maintenance.Any())
-    {
-        <div class="card" style="margin-top:1rem;">
-            <div class="card-head"><h2><i class="fas fa-screwdriver-wrench"></i> @L["Recent maintenance"]</h2></div>
-            <div class="card-body">
-                <ul style="list-style:none; padding:0; margin:0;">
-                    @foreach (var m in maintenance)
+            @* ── Property ── *@
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-building"></i> @L["Property"]</div>
+                <dl class="pd-dl">
+                    <div><dt>@L["Name"]</dt><dd><a class="lp-link" href="@propertyHref">@propertyName</a></dd></div>
+                    <div><dt>@L["Address"]</dt><dd style="text-align:end">@(!string.IsNullOrWhiteSpace(property?.Address) ? property!.Address : (string.IsNullOrWhiteSpace(address) ? "—" : address))</dd></div>
+                    @if (!string.IsNullOrWhiteSpace(property?.Area) || !string.IsNullOrWhiteSpace(property?.Governorate))
                     {
-                        <li style="display:flex; gap:0.7rem; padding:0.55rem 0; border-bottom:1px dashed #f1f5f9; font-size:0.88rem;">
-                            <i class="fas fa-wrench" style="color:#94a3b8;"></i>
-                            <div style="flex:1;">
-                                <strong>@m.Category</strong>
-                                <span class="muted"> · @m.RequestDate.ToString("dd MMM yyyy")</span>
-                                <div class="muted">@m.Description</div>
-                            </div>
-                            <span class="lease-status lease-@m.Status.ToLowerInvariant()">@m.Status</span>
-                        </li>
+                        <div><dt>@L["Area"]</dt><dd>@(string.Join(", ", new[] { property?.Area, property?.Governorate }.Where(s => !string.IsNullOrWhiteSpace(s))))</dd></div>
                     }
-                </ul>
+                    <div><dt>@L["PACI Number"]</dt><dd class="lp-mono">@(string.IsNullOrWhiteSpace(property?.PACINumber) ? "—" : property!.PACINumber)</dd></div>
+                </dl>
             </div>
-        </div>
-    }
+        </aside>
+    </div>
 </div>
-
-<style>
-    .page-container { padding: 1.5rem 2rem; max-width: 1200px; margin: 0 auto; }
-    .unit-actions {
-        display: flex; gap: 0.5rem; align-items: center;
-        margin-bottom: 1rem; flex-wrap: wrap;
-    }
-    .btn {
-        display: inline-flex; align-items: center; gap: 0.4rem;
-        padding: 0.55rem 1rem; border-radius: 8px;
-        text-decoration: none; font-weight: 500; font-size: 0.85rem;
-        border: 0; cursor: pointer;
-    }
-    .btn-primary { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white; }
-    .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
-    .status-control {
-        display: inline-flex; align-items: center; gap: 0.4rem; margin-left: auto;
-        font-size: 0.85rem; color: #475569;
-    }
-    .status-control select {
-        padding: 0.45rem 0.7rem; border: 1px solid #e2e8f0; border-radius: 6px;
-        background: white; font-size: 0.85rem;
-    }
-
-    .unit-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; margin-bottom: 1rem; }
-    @@media (max-width: 900px) { .unit-strip { grid-template-columns: repeat(2, 1fr); } }
-    .unit-strip .kpi-card {
-        display: flex; align-items: center; gap: 0.65rem;
-        padding: 0.85rem 1rem; background: white;
-        border: 1px solid #e2e8f0; border-radius: 12px;
-    }
-    .kpi-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white;
-        background: linear-gradient(135deg,#6366f1,#8b5cf6); }
-    .ki-tenants { background: linear-gradient(135deg,#3b82f6,#06b6d4) !important; }
-    .ki-months  { background: linear-gradient(135deg,#10b981,#22c55e) !important; }
-    .ki-leases  { background: linear-gradient(135deg,#a855f7,#d946ef) !important; }
-    .ki-rent    { background: linear-gradient(135deg,#f59e0b,#f97316) !important; }
-    .kpi-label { font-size: 0.65rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
-    .kpi-value { font-size: 1.2rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
-    .kpi-value small { font-size: 0.65rem; color: #94a3b8; font-weight: 500; }
-
-    .unit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    @@media (max-width: 800px) { .unit-grid { grid-template-columns: 1fr; } }
-    .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-    .card-head {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 0.85rem 1.1rem; border-bottom: 1px solid #f1f5f9;
-        background: linear-gradient(135deg, rgba(99,102,241,0.03), rgba(139,92,246,0.03));
-    }
-    .card-head h2 { font-size: 1rem; margin: 0; color: #334155; display: flex; align-items: center; gap: 0.5rem; }
-    .card-head h2 i { color: #6366f1; }
-    .card-body { padding: 1rem 1.15rem; }
-    .spec-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px dashed #f1f5f9; font-size: 0.88rem; }
-    .spec-row:last-child { border-bottom: 0; }
-    .spec-row span { color: #64748b; }
-    .spec-row strong { color: #0f172a; }
-    .status-pill { padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.7rem; }
-    .status-vacant      { background: rgba(16,185,129,0.15); color: #065f46; }
-    .status-occupied    { background: rgba(59,130,246,0.15); color: #1e40af; }
-    .status-maintenance { background: rgba(245,158,11,0.15); color: #92400e; }
-    .status-reserved    { background: rgba(168,85,247,0.15); color: #6b21a8; }
-
-    .tenant-row strong a { color: #0f172a; text-decoration: none; font-size: 1rem; }
-    .tenant-row strong a:hover { color: #6366f1; }
-    .tenant-meta { color: #64748b; font-size: 0.82rem; margin-top: 0.2rem; }
-    .tenant-lease { color: #475569; font-size: 0.85rem; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed #f1f5f9; }
-    .tenant-lease a { color: #6366f1; text-decoration: none; }
-
-    .lease-table { width: 100%; border-collapse: collapse; }
-    .lease-table thead th {
-        font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
-        color: #64748b; background: #f8fafc; padding: 0.55rem 0.7rem; text-align: left;
-    }
-    .lease-table tbody td { padding: 0.55rem 0.7rem; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
-    .lease-status { padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; }
-    .lease-active     { background: rgba(16,185,129,0.15); color: #065f46; }
-    .lease-renewed    { background: rgba(99,102,241,0.15); color: #4338ca; }
-    .lease-terminated { background: rgba(239,68,68,0.12); color: #991b1b; }
-    .lease-expired    { background: rgba(245,158,11,0.15); color: #92400e; }
-    .lease-pending    { background: #f1f5f9; color: #475569; }
-    .lease-resolved   { background: rgba(16,185,129,0.15); color: #065f46; }
-    .lease-open       { background: rgba(245,158,11,0.18); color: #92400e; }
-    .btn-link { color: #6366f1; text-decoration: none; font-size: 0.82rem; font-weight: 500; }
-    .btn-link:hover { text-decoration: underline; }
-    .muted { color: #94a3b8; }
-</style>
 
 @section Scripts {
     <script>
@@ -277,12 +393,15 @@
         // unit.
         const sel = document.getElementById('statusSelect');
         const token = document.querySelector('input[name="__RequestVerificationToken"]');
+        const MSG_CONFIRM = @Json.Serialize(L["Change unit status from {0} to {1}?"].Value);
+        const MSG_FAILED_STATUS = @Json.Serialize(L["Status change failed ({0})"].Value);
+        const MSG_FAILED = @Json.Serialize(L["Status change failed:"].Value);
         if (sel && token) {
             sel.addEventListener('change', async () => {
                 const previous = sel.dataset.current;
                 const next = sel.value;
                 if (previous === next) return;
-                if (!confirm(`Change unit status from ${previous} to ${next}?`)) {
+                if (!confirm(MSG_CONFIRM.replace('{0}', previous).replace('{1}', next))) {
                     sel.value = previous;
                     return;
                 }
@@ -295,14 +414,14 @@
                     const res = await fetch('/Units/ChangeStatus', { method: 'POST', body: fd, credentials: 'same-origin' });
                     const json = await res.json();
                     if (!res.ok || !json.success) {
-                        alert(json.error ?? `Status change failed (${res.status})`);
+                        alert(json.error ?? MSG_FAILED_STATUS.replace('{0}', res.status));
                         sel.value = previous;
                     } else {
                         sel.dataset.current = next;
                         location.reload();
                     }
                 } catch (e) {
-                    alert('Status change failed: ' + e.message);
+                    alert(MSG_FAILED + ' ' + e.message);
                     sel.value = previous;
                 } finally {
                     sel.disabled = false;

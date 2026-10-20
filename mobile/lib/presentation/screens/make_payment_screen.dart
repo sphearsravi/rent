@@ -1,4 +1,7 @@
+import 'dart:async' show unawaited;
 import 'dart:io' show File;
+import 'invoice_detail_screen.dart';
+import 'payment_result_screen.dart';
 
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
@@ -12,6 +15,7 @@ import '../../core/utils/status_localizer.dart';
 import '../../data/models/payment_model.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/payment_viewmodel.dart';
+import '../widgets/cash_request_dialog.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/loading_overlay.dart';
 
@@ -24,7 +28,6 @@ class MakePaymentScreen extends StatefulWidget {
 }
 
 class _MakePaymentScreenState extends State<MakePaymentScreen> {
-  InvoiceModel? _selectedInvoice;
   // When the screen is opened from an invoice ("Pay now"), the invoice is
   // passed as a route argument and we go straight to the payment-method
   // sheet — the tenant never re-picks an invoice.
@@ -37,13 +40,20 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
     if (_argHandled) return;
     _argHandled = true;
 
+    // Make the signed-in tenant known to the payment view-model on BOTH paths.
+    // Previously only the legacy pending-list path set it, so bank transfers
+    // started from an invoice failed with "Tenant ID not set".
+    final tenantId = context.read<AuthViewModel>().tenantId;
+    if (tenantId != null) {
+      context.read<PaymentViewModel>().setTenantId(tenantId);
+    }
+
     final arg = ModalRoute.of(context)?.settings.arguments;
     if (arg is InvoiceModel) {
       // Invoice-driven path: we already have the invoice. Do NOT call the
       // pending-invoices endpoint — its failure would block this screen
       // with a full-page error even though the payment sheet works fine.
       _invoiceArg = arg;
-      _selectedInvoice = arg;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showPaymentMethodModal(arg);
       });
@@ -100,10 +110,70 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
     // state — it would flash behind the sheet and on the way to KNET. Show a
     // neutral spinner instead.
     if (_invoiceArg != null) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: CircularProgressIndicator(),
+      // Never a dead end: if the sheet/dialog is dismissed the tenant lands on
+      // a real summary with a button to re-open the method chooser (the old
+      // code showed an endless spinner here).
+      final inv = _invoiceArg!;
+      final l = AppLocalizations.of(context)!;
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l.paymentForInvoice(inv.invoiceId.toString()),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 16, color: AppTheme.textPrimary,),
+              ),
+              const SizedBox(height: 6),
+              _buildInvoiceDetail(
+                Icons.apartment,
+                '${inv.propertyName ?? l.labelProperty} - ${l.labelUnit} ${inv.unitNumber ?? l.notAvailable}',
+              ),
+              const SizedBox(height: 6),
+              _buildInvoiceDetail(
+                Icons.calendar_today,
+                l.dueColonLabel(AppDateUtils.formatShortDate(inv.dueDate)),
+              ),
+              const SizedBox(height: 16),
+              Text(l.paymentAmountDueLabel,
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),),
+              Text(
+                CurrencyUtils.formatAmount(inv.balance),
+                style: const TextStyle(
+                    fontSize: 30, fontWeight: FontWeight.w800, color: AppTheme.primaryIndigo,),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showPaymentMethodModal(inv),
+                  icon: const Icon(Icons.credit_card),
+                  label: Text(l.paymentChooseMethodButton),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryIndigo,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -188,7 +258,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
           // Invoice Header
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: AppTheme.borderLight, width: 2),
               ),
@@ -244,9 +314,10 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Amount
+                // Amount still owed (not the invoice total — partially paid
+                // invoices would otherwise show/charge too much).
                 Text(
-                  CurrencyUtils.formatAmount(invoice.totalAmount),
+                  CurrencyUtils.formatAmount(invoice.balance),
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -288,7 +359,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
+            style: const TextStyle(
               color: AppTheme.textMuted,
               fontSize: 14,
             ),
@@ -299,10 +370,6 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
   }
 
   void _showPaymentMethodModal(InvoiceModel invoice) {
-    setState(() {
-      _selectedInvoice = invoice;
-    });
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -388,7 +455,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                           ),
                         ),
                         Text(
-                          CurrencyUtils.formatAmount(invoice.totalAmount),
+                          CurrencyUtils.formatAmount(invoice.balance),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -493,7 +560,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppTheme.textMuted,
                   ),
@@ -561,7 +628,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                 const SizedBox(height: 4),
                 Text(
                   AppLocalizations.of(context)!.paymentCashDescription,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppTheme.textMuted,
                   ),
@@ -580,7 +647,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Reference: INV-${invoice.invoiceId.toString().padLeft(6, '0')}',
+                          '${AppLocalizations.of(context)!.paymentReferenceLabel}INV-${invoice.invoiceId.toString().padLeft(6, '0')}',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -600,12 +667,12 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info, size: 14, color: AppTheme.infoBlue),
+                      const Icon(Icons.info, size: 14, color: AppTheme.infoBlue),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           AppLocalizations.of(context)!.paymentCashOfficeHours,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 11,
                             color: AppTheme.infoBlue,
                           ),
@@ -614,12 +681,70 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+                // Lets the tenant flag that they'll pay cash — the office gets a
+                // pending record to confirm at the counter.
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _requestCash(invoice),
+                    icon: const Icon(Icons.notifications_active_outlined, size: 18),
+                    label: Text(AppLocalizations.of(context)!.paymentCashRequest),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.warningAmber,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Tenant flags that they'll pay cash. Records a pending cash payment the
+  /// office confirms at the counter (two-person control, same as bank transfer).
+  Future<void> _requestCash(InvoiceModel invoice) async {
+    Navigator.pop(context); // close the method sheet
+    final l = AppLocalizations.of(context)!;
+    final authViewModel = context.read<AuthViewModel>();
+    final viewModel = context.read<PaymentViewModel>();
+
+    if (authViewModel.tenantId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(l.paymentAuthError),
+        backgroundColor: AppTheme.errorRed,
+      ),);
+      return;
+    }
+
+    // Let the tenant say how much they'll bring (full balance by default;
+    // less = partial payment). Cancelled → nothing is sent.
+    final choice = await showCashRequestDialog(context, balance: invoice.balance);
+    if (choice == null || !mounted) return;
+
+    final ok = await viewModel.requestCashPayment(
+      invoiceId: invoice.invoiceId,
+      amount: choice.amount,
+      notes: choice.notes,
+    );
+    if (!mounted) return;
+    if (!ok && viewModel.isPaymentBlocked) {
+      _showPayOldestFirstDialog(viewModel.blockedByInvoiceId!, viewModel.error);
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? l.paymentCashRequestSuccess
+          : (viewModel.error ?? l.paymentCashRequestFailed),),
+      backgroundColor: ok ? AppTheme.successGreen : AppTheme.errorRed,
+    ),);
   }
 
   Future<void> _payWithKNET(InvoiceModel invoice) async {
@@ -658,6 +783,20 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
 
       // Redirect to KNET gateway (works on both web and mobile)
       platform_launcher.redirectToUrl(response.redirectUrl!);
+
+      // Open the result screen underneath the browser. It polls the backend
+      // for this payment's outcome (paymentId comes from the initiate call),
+      // so when the tenant returns from the KNET page they get in-app
+      // confirmation — no deeplink round-trip required.
+      if (mounted && response.paymentId != null && response.paymentId!.isNotEmpty) {
+        unawaited(Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => PaymentResultScreen(paymentId: response.paymentId),
+        ),),);
+      }
+    } else if (viewModel.isPaymentBlocked) {
+      // Pay-oldest-first rule: explain it and offer a one-tap jump to the
+      // invoice that must be paid first, instead of a bare error snackbar.
+      _showPayOldestFirstDialog(viewModel.blockedByInvoiceId!, viewModel.error);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -668,12 +807,64 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
     }
   }
 
-  void _showBankTransferDialog(InvoiceModel invoice) {
-    showDialog(
+  /// The server blocked this payment because an older invoice is still unpaid.
+  /// Shows the rule clearly with a button that opens that invoice.
+  void _showPayOldestFirstDialog(int oldestInvoiceId, String? serverMessage) {
+    final l = AppLocalizations.of(context)!;
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock_clock_rounded, color: AppTheme.warningAmber),
+            const SizedBox(width: 10),
+            Expanded(child: Text(l.payOldestFirstTitle)),
+          ],
+        ),
+        content: Text(serverMessage ?? ''),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(l.cancel),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => InvoiceDetailScreen(
+                    invoiceId: oldestInvoiceId,
+                    oldestUnpaidId: oldestInvoiceId,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+            label: Text(l.payOldestFirstGoTo(oldestInvoiceId.toString())),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryIndigo,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showBankTransferDialog(InvoiceModel invoice) async {
+    final submitted = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => BankTransferDialog(invoice: invoice),
     );
+    if (!mounted) return;
+    // Invoice-driven flow: a successful submission is done — return to the
+    // invoice detail (with `true` so it can reload) instead of stranding the
+    // tenant on this screen.
+    if (submitted == true && _invoiceArg != null) {
+      Navigator.of(context).pop(true);
+    }
   }
 
   Widget _buildEmptyState() {
@@ -724,7 +915,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                 Text(
                   AppLocalizations.of(context)!.paymentNoPendingInvoicesBody,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     color: AppTheme.textMuted,
                   ),
@@ -734,7 +925,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
                   onPressed: () => Navigator.of(context).pop(),
                   icon: Icon(Directionality.of(context) == TextDirection.rtl
                       ? Icons.arrow_forward
-                      : Icons.arrow_back),
+                      : Icons.arrow_back,),
                   label: Text(AppLocalizations.of(context)!.backToDashboard),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryIndigo,
@@ -762,7 +953,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 64, color: AppTheme.errorRed),
+              const Icon(Icons.error_outline, size: 64, color: AppTheme.errorRed),
               const SizedBox(height: 16),
               Text(
                 AppLocalizations.of(context)!.paymentErrorLoadingInvoices,
@@ -774,7 +965,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
               Text(
                 error,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textMuted),
+                style: const TextStyle(color: AppTheme.textMuted),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
@@ -896,7 +1087,7 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.info, size: 18, color: AppTheme.infoBlue),
+                                const Icon(Icons.info, size: 18, color: AppTheme.infoBlue),
                                 const SizedBox(width: 8),
                                 Text(
                                   AppLocalizations.of(context)!.paymentBankInstructionsTitle,
@@ -910,7 +1101,7 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
                             const SizedBox(height: 8),
                             Text(
                               AppLocalizations.of(context)!.paymentBankInstructionsBody,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.infoBlue,
                               ),
@@ -922,7 +1113,7 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
 
                       // Amount (readonly)
                       TextFormField(
-                        initialValue: CurrencyUtils.formatAmount(widget.invoice.totalAmount),
+                        initialValue: CurrencyUtils.formatAmount(widget.invoice.balance),
                         readOnly: true,
                         decoration: InputDecoration(
                           labelText: AppLocalizations.of(context)!.paymentAmountKwd,
@@ -1015,7 +1206,7 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
                         AppLocalizations.of(context)!.paymentTransferProof,
                         style: const TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary),
+                            color: AppTheme.textPrimary,),
                       ),
                       const SizedBox(height: 8),
                       if (_proof == null)
@@ -1033,7 +1224,7 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
                                 }
                               },
                               icon: const Icon(Icons.photo_camera_outlined,
-                                  size: 18),
+                                  size: 18,),
                               label: Text(AppLocalizations.of(context)!.maintenanceCamera),
                             ),
                             const SizedBox(width: 8),
@@ -1049,7 +1240,7 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
                                 }
                               },
                               icon: const Icon(Icons.photo_library_outlined,
-                                  size: 18),
+                                  size: 18,),
                               label: Text(AppLocalizations.of(context)!.maintenanceGallery),
                             ),
                           ],
@@ -1074,7 +1265,7 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                     fontSize: 12,
-                                    color: AppTheme.textMuted),
+                                    color: AppTheme.textMuted,),
                               ),
                             ),
                             IconButton(
@@ -1093,9 +1284,9 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
             // Footer
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppTheme.backgroundLight,
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
               ),
               child: Row(
                 children: [
@@ -1177,9 +1368,16 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
 
     try {
       final viewModel = context.read<PaymentViewModel>();
+      // Capture these BEFORE popping — the dialog's context is gone afterwards.
+      final messenger = ScaffoldMessenger.of(context);
+      final l = AppLocalizations.of(context)!;
+
       final success = await viewModel.submitBankTransfer(
+        // Explicit so the call never depends on earlier screen state.
+        tenantId: context.read<AuthViewModel>().tenantId,
         invoiceId: widget.invoice.invoiceId,
-        amount: widget.invoice.totalAmount,
+        // Pay what is still owed, not the invoice total.
+        amount: widget.invoice.balance,
         bankName: _selectedBank!,
         transferDate: _transferDate,
         proofFilePath: _proof!.path,
@@ -1188,21 +1386,25 @@ class _BankTransferDialogState extends State<BankTransferDialog> {
       );
 
       if (mounted) {
-        Navigator.pop(context);
+        // Return the outcome so the caller can pop back to the invoice.
+        Navigator.pop(context, success);
 
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
-              content: Text(AppLocalizations.of(context)!.paymentBankTransferSuccess),
+              content: Text(l.paymentBankTransferSuccess),
               backgroundColor: AppTheme.successGreen,
             ),
           );
-          // Refresh invoices
-          viewModel.loadPendingInvoices();
+          // Legacy (pending-list) path only — the invoice-driven path never
+          // set a tenant id here, and calling it produced "Tenant ID not set".
+          if (viewModel.pendingInvoices.isNotEmpty) {
+            unawaited(viewModel.loadPendingInvoices());
+          }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
-              content: Text(viewModel.error ?? AppLocalizations.of(context)!.paymentSubmitTransferFailed),
+              content: Text(viewModel.error ?? l.paymentSubmitTransferFailed),
               backgroundColor: AppTheme.errorRed,
             ),
           );

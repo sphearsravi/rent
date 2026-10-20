@@ -9,7 +9,7 @@
     @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
     {
         ["Title"] = "Import complete",
-        ["Subtitle"] = $"{imported} created Ã‚· {skipped} skipped",
+        ["Subtitle"] = $"{imported} created · {skipped} skipped",
         ["Crumbs"] = new (string label, string? href)[]
         {
             ("Admin", "/Dashboard"),
@@ -48,8 +48,8 @@
                     {
                         <tr class="@(r.Imported ? "row-imported" : "row-skipped")">
                             <td><code>#@r.Row</code></td>
-                            <td>@(string.IsNullOrWhiteSpace(r.Name) ? "Ã¢â‚¬”" : r.Name)</td>
-                            <td>@(string.IsNullOrWhiteSpace(r.Email) ? "Ã¢â‚¬”" : r.Email)</td>
+                            <td>@(string.IsNullOrWhiteSpace(r.Name) ? "—" : r.Name)</td>
+                            <td>@(string.IsNullOrWhiteSpace(r.Email) ? "—" : r.Email)</td>
                             <td>
                                 @if (r.Imported)
                                 {
@@ -60,7 +60,7 @@
                                     <span class="pill pill-bad"><i class="fas fa-xmark"></i> @L["Skipped"]</span>
                                 }
                             </td>
-                            <td class="reason">@(r.Reason ?? "Ã¢â‚¬”")</td>
+                            <td class="reason">@(r.Reason ?? "—")</td>
                         </tr>
                     }
                 </tbody>
@@ -84,7 +84,7 @@
             padding: 1rem 1.2rem;
             background: rgba(255,255,255,0.95);
             border-radius: 12px;
-            border: 1px solid rgba(99, 102, 241,0.12);
+            border: 1px solid rgba(138, 109, 31,0.12);
         }
         .result-card i { font-size: 1.85rem; }
         .result-card div strong { font-size: 1.4rem; color: #0f172a; }
@@ -93,13 +93,13 @@
 
         .result-table-card {
             background: rgba(255,255,255,0.95);
-            border: 1px solid rgba(99, 102, 241,0.12);
+            border: 1px solid rgba(138, 109, 31,0.12);
             border-radius: 12px; overflow: hidden;
             margin-bottom: 1.25rem;
         }
         .modern-table { width: 100%; border-collapse: collapse; }
         .modern-table thead th {
-            background: rgba(99, 102, 241,0.06); padding: 0.85rem 1rem;
+            background: rgba(138, 109, 31,0.06); padding: 0.85rem 1rem;
             font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.4px;
             color: #475569; text-align: left;
         }
@@ -126,8 +126,8 @@
             padding: 0.65rem 1.1rem; border-radius: 8px; text-decoration: none;
             font-weight: 500;
         }
-        .btn-primary { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white; }
-        .btn-primary:hover { box-shadow: 0 4px 12px rgba(99, 102, 241,0.3); }
+        .btn-primary { background: linear-gradient(135deg,#8a6d1f,#b8860b); color: white; }
+        .btn-primary:hover { box-shadow: 0 4px 12px rgba(138, 109, 31,0.3); }
         .btn-ghost { background: #f1f5f9; color: #475569; }
         .btn-ghost:hover { background: #e2e8f0; }
     </style>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RentCollection.Application.DTOs;
 using RentCollection.Application.Interfaces;
+using RentCollection.Core.Entities;
 using RentCollection.Infrastructure.Data;
 
 namespace RentCollection.Web.Controllers.Api;
@@ -163,10 +164,15 @@ public class KnetPaymentController : ControllerBase
         var host = (!string.IsNullOrEmpty(successUrl) && Uri.TryCreate(successUrl, UriKind.Absolute, out var su))
             ? su.GetLeftPart(UriPartial.Authority)
             : $"{Request.Scheme}://{Request.Host}";
+        // culture=<lang> localizes the landing page to the payer's app language
+        // (threaded from initiate → payment.Notes → response.Language).
+        // Use the specific culture — SupportedCultures are ar-KW / en-US, and
+        // neutral "ar" won't match a specific-only supported list.
+        var culture = response.Language == "ar" ? "ar-KW" : "en-US";
         if (response.Success && response.Status == "Completed")
-            return Content($"REDIRECT={host}/TenantPortal/PaymentSuccess?paymentId={response.PaymentId}&reference={response.TransactionReference}", "text/plain");
+            return Content($"REDIRECT={host}/TenantPortal/PaymentSuccess?paymentId={response.PaymentId}&reference={response.TransactionReference}&culture={culture}", "text/plain");
 
-        return Content($"REDIRECT={host}/TenantPortal/PaymentFailed?error={Uri.EscapeDataString(response.ErrorMessage ?? "Payment was not completed")}&reference={response.TransactionReference}", "text/plain");
+        return Content($"REDIRECT={host}/TenantPortal/PaymentFailed?error={Uri.EscapeDataString(response.ErrorMessage ?? "Payment was not completed")}&reference={response.TransactionReference}&culture={culture}", "text/plain");
     }
 
     /// <summary>
@@ -250,19 +256,29 @@ public class KnetPaymentController : ControllerBase
         return Redirect($"/TenantPortal/PaymentFailed?error={Uri.EscapeDataString(errorText ?? error ?? "Payment error")}&reference={response.TransactionReference}");
     }
 
+#if DEBUG
     /// <summary>
-    /// TEST MODE: Completes a simulated test payment
+    /// TEST MODE: Completes a simulated test payment.
+    /// SECURITY (audit C2): this endpoint credits an invoice with no gateway
+    /// transaction, so it is a full payment-fraud path. It is now (a) compiled
+    /// out of Release/production builds entirely via #if DEBUG, (b) gated behind
+    /// the Knet:UseTestMode flag at runtime, and (c) requires an authenticated
+    /// admin. Never ship a route that can complete a payment without the gateway.
     /// </summary>
     [HttpPost("test/complete")]
-    [AllowAnonymous]
+    [Authorize(Roles = Roles.AnyAdmin)]
     public async Task<IActionResult> CompleteTestPayment([FromBody] TestPaymentCompleteRequest request)
     {
-        _logger.LogInformation("TEST MODE: Completing payment {PaymentId} with success={Success}",
-            request.PaymentId, request.Success);
+        if (!_configuration.GetValue<bool>("Knet:UseTestMode"))
+            return NotFound();
+
+        _logger.LogWarning("TEST MODE: Completing payment {PaymentId} with success={Success} (by {User})",
+            request.PaymentId, request.Success, User.Identity?.Name);
 
         var result = await _knetPaymentService.CompleteTestPaymentAsync(request.PaymentId, request.Success);
         return result.Success ? Ok(result) : BadRequest(result);
     }
+#endif
 }
 
 public class TestPaymentCompleteRequest

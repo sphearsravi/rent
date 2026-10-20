@@ -1,126 +1,231 @@
 @model RentCollection.Application.DTOs.AdminPaymentVerificationDto
 @{
-    ViewData["Title"] = $"Payment {Model.ReceiptNumber}";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var title = $"{L["Payment"].Value} {Model.ReceiptNumber}";
+    ViewData["Title"] = title;
     var audit = ViewBag.AuditHistory as List<RentCollection.Application.Interfaces.PaymentAuditDto>
                 ?? new List<RentCollection.Application.Interfaces.PaymentAuditDto>();
 
-    string StatusClass(string s) => s?.ToLowerInvariant() switch
+    string StatusChip(string s) => s switch
     {
-        "completed" or "approved" => "badge-success",
-        "pending" or "pendingverification" => "badge-warning",
-        "failed" or "rejected" or "cancelled" => "badge-danger",
-        _ => "badge-secondary"
+        "Completed" => "lp-chip-green",
+        "Approved" => "lp-chip-green",
+        "PendingVerification" => "lp-chip-blue",
+        "Pending" => "lp-chip-amber",
+        "Failed" => "lp-chip-red",
+        "Rejected" => "lp-chip-red",
+        "Cancelled" => "lp-chip-grey",
+        "Refunded" => "lp-chip-purple",
+        _ => "lp-chip-grey",
     };
+    string StatusIcon(string s) => s switch
+    {
+        "Completed" => "fa-check-circle",
+        "Approved" => "fa-check-circle",
+        "PendingVerification" => "fa-hourglass-half",
+        "Pending" => "fa-clock",
+        "Failed" => "fa-times-circle",
+        "Rejected" => "fa-times-circle",
+        "Cancelled" => "fa-ban",
+        _ => "fa-circle",
+    };
+    string StatusLabel(string s) => s switch
+    {
+        "PendingVerification" => L["Awaiting confirmation"].Value,
+        _ => L[s].Value,
+    };
+    string MethodLabel(string m) => m switch
+    {
+        "KNET" => "K-NET",
+        "BankTransfer" => L["Bank transfer"].Value,
+        _ => L[m].Value,
+    };
+    string MethodIcon(string m) => m switch
+    {
+        "KNET" => "fa-credit-card",
+        "Cash" => "fa-money-bill",
+        "BankTransfer" => "fa-building-columns",
+        "Cheque" => "fa-money-check",
+        _ => "fa-receipt",
+    };
+    string Dash(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s;
+
+    var status = Model.Status ?? "";
+    var hasKnet = !string.IsNullOrEmpty(Model.PaymentKNETMID) || !string.IsNullOrEmpty(Model.PaymentKNETAccountID);
+    var civilIdDiffers = !string.IsNullOrEmpty(Model.PaymentCivilID) && !string.Equals(Model.PaymentCivilID, Model.TenantCivilID, StringComparison.Ordinal);
+
+    var actions = new System.Text.StringBuilder();
+    actions.Append("<span class=\"lp-chip " + StatusChip(status) + "\" style=\"font-size:0.74rem;padding:0.3rem 0.7rem\"><i class=\"fas " + StatusIcon(status) + "\"></i> " + StatusLabel(status) + "</span>");
+    if (status == "PendingVerification")
+    {
+        actions.Append("<a class=\"lp-btn lp-btn-primary\" href=\"/PaymentApproval/Details/" + Model.PaymentId + "\"><i class=\"fas fa-clipboard-check\"></i> " + L["Confirm in approval queue"].Value + "</a>");
+    }
+    if (status == "Completed")
+    {
+        actions.Append("<a class=\"lp-btn\" target=\"_blank\" rel=\"noopener\" href=\"/api/payments/" + Model.PaymentId + "/receipt.pdf\"><i class=\"fas fa-file-pdf\"></i> " + L["Receipt PDF"].Value + "</a>");
+    }
+    actions.Append("<a class=\"lp-btn\" href=\"/Payments\"><i class=\"fas fa-arrow-left\"></i> " + L["Back to Payments"].Value + "</a>");
 }
 
-<div class="page-container">
-    @{
-        var actions = new System.Text.StringBuilder();
-        actions.Append("<a href=\"/Payments\" class=\"btn btn-secondary\"><i class=\"fas fa-arrow-left\"></i> Back to Payments</a>");
-    }
-    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData) {
-        ["Title"] = $"Payment {Model.ReceiptNumber}",
-        ["Subtitle"] = "Payment details, mismatch review and audit trail",
-        ["ActionsHtml"] = new Microsoft.AspNetCore.Html.HtmlString(actions.ToString())
+<div class="lp-page">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = title,
+        ["Subtitle"] = string.Join(" · ", new[] { MethodLabel(Model.PaymentType), Model.PaymentDate.ToString("dd MMM yyyy", inv), Model.TenantName }.Where(s => !string.IsNullOrWhiteSpace(s))),
+        ["Crumbs"] = new (string label, string? href)[] { (L["Admin"].Value, "/Dashboard"), (L["Payments"].Value, "/Payments"), (Model.ReceiptNumber, null) },
+        ["ActionsHtml"] = Html.Raw(actions.ToString())
     })
 
     @await Html.PartialAsync("_AlertMessages")
 
-    <div class="card" style="padding:24px;margin-bottom:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
-            <div>
-                <h2 style="margin:0;">@("KWD " + Model.Amount.ToString("N3"))</h2>
-                <p style="color:#6b7280;margin:4px 0 0;">@Model.PaymentType &bull; @Model.PaymentDate.ToString("dd MMM yyyy, HH:mm")</p>
-            </div>
-            <span class="badge @StatusClass(Model.Status)">@Model.Status</span>
+    @* ── KPI strip ── *@
+    <div class="od od-grid-kpi">
+        <div class="od-card od-kpi-hero">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Amount"]</span></div>
+            <div class="od-kpi-value">@Model.Amount.ToString("N3", inv) <small>KWD</small></div>
+            <div class="od-kpi-sub">@L["Receipt"] @Model.ReceiptNumber</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Method"]</span></div>
+            <div class="od-kpi-value" style="font-size:1.25rem"><i class="fas @MethodIcon(Model.PaymentType)" style="color:#8a6d1f"></i> @MethodLabel(Model.PaymentType)</div>
+            <div class="od-kpi-sub">@(string.IsNullOrWhiteSpace(Model.TransactionReference) ? L["No transaction reference"].Value : Model.TransactionReference)</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Date"]</span></div>
+            <div class="od-kpi-value" style="font-size:1.25rem">@Model.PaymentDate.ToString("dd MMM yyyy", inv)</div>
+            <div class="od-kpi-sub">@Model.PaymentDate.ToString("HH:mm", inv)</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Status"]</span></div>
+            <div class="od-kpi-value" style="margin-top:4px"><span class="lp-chip @StatusChip(status)" style="font-size:0.78rem;padding:0.3rem 0.75rem"><i class="fas @StatusIcon(status)"></i> @StatusLabel(status)</span></div>
+            <div class="od-kpi-sub">@(Model.HasMismatch ? L["Mismatch detected"].Value : L["No mismatch"].Value)</div>
         </div>
     </div>
 
-    <div class="card" style="padding:24px;margin-bottom:20px;">
-        <h3 style="margin-top:0;">Details</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
-            <div><strong>Receipt #</strong><div>@Model.ReceiptNumber</div></div>
-            <div><strong>Payment ID</strong><div>@Model.PaymentId</div></div>
-            <div><strong>Tenant</strong><div>@Model.TenantName</div></div>
-            <div><strong>Tenant Civil ID</strong><div>@Model.TenantCivilID</div></div>
-            <div><strong>Payment Civil ID</strong><div>@(string.IsNullOrEmpty(Model.PaymentCivilID) ? "—" : Model.PaymentCivilID)</div></div>
-            <div><strong>Lease</strong><div>@Model.LeaseReference</div></div>
-            <div><strong>Building</strong><div>@(string.IsNullOrEmpty(Model.BuildingName) ? "—" : Model.BuildingName)</div></div>
-            <div><strong>Unit</strong><div>@(string.IsNullOrEmpty(Model.UnitNumber) ? "—" : Model.UnitNumber)</div></div>
-            <div><strong>Transaction Ref</strong><div>@(string.IsNullOrEmpty(Model.TransactionReference) ? "—" : Model.TransactionReference)</div></div>
-            <div><strong>Checkout Payment ID</strong><div>@(string.IsNullOrEmpty(Model.CheckoutPaymentId) ? "—" : Model.CheckoutPaymentId)</div></div>
-        </div>
-    </div>
+    <div class="pd-grid">
+        <div class="pd-main">
 
-    @if (!string.IsNullOrEmpty(Model.PaymentKNETMID) || !string.IsNullOrEmpty(Model.PaymentKNETAccountID))
-    {
-        <div class="card" style="padding:24px;margin-bottom:20px;">
-            <h3 style="margin-top:0;">KNET</h3>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
-                <div><strong>Payment KNET Account</strong><div>@(Model.PaymentKNETAccountID ?? "—")</div></div>
-                <div><strong>Building KNET Account</strong><div>@(Model.BuildingKNETAccountID ?? "—")</div></div>
-                <div><strong>Payment KNET MID</strong><div>@(Model.PaymentKNETMID ?? "—")</div></div>
-                <div><strong>Building KNET MID</strong><div>@(Model.BuildingKNETMID ?? "—")</div></div>
-            </div>
-        </div>
-    }
-
-    @if (Model.HasMismatch)
-    {
-        <div class="card" style="padding:24px;margin-bottom:20px;border-left:4px solid #f59e0b;">
-            <h3 style="margin-top:0;color:#b45309;"><i class="fas fa-exclamation-triangle"></i> Mismatch Detected</h3>
-            <ul>
-                @if (Model.CivilIDMismatch) { <li>Civil ID mismatch between payment and tenant record.</li> }
-                @if (Model.BuildingMismatch) { <li>Building/property mismatch between payment and lease.</li> }
-                @if (Model.KNETMIDMismatch) { <li>KNET MID mismatch between payment and building.</li> }
-            </ul>
-            @if (!string.IsNullOrEmpty(Model.MismatchDetails))
-            {
-                <p style="color:#6b7280;">@Model.MismatchDetails</p>
-            }
-            <form asp-action="ResolveMismatch" method="post" style="margin-top:12px;">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="paymentId" value="@Model.PaymentId" />
-                <div class="form-group">
-                    <label for="resolutionNotes">Resolution notes</label>
-                    <textarea id="resolutionNotes" name="resolutionNotes" class="form-control" rows="2" placeholder="Explain how this mismatch was reviewed/resolved"></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Mark Resolved</button>
-            </form>
-        </div>
-    }
-
-    <div class="card" style="padding:24px;">
-        <h3 style="margin-top:0;">Audit Trail</h3>
-        @if (audit.Count == 0)
-        {
-            <p style="color:#6b7280;">No audit records for this payment.</p>
-        }
-        else
-        {
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>When</th>
-                        <th>Type</th>
-                        <th>Amount</th>
-                        <th>Details</th>
-                        <th>Resolved</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var a in audit)
+            @* ── Details ── *@
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-receipt"></i> @L["Details"]</div>
+                <dl class="pd-dl">
+                    <div><dt>@L["Receipt #"]</dt><dd class="lp-mono">@Dash(Model.ReceiptNumber)</dd></div>
+                    @if (!string.IsNullOrWhiteSpace(Model.ManualReceiptNumber))
                     {
-                        <tr>
-                            <td>@a.AuditTimestamp.ToString("dd MMM yyyy, HH:mm")</td>
-                            <td>@a.AuditType</td>
-                            <td>@("KWD " + a.Amount.ToString("N3"))</td>
-                            <td>@(string.IsNullOrEmpty(a.Details) ? "—" : a.Details)</td>
-                            <td>@(a.IsResolved ? "Yes" : (a.IsMismatch ? "No" : "—"))</td>
-                        </tr>
+                        <div><dt>@L["Manual receipt no."]</dt><dd class="lp-mono">@Model.ManualReceiptNumber</dd></div>
                     }
-                </tbody>
-            </table>
-        }
+                    <div><dt>@L["Payment ID"]</dt><dd class="lp-mono">@Model.PaymentId</dd></div>
+                    <div><dt>@L["Lease"]</dt><dd><a class="lp-link" href="/Leases/Details/@Model.LeaseId">@Dash(Model.LeaseReference)</a></dd></div>
+                    <div><dt>@L["Transaction Ref"]</dt><dd class="lp-mono" style="overflow-wrap:anywhere">@Dash(Model.TransactionReference)</dd></div>
+                    <div><dt>@L["Checkout Payment ID"]</dt><dd class="lp-mono" style="overflow-wrap:anywhere">@Dash(Model.CheckoutPaymentId)</dd></div>
+                    <div><dt>@L["Payment Civil ID"]</dt><dd class="lp-mono">@Dash(Model.PaymentCivilID) @if (civilIdDiffers) { <span class="lp-chip lp-chip-red">@L["Differs"]</span> }</dd></div>
+                    <div><dt>@L["Tenant Civil ID"]</dt><dd class="lp-mono">@Dash(Model.TenantCivilID)</dd></div>
+                </dl>
+            </div>
+
+            @* ── KNET ── *@
+            @if (hasKnet)
+            {
+                <div class="pd-card">
+                    <div class="pd-card-head"><i class="fas fa-credit-card"></i> @L["KNET"]</div>
+                    <dl class="pd-dl">
+                        <div><dt>@L["Payment KNET Account"]</dt><dd class="lp-mono">@Dash(Model.PaymentKNETAccountID)</dd></div>
+                        <div><dt>@L["Building KNET Account"]</dt><dd class="lp-mono">@Dash(Model.BuildingKNETAccountID)</dd></div>
+                        <div><dt>@L["Payment KNET MID"]</dt><dd class="lp-mono">@Dash(Model.PaymentKNETMID) @if (Model.KNETMIDMismatch) { <span class="lp-chip lp-chip-red">@L["Differs"]</span> }</dd></div>
+                        <div><dt>@L["Building KNET MID"]</dt><dd class="lp-mono">@Dash(Model.BuildingKNETMID)</dd></div>
+                    </dl>
+                </div>
+            }
+
+            @* ── Mismatch ── *@
+            @if (Model.HasMismatch)
+            {
+                <div class="pd-card pd-danger">
+                    <div class="pd-card-head"><i class="fas fa-exclamation-triangle"></i> @L["Mismatch Detected"]</div>
+                    <ul class="pd-note" style="margin:0;padding-left:1.8rem;padding-right:1.8rem">
+                        @if (Model.CivilIDMismatch) { <li>@L["Civil ID mismatch between payment and tenant record."]</li> }
+                        @if (Model.BuildingMismatch) { <li>@L["Building/property mismatch between payment and lease."]</li> }
+                        @if (Model.KNETMIDMismatch) { <li>@L["KNET MID mismatch between payment and building."]</li> }
+                    </ul>
+                    @if (!string.IsNullOrEmpty(Model.MismatchDetails))
+                    {
+                        <div class="pd-note" style="padding-top:0;color:#64748b">@Model.MismatchDetails</div>
+                    }
+                    <form asp-action="ResolveMismatch" method="post" class="pd-form" style="padding-top:0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="paymentId" value="@Model.PaymentId" />
+                        <div>
+                            <label for="resolutionNotes">@L["Resolution notes"]</label>
+                            <textarea id="resolutionNotes" name="resolutionNotes" rows="2" placeholder="@(L["Explain how this mismatch was reviewed/resolved"].Value)"></textarea>
+                        </div>
+                        <div><button type="submit" class="lp-btn lp-btn-primary"><i class="fas fa-check"></i> @L["Mark Resolved"]</button></div>
+                    </form>
+                </div>
+            }
+
+            @* ── Audit trail ── *@
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-history"></i> @L["Audit Trail"] <span class="lp-chip lp-chip-gold">@audit.Count</span></div>
+                @if (audit.Count == 0)
+                {
+                    <div class="pd-note">@L["No audit records for this payment."]</div>
+                }
+                else
+                {
+                    <ul class="pd-timeline">
+                        @foreach (var a in audit.OrderByDescending(x => x.AuditTimestamp))
+                        {
+                            <li>
+                                <time>@a.AuditTimestamp.ToString("dd MMM yyyy", inv)<br />@a.AuditTimestamp.ToString("HH:mm", inv)</time>
+                                <div>
+                                    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                                        <span class="lp-primary">@L[a.AuditType]</span>
+                                        <span class="lp-amount">@a.Amount.ToString("N3", inv) <small>KWD</small></span>
+                                        @if (a.IsMismatch && a.IsResolved) { <span class="lp-chip lp-chip-green"><i class="fas fa-check"></i> @L["Resolved"]</span> }
+                                        else if (a.IsMismatch) { <span class="lp-chip lp-chip-red"><i class="fas fa-triangle-exclamation"></i> @L["Unresolved"]</span> }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(a.MismatchType)) { <span class="lp-sub">@L["Mismatch"]: @(a.MismatchType)@(string.IsNullOrEmpty(a.ExpectedValue) && string.IsNullOrEmpty(a.ActualValue) ? "" : $" ({L["expected"].Value} {Dash(a.ExpectedValue)}, {L["actual"].Value} {Dash(a.ActualValue)})")</span> }
+                                    <span class="lp-sub" style="color:#475569">@Dash(a.Details)</span>
+                                    @if (a.IsResolved && (a.ResolvedAt.HasValue || !string.IsNullOrEmpty(a.ResolvedBy)))
+                                    {
+                                        <span class="lp-sub">@L["Resolved"]@(a.ResolvedAt.HasValue ? " " + a.ResolvedAt.Value.ToString("dd MMM yyyy HH:mm", inv) : "")@(string.IsNullOrEmpty(a.ResolvedBy) ? "" : $" · {a.ResolvedBy}")</span>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <aside class="pd-side">
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-user"></i> @L["Tenant"]</div>
+                <dl class="pd-dl">
+                    <div><dt>@L["Name"]</dt><dd><a class="lp-link" href="/Tenants/Details/@Model.TenantId">@Dash(Model.TenantName)</a></dd></div>
+                    <div><dt>@L["Civil ID"]</dt><dd class="lp-mono">@Dash(Model.TenantCivilID)</dd></div>
+                </dl>
+            </div>
+
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-building"></i> @L["Property & unit"]</div>
+                <dl class="pd-dl">
+                    <div><dt>@L["Building"]</dt><dd>@if (Model.PropertyId > 0) { <a class="lp-link" href="/Properties/Details/@Model.PropertyId">@Dash(Model.BuildingName)</a> } else { <span>@Dash(Model.BuildingName)</span> }@if (Model.BuildingMismatch) { <span class="lp-chip lp-chip-red" style="margin-inline-start:0.3rem">@L["Differs"]</span> }</dd></div>
+                    <div><dt>@L["Unit"]</dt><dd>@Dash(Model.UnitNumber)</dd></div>
+                </dl>
+            </div>
+
+            <div class="pd-card">
+                <div class="pd-card-head"><i class="fas fa-file-contract"></i> @L["Lease"]</div>
+                <dl class="pd-dl">
+                    <div><dt>@L["Lease"]</dt><dd><a class="lp-link" href="/Leases/Details/@Model.LeaseId">@Dash(Model.LeaseReference)</a></dd></div>
+                    <div><dt>@L["Lease ID"]</dt><dd class="lp-mono">#@Model.LeaseId</dd></div>
+                </dl>
+                <div class="pd-actions-card" style="padding-top:0">
+                    <a class="lp-btn" href="/Invoices?leaseId=@Model.LeaseId"><i class="fas fa-file-invoice-dollar"></i> @L["Invoices"]</a>
+                    <a class="lp-btn" href="/Payments?leaseId=@Model.LeaseId"><i class="fas fa-money-bill-wave"></i> @L["All payments"]</a>
+                </div>
+            </div>
+        </aside>
     </div>
 </div>

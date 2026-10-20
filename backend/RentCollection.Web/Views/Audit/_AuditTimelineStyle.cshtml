@@ -25,7 +25,7 @@
     }
     .chip:hover { background: #e2e8f0; }
     .chip.is-on {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        background: linear-gradient(135deg, #8a6d1f, #b8860b);
         color: white;
     }
     .search-row {
@@ -41,7 +41,7 @@
     .btn-filter {
         display: inline-flex; align-items: center; gap: 0.4rem;
         padding: 0.55rem 0.95rem; border-radius: 8px;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        background: linear-gradient(135deg, #8a6d1f, #b8860b);
         color: white; border: 0; cursor: pointer;
         font-size: 0.85rem; font-weight: 500;
     }
@@ -77,11 +77,11 @@
     }
     .tl-head strong { color: #0f172a; font-size: 0.92rem; }
     .tl-entity {
-        background: rgba(99,102,241,0.08); color: #4338ca;
+        background: rgba(138, 109, 31,0.08); color: #5a4512;
         padding: 0.1rem 0.5rem; border-radius: 6px;
         font-size: 0.78rem; font-weight: 600; text-decoration: none;
     }
-    .tl-entity:hover { background: rgba(99,102,241,0.16); }
+    .tl-entity:hover { background: rgba(138, 109, 31,0.16); }
     .tl-when { color: #94a3b8; font-size: 0.75rem; margin-left: auto; }
     .tl-actor { color: #64748b; font-size: 0.82rem; }
     .tl-actor i { color: #94a3b8; margin-right: 0.3rem; }
@@ -96,6 +96,13 @@
         max-height: 200px; overflow: auto;
         font-family: 'Courier New', monospace;
     }
+    /* Human-readable payload: small "Label: value" chips instead of raw JSON. */
+    .tl-payload { margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .tl-kv {
+        background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px;
+        padding: 0.2rem 0.55rem; font-size: 0.78rem; color: #334155;
+    }
+    .tl-kv strong { color: #475569; font-weight: 600; }
 
     .empty {
         text-align: center; padding: 3rem 1rem;
@@ -113,5 +120,5 @@
     }
     .entity-card .ent-info { font-size: 0.9rem; color: #475569; }
     .entity-card .ent-info strong { color: #0f172a; }
-    .entity-card a.btn-link { color: #6366f1; font-weight: 500; }
+    .entity-card a.btn-link { color: #8a6d1f; font-weight: 500; }
 </style>

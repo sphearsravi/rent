@@ -10,6 +10,7 @@
 /// This file intentionally contains no networking: implement the actual fetch
 /// in your API service once the endpoint exists. Comparison logic stays here
 /// so it can be unit-tested.
+library;
 
 class AppVersion {
   AppVersion(this.major, this.minor, this.patch);

@@ -112,7 +112,7 @@ class MaintenanceModel {
       description: json['description'] ?? '',
       status: json['status'] ?? 'Open',
       requestDate: DateTime.parse(
-          json['requestDate'] ?? DateTime.now().toIso8601String()),
+          json['requestDate'] ?? DateTime.now().toIso8601String(),),
       dueDate: json['dueDate'] != null
           ? DateTime.tryParse(json['dueDate'])
           : null,

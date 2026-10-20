@@ -33,7 +33,7 @@ class AppDateUtils {
   static String formatLongDate(DateTime? date) {
     if (date == null) return '-';
     return _toWesternDigits(
-        DateFormat('EEEE, dd MMMM yyyy', _locale).format(date));
+        DateFormat('EEEE, dd MMMM yyyy', _locale).format(date),);
   }
 
   /// Format date as "MMM yyyy" (e.g., "Nov 2024")
@@ -52,7 +52,7 @@ class AppDateUtils {
   static String formatDateTime(DateTime? date) {
     if (date == null) return '-';
     return _toWesternDigits(
-        DateFormat('dd MMM yyyy, hh:mm a', _locale).format(date));
+        DateFormat('dd MMM yyyy, hh:mm a', _locale).format(date),);
   }
 
   /// Format date as ISO format "yyyy-MM-dd" (e.g., "2024-11-15").
@@ -140,7 +140,7 @@ class AppDateUtils {
   /// Get the first day of the current month
   static DateTime getFirstDayOfMonth() {
     final now = DateTime.now();
-    return DateTime(now.year, now.month, 1);
+    return DateTime(now.year, now.month);
   }
 
   /// Get the last day of the current month

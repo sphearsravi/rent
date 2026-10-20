@@ -4,7 +4,6 @@ import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 
 import 'api_service.dart';
 
@@ -48,10 +47,7 @@ class FcmService {
       // for alert+badge+sound. Result is logged but not enforced — even
       // denied permission still lets us collect a token (just no UI shown).
       final settings = await _messaging!.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
+        
       );
       debugPrint('[FCM] Permission: ${settings.authorizationStatus}');
 

@@ -15,7 +15,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.viijar.tenant"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "26.1.10909125"
 
     compileOptions {
@@ -28,9 +28,16 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.viijar.tenant"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // Play Store package (permanent). Kept distinct from `namespace`
+        // (the Kotlin/Java code package, still com.viijar.tenant) — Gradle
+        // allows applicationId to differ from the code namespace.
+        applicationId = "com.alrtam"
+        // Play's automatic integrity protection requires minSdk >= 24 (was
+        // inheriting Flutter's default of 21). Android 7.0 covers ~99% of devices.
+        minSdk = 24
+        // Explicit targetSdk 36 (Android 16) — Google Play requires a recent
+        // target API for new apps/updates; don't rely on the Flutter default.
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -58,6 +65,12 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Bundle native debug symbols so Play Console can symbolicate
+            // native (NDK/Flutter engine) crash stacks. Ships in the AAB's
+            // symbols file, not in the APK delivered to users.
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
         }
     }
 }

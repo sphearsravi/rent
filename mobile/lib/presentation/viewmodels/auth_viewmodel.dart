@@ -43,9 +43,15 @@ class AuthViewModel extends ChangeNotifier {
     _state = AuthState.loading;
     notifyListeners();
 
+    // Read the stored tenant id OUTSIDE the try so the offline `catch` below can
+    // use it. (Previously the catch read the `tenantId` *getter*, which was
+    // still null, so an offline launch "authenticated" with no tenant and every
+    // tab loaded nothing.)
+    final int? storedTenantId = _storageService.getTenantId();
+
     try {
       final token = await _storageService.getToken();
-      final tenantId = _storageService.getTenantId();
+      final tenantId = storedTenantId;
       if (token == null || token.isEmpty || tenantId == null) {
         _state = AuthState.unauthenticated;
         notifyListeners();
@@ -67,9 +73,34 @@ class AuthViewModel extends ChangeNotifier {
       _tenantEmail = _storageService.getTenantEmail();
       _state = AuthState.authenticated;
     } catch (e) {
-      _state = AuthState.unauthenticated;
+      // The refresh threw a network/timeout error (offline launch). The stored
+      // token is likely still valid, so keep the session rather than logging
+      // out — the 401 interceptor will boot to login if it's genuinely expired
+      // on the next real request.
+      if (storedTenantId == null) {
+        _state = AuthState.unauthenticated;
+      } else {
+        _tenantId = storedTenantId;
+        _tenantName = _storageService.getTenantName();
+        _tenantEmail = _storageService.getTenantEmail();
+        _state = AuthState.authenticated;
+      }
     }
     notifyListeners();
+  }
+
+  /// Load remembered login details for prefilling the login form. Returns the
+  /// saved Civil ID + password only when "Remember me" was previously checked.
+  Future<({bool rememberMe, String? civilId, String? password})>
+      loadRememberedLogin() async {
+    if (!_storageService.getRememberMe()) {
+      return (rememberMe: false, civilId: null, password: null);
+    }
+    return (
+      rememberMe: true,
+      civilId: await _storageService.getSavedCivilId(),
+      password: await _storageService.getSavedPassword(),
+    );
   }
 
   /// Login with Civil ID and password
@@ -99,6 +130,13 @@ class AuthViewModel extends ChangeNotifier {
           await _storageService.saveToken(response.token!);
         }
         await _storageService.saveRememberMe(rememberMe);
+        // "Remember me" → keep the credentials (encrypted) so the login form
+        // can prefill them next time; otherwise forget any previously saved ones.
+        if (rememberMe) {
+          await _storageService.saveCredentials(civilId, password);
+        } else {
+          await _storageService.clearCredentials();
+        }
 
         _tenantId = response.tenantId;
         _tenantName = response.fullName;
@@ -120,14 +158,24 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Change password
+  /// Separate from the session [state]: changing a password must never flip
+  /// `isAuthenticated` to false while the user is still logged in (the old
+  /// code reused AuthState.loading/error for this and briefly logged them out).
+  bool _isChangingPassword = false;
+  bool get isChangingPassword => _isChangingPassword;
+
+  /// Change password. On success the service persists the server's new token;
+  /// here we also refresh the remembered credentials so "Remember me" doesn't
+  /// prefill the OLD password next launch.
   Future<bool> changePassword(String oldPassword, String newPassword) async {
     if (_tenantId == null) {
       _errorMessage = 'Not logged in';
+      notifyListeners();
       return false;
     }
 
-    _state = AuthState.loading;
+    _isChangingPassword = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -140,20 +188,22 @@ class AuthViewModel extends ChangeNotifier {
       final success = await _apiService.changePassword(request);
 
       if (success) {
-        _state = AuthState.authenticated;
-        notifyListeners();
+        if (_storageService.getRememberMe()) {
+          final civilId = await _storageService.getSavedCivilId();
+          if (civilId != null && civilId.isNotEmpty) {
+            await _storageService.saveCredentials(civilId, newPassword);
+          }
+        }
         return true;
-      } else {
-        _errorMessage = 'Failed to change password';
-        _state = AuthState.error;
-        notifyListeners();
-        return false;
       }
+      _errorMessage = 'Failed to change password';
+      return false;
     } catch (e) {
       _errorMessage = e.toString();
-      _state = AuthState.error;
-      notifyListeners();
       return false;
+    } finally {
+      _isChangingPassword = false;
+      notifyListeners();
     }
   }
 

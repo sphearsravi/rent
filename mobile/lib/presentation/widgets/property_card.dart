@@ -5,6 +5,7 @@ import '../../core/utils/date_utils.dart';
 import '../../core/utils/status_localizer.dart';
 import '../../data/models/lease_model.dart';
 import '../../l10n/app_localizations.dart';
+import 'legal_case_banner.dart';
 
 /// Property/Lease card widget for dashboard
 class PropertyCard extends StatelessWidget {
@@ -49,7 +50,7 @@ class PropertyCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.location_on, size: 14, color: AppTheme.textMuted),
+                          const Icon(Icons.location_on, size: 14, color: AppTheme.textMuted),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -74,6 +75,15 @@ class PropertyCard extends StatelessWidget {
 
             // Lease Details Grid
             _buildDetailsGrid(context),
+
+            // ⚖️ Legal case chip (renders nothing when no case is filed)
+            if (lease.hasLegalCase) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: LegalCaseBanner(lease: lease, compact: true),
+              ),
+            ],
           ],
         ),
       ),

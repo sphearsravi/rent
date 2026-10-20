@@ -17,19 +17,40 @@ public class ReportsController : Controller
     private readonly RentCollection.Application.Interfaces.IPdfService _pdf;
     private readonly RentCollection.Application.Interfaces.IExecutiveDashboardComposer _composer;
     private readonly RentCollection.Application.Interfaces.IMonthEndCloseService _mec;
+    private readonly ILogger<ReportsController> _logger;
 
     public ReportsController(
         ApplicationDbContext context,
         RentCollection.Application.Interfaces.IPdfService pdf,
         RentCollection.Application.Interfaces.IExecutiveDashboardComposer composer,
-        RentCollection.Application.Interfaces.IMonthEndCloseService mec)
+        RentCollection.Application.Interfaces.IMonthEndCloseService mec,
+        ILogger<ReportsController> logger)
     {
         _context = context;
         _pdf = pdf;
         _composer = composer;
         _mec = mec;
+        _logger = logger;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
     }
+
+    /// <summary>
+    /// SECURITY: only Property / Tenant / User / LegalCase carry an EF company
+    /// query filter. Units, Leases, Invoices, Payments and MaintenanceRequests
+    /// do NOT, so every aggregate in this controller must be scoped explicitly
+    /// through the filtered parent (Unit → Property.CompanyId, Lease / Invoice /
+    /// Payment → Tenant.CompanyId, MaintenanceRequest → Property.CompanyId).
+    /// Returns null for SuperAdmin (sees all); -1 when the claim is missing so
+    /// the predicate matches nothing (deny by default).
+    /// </summary>
+    private int? ScopedCompanyId()
+    {
+        if (User.IsInRole(Roles.SuperAdmin)) return null;
+        return int.TryParse(User.FindFirst("companyId")?.Value, out var c) ? c : -1;
+    }
+
+    /// <summary>Exclusive upper bound so the last calendar day of a range is included.</summary>
+    private static DateTime EndExclusive(DateTime endDate) => endDate.Date.AddDays(1);
 
     public IActionResult Index()
     {
@@ -68,9 +89,11 @@ public class ReportsController : Controller
     /// rent generation, overdue flip, etc. without leaving the checklist.
     /// Returns JSON for inline UI feedback.
     /// </summary>
+    // SECURITY: recurring jobs are system-wide (rent generation, overdue flip, …)
+    // and have no company dimension, so only a SuperAdmin may fire them.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = Roles.AnyAdmin)]
+    [Authorize(Roles = Roles.SuperAdmin)]
     public IActionResult TriggerJob(string jobId, [FromServices] Hangfire.IRecurringJobManager recurring)
     {
         // Allow-list lives in RecurringJobIds.All so the controller, Program.cs
@@ -86,7 +109,10 @@ public class ReportsController : Controller
         }
         catch (Exception ex)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            // Don't echo internal exception text (connection strings, stack
+            // details) to the browser — log it and return a generic message.
+            _logger.LogError(ex, "Failed to trigger recurring job {JobId}", jobId);
+            return BadRequest(new { success = false, message = $"Job '{jobId}' could not be triggered. Check the server log for details." });
         }
     }
 
@@ -96,9 +122,13 @@ public class ReportsController : Controller
     /// Idempotent — re-closing the same period returns success without
     /// re-inserting.
     /// </summary>
+    // SECURITY: ClosedPeriod is a GLOBAL table (no CompanyId column), so a
+    // company Admin closing "their" month would lock the period for every
+    // company. Restricted to SuperAdmin until ClosedPeriod gains a CompanyId
+    // column + per-company close semantics (out of scope for this change).
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = Roles.AnyAdmin)]
+    [Authorize(Roles = Roles.SuperAdmin)]
     public async Task<IActionResult> ConfirmClose(string period, string? notes,
         [FromServices] RentCollection.Application.Interfaces.IAuditLogService audit)
     {
@@ -150,52 +180,69 @@ public class ReportsController : Controller
     /// Heavy detail reports stay in their own actions. This endpoint exists
     /// so the landing renders in one round trip instead of five.
     /// </summary>
-    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "from", "to" })]
+    // Location = Client (not Any): the payload is company-scoped, so a shared
+    // proxy cache keyed only on from/to would hand company A's figures to company B.
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "from", "to" })]
     public async Task<IActionResult> Snapshot(DateTime? from, DateTime? to)
     {
         var today = DateTime.Today;
         var startDate = from ?? new DateTime(today.Year, today.Month, 1);
         var endDate = to ?? today;
+        var endExcl = EndExclusive(endDate);
         var rangeDays = Math.Max(1, (int)(endDate - startDate).TotalDays + 1);
 
         // Same-length prior period for delta chips: if you're looking at
         // 2026-05-01..2026-05-25 (25 days), prior is 2026-04-06..2026-04-30.
         var prevEnd = startDate.AddDays(-1);
+        var prevEndExcl = EndExclusive(prevEnd);
         var prevStart = prevEnd.AddDays(-(rangeDays - 1));
+
+        // Company scope (see ScopedCompanyId). Applied to every unfiltered set.
+        var cid = ScopedCompanyId();
+        var payments = _context.Payments.AsQueryable();
+        var invoices = _context.Invoices.AsQueryable();
+        var units = _context.Units.AsQueryable();
+        if (cid != null)
+        {
+            payments = payments.Where(p => p.Tenant.CompanyId == cid);
+            invoices = invoices.Where(i => i.Tenant.CompanyId == cid);
+            units = units.Where(u => u.Property.CompanyId == cid);
+        }
 
         // --- Current period KPIs ---
         // EF Core's DbContext is NOT thread-safe, so each query is awaited
         // serially. Earlier this method kicked them off in parallel and hit
         // "A second operation was started on this context instance".
-        var collected = await _context.Payments
-            .Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate
+        var collected = await payments
+            .Where(p => p.PaymentDate >= startDate && p.PaymentDate < endExcl
                         && p.Status == PaymentStatus.Completed)
             .SumAsync(p => (decimal?)p.AmountPaid) ?? 0m;
 
-        var prevCollected = await _context.Payments
-            .Where(p => p.PaymentDate >= prevStart && p.PaymentDate <= prevEnd
+        var prevCollected = await payments
+            .Where(p => p.PaymentDate >= prevStart && p.PaymentDate < prevEndExcl
                         && p.Status == PaymentStatus.Completed)
             .SumAsync(p => (decimal?)p.AmountPaid) ?? 0m;
 
-        var outstanding = await _context.Invoices
-            .Where(i => i.Status != "Paid")
+        // Cancelled invoices are not receivable — exclude them from outstanding.
+        var outstanding = await invoices
+            .Where(i => i.Status != "Paid" && i.Status != "Cancelled")
             .SumAsync(i => (decimal?)(i.TotalAmount - i.PaidAmount)) ?? 0m;
 
-        var overdueCount = await _context.Invoices
-            .CountAsync(i => i.Status != "Paid" && i.DueDate < today);
+        var overdueCount = await invoices
+            .CountAsync(i => i.Status != "Paid" && i.Status != "Cancelled" && i.DueDate < today);
 
-        var prevOverdueCount = await _context.Invoices
-            .CountAsync(i => i.Status != "Paid" && i.DueDate < prevEnd);
+        var prevOverdueCount = await invoices
+            .CountAsync(i => i.Status != "Paid" && i.Status != "Cancelled" && i.DueDate < prevEnd);
 
-        var totalUnits = await _context.Units.CountAsync();
-        var occupiedUnits = await _context.Units.CountAsync(u => u.Status == "Occupied");
+        var totalUnits = await units.CountAsync();
+        var occupiedUnits = await units.CountAsync(u => u.Status == "Occupied");
         var occupancy = totalUnits > 0 ? (decimal)occupiedUnits / totalUnits * 100m : 0m;
 
         // --- 12-month revenue trend + same months one year earlier (YoY overlay) ---
         var trendStart = new DateTime(today.Year, today.Month, 1).AddMonths(-11);
         var yoyStart = trendStart.AddYears(-1);
-        var monthlyRevenueRaw = await _context.Payments
-            .Where(p => p.PaymentDate >= yoyStart && p.PaymentDate <= today
+        var monthlyRevenueRaw = await payments
+            .Where(p => p.PaymentDate >= yoyStart && p.PaymentDate < EndExclusive(today)
                         && p.Status == PaymentStatus.Completed)
             .GroupBy(p => new { p.PaymentDate.Year, p.PaymentDate.Month })
             .Select(g => new { g.Key.Year, g.Key.Month, Total = g.Sum(p => p.AmountPaid) })
@@ -217,13 +264,13 @@ public class ReportsController : Controller
         }
 
         // --- Invoice status donut ---
-        var statusRaw = await _context.Invoices
+        var statusRaw = await invoices
             .GroupBy(i => i.Status)
             .Select(g => new { status = g.Key, count = g.Count() })
             .ToListAsync();
 
         // Overdue is a derived state — split Pending into Pending + Overdue.
-        var pendingButOverdue = await _context.Invoices
+        var pendingButOverdue = await invoices
             .CountAsync(i => i.Status == "Pending" && i.DueDate < today);
         var statusBreakdown = new List<object>();
         foreach (var s in statusRaw)
@@ -240,8 +287,8 @@ public class ReportsController : Controller
         }
 
         // --- Top 5 properties by collected in range ---
-        var topPropertiesRaw = await _context.Payments
-            .Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate
+        var topPropertiesRaw = await payments
+            .Where(p => p.PaymentDate >= startDate && p.PaymentDate < endExcl
                         && p.Status == PaymentStatus.Completed
                         && p.PropertyId != 0)
             .GroupBy(p => p.PropertyId)
@@ -290,11 +337,16 @@ public class ReportsController : Controller
     /// aggregations within a short window; the per-user vary headers make
     /// sure two admins don't share each other's cookie cache.
     /// </summary>
+    // Location = Client so a shared cache can never serve one company's PDF to another.
+    // TODO (company scope): IExecutiveDashboardComposer.BuildAsync has no companyId
+    // parameter yet, so for a non-SuperAdmin this PDF still aggregates across all
+    // companies. Pass ScopedCompanyId() once the composer accepts it.
     [HttpGet]
-    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "from", "to" })]
+    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "from", "to" })]
     public async Task<IActionResult> ExecutiveDashboardPdf(DateTime? from, DateTime? to)
     {
-        var model = await _composer.BuildAsync(from, to);
+        // Company-scoped for non-SuperAdmins (null = system-wide for SuperAdmin).
+        var model = await _composer.BuildAsync(from, to, ScopedCompanyId());
         var bytes = _pdf.RenderExecutiveDashboard(model);
         var name = $"executive-dashboard-{model.FromDate:yyyy-MM-dd}-to-{model.ToDate:yyyy-MM-dd}.pdf";
         return File(bytes, "application/pdf", name);
@@ -308,56 +360,74 @@ public class ReportsController : Controller
     {
         var startDate = fromDate ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         var endDate = toDate ?? DateTime.Today;
+        var endExcl = EndExclusive(endDate);
+
+        // Company scope — Units/Invoices/Payments/MaintenanceRequests/Leases have
+        // no EF company filter, so scope them through the filtered parent.
+        var cid = ScopedCompanyId();
+        var units = _context.Units.AsQueryable();
+        var invoices = _context.Invoices.AsQueryable();
+        var payments = _context.Payments.AsQueryable();
+        var maintenance = _context.MaintenanceRequests.AsQueryable();
+        var leases = _context.Leases.AsQueryable();
+        if (cid != null)
+        {
+            units = units.Where(u => u.Property.CompanyId == cid);
+            invoices = invoices.Where(i => i.Tenant.CompanyId == cid);
+            payments = payments.Where(p => p.Tenant.CompanyId == cid);
+            maintenance = maintenance.Where(m => m.Property.CompanyId == cid);
+            leases = leases.Where(l => l.Tenant.CompanyId == cid);
+        }
 
         // Total Properties
         var totalProperties = await _context.Properties.CountAsync();
 
         // Total Units
-        var totalUnits = await _context.Units.CountAsync();
+        var totalUnits = await units.CountAsync();
 
         // Occupied Units
-        var occupiedUnits = await _context.Units.CountAsync(u => u.Status == "Occupied");
+        var occupiedUnits = await units.CountAsync(u => u.Status == "Occupied");
 
         // Vacant Units
-        var vacantUnits = await _context.Units.CountAsync(u => u.Status == "Available");
+        var vacantUnits = await units.CountAsync(u => u.Status == "Vacant");
 
         // Occupancy Rate
         var occupancyRate = totalUnits > 0 ? (decimal)occupiedUnits / totalUnits * 100 : 0;
 
         // Total Monthly Rent (Potential)
-        var potentialMonthlyRent = await _context.Units.SumAsync(u => u.MonthlyRent);
+        var potentialMonthlyRent = await units.SumAsync(u => u.MonthlyRent);
 
         // Total Monthly Rent (Actual - from occupied units)
-        var actualMonthlyRent = await _context.Units
+        var actualMonthlyRent = await units
             .Where(u => u.Status == "Occupied")
             .SumAsync(u => u.MonthlyRent);
 
-        // Total Outstanding
-        var totalOutstanding = await _context.Invoices
-            .Where(i => i.Status != "Paid")
+        // Total Outstanding (Cancelled invoices are not receivable)
+        var totalOutstanding = await invoices
+            .Where(i => i.Status != "Paid" && i.Status != "Cancelled")
             .SumAsync(i => i.TotalAmount - i.PaidAmount);
 
         // YTD Revenue
         var yearStart = new DateTime(endDate.Year, 1, 1);
-        var ytdRevenue = await _context.Payments
-            .Where(p => p.PaymentDate >= yearStart && p.PaymentDate <= endDate && p.Status == PaymentStatus.Completed)
+        var ytdRevenue = await payments
+            .Where(p => p.PaymentDate >= yearStart && p.PaymentDate < endExcl && p.Status == PaymentStatus.Completed)
             .SumAsync(p => p.AmountPaid);
 
         // Maintenance Cost (Current Period)
-        var maintenanceCost = await _context.MaintenanceRequests
-            .Where(m => m.RequestDate >= startDate && m.RequestDate <= endDate && m.Status == "Completed")
+        var maintenanceCost = await maintenance
+            .Where(m => m.RequestDate >= startDate && m.RequestDate < endExcl && m.Status == "Completed")
             .SumAsync(m => m.ActualCost ?? 0);
 
         // Maintenance Count
-        var maintenanceCount = await _context.MaintenanceRequests
-            .Where(m => m.RequestDate >= startDate && m.RequestDate <= endDate && m.Status == "Completed")
+        var maintenanceCount = await maintenance
+            .Where(m => m.RequestDate >= startDate && m.RequestDate < endExcl && m.Status == "Completed")
             .CountAsync();
 
         // Active Tenants
         var activeTenants = await _context.Tenants.CountAsync(t => t.Status == "Active");
 
         // Active Leases
-        var activeLeases = await _context.Leases.CountAsync(l => l.Status == "Active");
+        var activeLeases = await leases.CountAsync(l => l.Status == "Active");
 
         // Average Rent Per Tenant
         var avgRentPerTenant = activeTenants > 0 ? actualMonthlyRent / activeTenants : 0;
@@ -367,28 +437,107 @@ public class ReportsController : Controller
 
         // Expiring Leases (Next 30 Days)
         var next30Days = DateTime.Today.AddDays(30);
-        var expiringLeases = await _context.Leases
+        var expiringLeases = await leases
             .CountAsync(l => l.Status == "Active" && l.LeaseEndDate <= next30Days && l.LeaseEndDate >= DateTime.Today);
 
         // Collection Rate
-        var totalInvoiced = await _context.Invoices
-            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate <= endDate)
+        var totalInvoiced = await invoices
+            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate < endExcl)
             .SumAsync(i => i.TotalAmount);
-        var totalPaid = await _context.Invoices
-            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate <= endDate)
+        var totalPaid = await invoices
+            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate < endExcl)
             .SumAsync(i => i.PaidAmount);
         var collectionRate = totalInvoiced > 0 ? (totalPaid / totalInvoiced * 100) : 0;
 
         // Previous Month Comparison
         var prevMonthStart = startDate.AddMonths(-1);
-        var prevMonthEnd = endDate.AddMonths(-1);
-        var prevMonthRevenue = await _context.Payments
-            .Where(p => p.PaymentDate >= prevMonthStart && p.PaymentDate <= prevMonthEnd && p.Status == PaymentStatus.Completed)
+        var prevMonthEndExcl = EndExclusive(endDate.AddMonths(-1));
+        var prevMonthRevenue = await payments
+            .Where(p => p.PaymentDate >= prevMonthStart && p.PaymentDate < prevMonthEndExcl && p.Status == PaymentStatus.Completed)
             .SumAsync(p => p.AmountPaid);
 
         var revenueChange = prevMonthRevenue > 0
             ? ((actualMonthlyRent - prevMonthRevenue) / prevMonthRevenue * 100)
             : 0;
+
+        // ── Owner-dashboard presentation (Oct 2026) ──
+        // Open / overdue receivable counts for the KPI row. Overdue = receivable
+        // whose due date has already passed, as of today.
+        var openSet = invoices.Where(i => i.Status != "Paid" && i.Status != "Cancelled");
+        var outstandingInvoices = await openSet.CountAsync();
+        var overdueSet = openSet.Where(i => i.DueDate < DateTime.Today);
+        var overdueAmount = await overdueSet.SumAsync(i => (decimal?)(i.TotalAmount - i.PaidAmount)) ?? 0m;
+        var overdueInvoices = await overdueSet.CountAsync();
+
+        // Property health: per-property occupancy plus the period's invoiced /
+        // collected totals. Properties carry the EF company filter; the invoice
+        // set is already company-scoped above (Invoice → Lease → Unit → Property).
+        var propertyRows = await _context.Properties
+            .OrderBy(p => p.PropertyName)
+            .Select(p => new RentCollection.Web.Models.ExecutivePropertyRow
+            {
+                PropertyId = p.PropertyId,
+                Name = p.PropertyName,
+                TotalUnits = p.Units.Count(),
+                OccupiedUnits = p.Units.Count(u => u.Status == "Occupied"),
+            })
+            .ToListAsync();
+        var periodByProperty = await invoices
+            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate < endExcl)
+            .GroupBy(i => i.Lease.Unit.PropertyId)
+            .Select(g => new
+            {
+                PropertyId = g.Key,
+                Invoiced = g.Sum(i => i.TotalAmount),
+                Collected = g.Sum(i => i.PaidAmount),
+            })
+            .ToListAsync();
+        foreach (var row in propertyRows)
+        {
+            var hit = periodByProperty.FirstOrDefault(x => x.PropertyId == row.PropertyId);
+            if (hit == null) continue;
+            row.Invoiced = hit.Invoiced;
+            row.Collected = hit.Collected;
+        }
+        // Weakest collection rate first; properties with nothing invoiced sink to the end.
+        propertyRows = propertyRows
+            .OrderBy(r => r.CollectionRate ?? decimal.MaxValue)
+            .ThenBy(r => r.Name)
+            .ToList();
+
+        // Collections trend: the six calendar months ending with the report's end
+        // month. Expected = non-cancelled invoices by invoice month; collected =
+        // completed payments by payment month. Heights are scaled to one shared max.
+        var trendMonthStart = new DateTime(endDate.Year, endDate.Month, 1);
+        var trendStart = trendMonthStart.AddMonths(-5);
+        var trendEndExcl = trendMonthStart.AddMonths(1);
+        var invoicedByMonth = await invoices
+            .Where(i => i.InvoiceDate >= trendStart && i.InvoiceDate < trendEndExcl && i.Status != "Cancelled")
+            .GroupBy(i => new { i.InvoiceDate.Year, i.InvoiceDate.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Total = g.Sum(i => i.TotalAmount) })
+            .ToListAsync();
+        var collectedByMonth = await payments
+            .Where(p => p.PaymentDate >= trendStart && p.PaymentDate < trendEndExcl && p.Status == PaymentStatus.Completed)
+            .GroupBy(p => new { p.PaymentDate.Year, p.PaymentDate.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Total = g.Sum(p => p.AmountPaid) })
+            .ToListAsync();
+        var trend = new List<RentCollection.Web.Models.ExecutiveTrendPoint>(6);
+        for (var m = trendStart; m < trendEndExcl; m = m.AddMonths(1))
+        {
+            trend.Add(new RentCollection.Web.Models.ExecutiveTrendPoint
+            {
+                Label = m.ToString("MMM"),
+                Expected = invoicedByMonth.FirstOrDefault(x => x.Year == m.Year && x.Month == m.Month)?.Total ?? 0m,
+                Collected = collectedByMonth.FirstOrDefault(x => x.Year == m.Year && x.Month == m.Month)?.Total ?? 0m,
+                IsPartial = m.Year == DateTime.Today.Year && m.Month == DateTime.Today.Month,
+            });
+        }
+        var trendMax = trend.Max(t => Math.Max(t.Expected, t.Collected));
+        foreach (var t in trend)
+        {
+            t.ExpectedPx = RentCollection.Web.Models.ExecutiveTrendPoint.ToPx(t.Expected, trendMax);
+            t.CollectedPx = RentCollection.Web.Models.ExecutiveTrendPoint.ToPx(t.Collected, trendMax);
+        }
 
         ViewBag.FromDate = startDate;
         ViewBag.ToDate = endDate;
@@ -412,6 +561,14 @@ public class ReportsController : Controller
         ViewBag.NetRevenue = actualMonthlyRent - maintenanceCost;
         ViewBag.AvgRentPerTenant = avgRentPerTenant;
         ViewBag.AvgMaintenanceCost = avgMaintenanceCost;
+        // Owner-dashboard presentation extras.
+        ViewBag.PeriodInvoiced = totalInvoiced;      // denominator of CollectionRate
+        ViewBag.PeriodCollected = totalPaid;         // numerator of CollectionRate
+        ViewBag.OutstandingInvoices = outstandingInvoices;
+        ViewBag.OverdueAmount = overdueAmount;
+        ViewBag.OverdueInvoices = overdueInvoices;
+        ViewBag.PropertyRows = propertyRows;
+        ViewBag.Trend = trend;
 
         return View();
     }
@@ -420,6 +577,21 @@ public class ReportsController : Controller
     {
         var startDate = fromDate ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         var endDate = toDate ?? DateTime.Today;
+        var endExcl = EndExclusive(endDate);
+
+        // Company scope (same approach as ExecutiveDashboard).
+        var cid = ScopedCompanyId();
+        var units = _context.Units.AsQueryable();
+        var invoices = _context.Invoices.AsQueryable();
+        var payments = _context.Payments.AsQueryable();
+        var maintenance = _context.MaintenanceRequests.AsQueryable();
+        if (cid != null)
+        {
+            units = units.Where(u => u.Property.CompanyId == cid);
+            invoices = invoices.Where(i => i.Tenant.CompanyId == cid);
+            payments = payments.Where(p => p.Tenant.CompanyId == cid);
+            maintenance = maintenance.Where(m => m.Property.CompanyId == cid);
+        }
 
         using var package = new ExcelPackage();
         var worksheet = package.Workbook.Worksheets.Add("Executive Dashboard");
@@ -454,9 +626,9 @@ public class ReportsController : Controller
         row++;
 
         var totalProperties = await _context.Properties.CountAsync();
-        var totalUnits = await _context.Units.CountAsync();
-        var occupiedUnits = await _context.Units.CountAsync(u => u.Status == "Occupied");
-        var vacantUnits = await _context.Units.CountAsync(u => u.Status == "Available");
+        var totalUnits = await units.CountAsync();
+        var occupiedUnits = await units.CountAsync(u => u.Status == "Occupied");
+        var vacantUnits = await units.CountAsync(u => u.Status == "Vacant");
         var occupancyRate = totalUnits > 0 ? (decimal)occupiedUnits / totalUnits * 100 : 0;
 
         worksheet.Cells[row, 1].Value = "Total Properties";
@@ -488,12 +660,12 @@ public class ReportsController : Controller
         worksheet.Cells[row, 1, row, 2].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
         row++;
 
-        var potentialRent = await _context.Units.SumAsync(u => u.MonthlyRent);
-        var actualRent = await _context.Units.Where(u => u.Status == "Occupied").SumAsync(u => u.MonthlyRent);
-        var totalOutstanding = await _context.Invoices.Where(i => i.Status != "Paid").SumAsync(i => i.TotalAmount - i.PaidAmount);
+        var potentialRent = await units.SumAsync(u => u.MonthlyRent);
+        var actualRent = await units.Where(u => u.Status == "Occupied").SumAsync(u => u.MonthlyRent);
+        var totalOutstanding = await invoices.Where(i => i.Status != "Paid" && i.Status != "Cancelled").SumAsync(i => i.TotalAmount - i.PaidAmount);
         var yearStart = new DateTime(endDate.Year, 1, 1);
-        var ytdRevenue = await _context.Payments.Where(p => p.PaymentDate >= yearStart && p.PaymentDate <= endDate && p.Status == PaymentStatus.Completed).SumAsync(p => p.AmountPaid);
-        var maintenanceCost = await _context.MaintenanceRequests.Where(m => m.RequestDate >= startDate && m.RequestDate <= endDate && m.Status == "Completed").SumAsync(m => m.ActualCost ?? 0);
+        var ytdRevenue = await payments.Where(p => p.PaymentDate >= yearStart && p.PaymentDate < endExcl && p.Status == PaymentStatus.Completed).SumAsync(p => p.AmountPaid);
+        var maintenanceCost = await maintenance.Where(m => m.RequestDate >= startDate && m.RequestDate < endExcl && m.Status == "Completed").SumAsync(m => m.ActualCost ?? 0);
 
         worksheet.Cells[row, 1].Value = "Potential Monthly Rent";
         worksheet.Cells[row, 2].Value = potentialRent;
@@ -540,7 +712,10 @@ public class ReportsController : Controller
     {
         var startDate = fromDate ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         var endDate = toDate ?? DateTime.Today;
+        var endExcl = EndExclusive(endDate);
 
+        // Properties carry the EF company filter, and every sub-query below is
+        // keyed on a scoped PropertyId, so this report is company-safe as-is.
         var properties = await _context.Properties
             .Include(p => p.Units)
                 .ThenInclude(u => u.Leases)
@@ -552,30 +727,34 @@ public class ReportsController : Controller
         {
             var totalUnits = property.Units.Count;
             var occupiedUnits = property.Units.Count(u => u.Status == "Occupied");
-            var vacantUnits = property.Units.Count(u => u.Status == "Available");
+            var vacantUnits = property.Units.Count(u => u.Status == "Vacant");
             var occupancyRate = totalUnits > 0 ? (decimal)occupiedUnits / totalUnits * 100 : 0;
 
             var potentialRent = property.Units.Sum(u => u.MonthlyRent);
             var actualRent = property.Units.Where(u => u.Status == "Occupied").Sum(u => u.MonthlyRent);
+            // NOTE: this is rent-weighted occupancy (occupied rent / potential rent),
+            // not a true collection rate (paid / invoiced). The view model property
+            // name is kept for view compatibility.
             var collectionRate = potentialRent > 0 ? (actualRent / potentialRent * 100) : 0;
 
             var outstandingAmount = await _context.Invoices
                 .Include(i => i.Lease)
                     .ThenInclude(l => l.Unit)
-                .Where(i => i.Lease.Unit.PropertyId == property.PropertyId && i.Status != "Paid")
+                .Where(i => i.Lease.Unit.PropertyId == property.PropertyId
+                            && i.Status != "Paid" && i.Status != "Cancelled")
                 .SumAsync(i => i.TotalAmount - i.PaidAmount);
 
             var maintenanceCost = await _context.MaintenanceRequests
                 .Where(m => m.PropertyId == property.PropertyId &&
                            m.RequestDate >= startDate &&
-                           m.RequestDate <= endDate &&
+                           m.RequestDate < endExcl &&
                            m.Status == "Completed")
                 .SumAsync(m => m.ActualCost ?? 0);
 
             var maintenanceCount = await _context.MaintenanceRequests
                 .Where(m => m.PropertyId == property.PropertyId &&
                            m.RequestDate >= startDate &&
-                           m.RequestDate <= endDate)
+                           m.RequestDate < endExcl)
                 .CountAsync();
 
             var totalSquareFeet = property.Units.Sum(u => (decimal?)u.SquareFeet) ?? 0;
@@ -611,6 +790,7 @@ public class ReportsController : Controller
     {
         var startDate = fromDate ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         var endDate = toDate ?? DateTime.Today;
+        var endExcl = EndExclusive(endDate);
 
         var properties = await _context.Properties
             .Include(p => p.Units)
@@ -622,7 +802,7 @@ public class ReportsController : Controller
         // Headers
         var headers = new[] {
             "Property Name", "PACI", "Location", "Total Units", "Occupied", "Vacant",
-            "Occupancy %", "Potential Rent (KWD)", "Actual Rent (KWD)", "Collection %",
+            "Occupancy %", "Potential Rent (KWD)", "Actual Rent (KWD)", "Rent Occupancy %",
             "Outstanding (KWD)", "Maintenance Cost (KWD)", "Maintenance Count",
             "Net Revenue (KWD)", "Revenue/SqFt"
         };
@@ -643,7 +823,7 @@ public class ReportsController : Controller
         {
             var totalUnits = property.Units.Count;
             var occupiedUnits = property.Units.Count(u => u.Status == "Occupied");
-            var vacantUnits = property.Units.Count(u => u.Status == "Available");
+            var vacantUnits = property.Units.Count(u => u.Status == "Vacant");
             var occupancyRate = totalUnits > 0 ? (decimal)occupiedUnits / totalUnits * 100 : 0;
 
             var potentialRent = property.Units.Sum(u => u.MonthlyRent);
@@ -652,15 +832,16 @@ public class ReportsController : Controller
 
             var outstandingAmount = await _context.Invoices
                 .Include(i => i.Lease).ThenInclude(l => l.Unit)
-                .Where(i => i.Lease.Unit.PropertyId == property.PropertyId && i.Status != "Paid")
+                .Where(i => i.Lease.Unit.PropertyId == property.PropertyId
+                            && i.Status != "Paid" && i.Status != "Cancelled")
                 .SumAsync(i => i.TotalAmount - i.PaidAmount);
 
             var maintenanceCost = await _context.MaintenanceRequests
-                .Where(m => m.PropertyId == property.PropertyId && m.RequestDate >= startDate && m.RequestDate <= endDate && m.Status == "Completed")
+                .Where(m => m.PropertyId == property.PropertyId && m.RequestDate >= startDate && m.RequestDate < endExcl && m.Status == "Completed")
                 .SumAsync(m => m.ActualCost ?? 0);
 
             var maintenanceCount = await _context.MaintenanceRequests
-                .Where(m => m.PropertyId == property.PropertyId && m.RequestDate >= startDate && m.RequestDate <= endDate)
+                .Where(m => m.PropertyId == property.PropertyId && m.RequestDate >= startDate && m.RequestDate < endExcl)
                 .CountAsync();
 
             var totalSquareFeet = property.Units.Sum(u => (decimal?)u.SquareFeet) ?? 0;
@@ -709,6 +890,8 @@ public class ReportsController : Controller
         var startDate = fromDate ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         var endDate = toDate ?? DateTime.Today;
 
+        // Tenants carry the EF company filter; every Invoice/Payment query below
+        // is keyed on a scoped TenantId, so this report is company-safe as-is.
         var tenants = await _context.Tenants
             .Include(t => t.Leases)
                 .ThenInclude(l => l.Unit)
@@ -730,10 +913,10 @@ public class ReportsController : Controller
                 var totalPaid = invoices.Sum(i => i.PaidAmount);
                 var outstanding = totalInvoiced - totalPaid;
 
-                var overdueInvoices = invoices.Where(i => i.Status != "Paid" && i.DueDate < DateTime.Today).ToList();
+                var overdueInvoices = invoices.Where(i => i.Status != "Paid" && i.Status != "Cancelled" && i.DueDate < DateTime.Today).ToList();
                 var daysOverdue = overdueInvoices.Any() ? (int)(DateTime.Today - overdueInvoices.Min(i => i.DueDate)).TotalDays : 0;
 
-                var lateFees = invoices.Where(i => i.DueDate < DateTime.Today && i.Status != "Paid").Count() * (lease.LateFeeAmount ?? 0);
+                var lateFees = overdueInvoices.Count * (lease.LateFeeAmount ?? 0);
 
                 // Get all payments for this tenant
                 var payments = await _context.Payments
@@ -879,7 +1062,7 @@ public class ReportsController : Controller
                 var totalPaid = invoices.Sum(i => i.PaidAmount);
                 var outstanding = totalInvoiced - totalPaid;
 
-                var overdueInvoices = invoices.Where(i => i.Status != "Paid" && i.DueDate < DateTime.Today).ToList();
+                var overdueInvoices = invoices.Where(i => i.Status != "Paid" && i.Status != "Cancelled" && i.DueDate < DateTime.Today).ToList();
                 var daysOverdue = overdueInvoices.Any() ? (int)(DateTime.Today - overdueInvoices.Min(i => i.DueDate)).TotalDays : 0;
 
                 var lateFees = overdueInvoices.Count * (lease.LateFeeAmount ?? 0);
@@ -889,9 +1072,15 @@ public class ReportsController : Controller
                     .OrderByDescending(p => p.PaymentDate)
                     .FirstOrDefaultAsync();
 
+                // Late = paid more than 5 days after the INVOICE due date (match
+                // the HTML report; the old CreatedDate comparison was ~always 0).
                 var latePaymentCount = await _context.Payments
-                    .Where(p => p.TenantId == tenant.TenantId && p.PaymentDate > DateTime.Today.AddMonths(-12))
-                    .CountAsync(p => p.PaymentDate > p.CreatedDate.AddDays(5));
+                    .Where(p => p.TenantId == tenant.TenantId
+                        && p.PaymentDate > DateTime.Today.AddMonths(-12)
+                        && p.InvoiceId.HasValue
+                        && p.Invoice != null
+                        && p.PaymentDate > p.Invoice.DueDate.AddDays(5))
+                    .CountAsync();
 
                 string paymentScore = latePaymentCount == 0 ? "Excellent" :
                                      latePaymentCount <= 2 ? "Good" :
@@ -942,13 +1131,18 @@ public class ReportsController : Controller
     {
         var startDate = fromDate ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         var endDate = toDate ?? DateTime.Today;
+        var endExcl = EndExclusive(endDate);
 
-        var invoices = await _context.Invoices
+        var cid = ScopedCompanyId();
+        var invoiceQuery = _context.Invoices
             .Include(i => i.Tenant)
             .Include(i => i.Lease)
                 .ThenInclude(l => l.Unit)
                     .ThenInclude(u => u.Property)
-            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate <= endDate)
+            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate < endExcl);
+        if (cid != null) invoiceQuery = invoiceQuery.Where(i => i.Tenant.CompanyId == cid);
+
+        var invoices = await invoiceQuery
             .OrderByDescending(i => i.InvoiceDate)
             .ToListAsync();
 
@@ -964,11 +1158,12 @@ public class ReportsController : Controller
         var partialInvoices = invoices.Where(i => i.Status == "Partial" || (i.PaidAmount > 0 && i.PaidAmount < i.TotalAmount)).ToList();
         var unpaidInvoices = invoices.Where(i => i.Status != "Paid" && i.PaidAmount == 0).ToList();
 
-        // Aging Analysis - for unpaid/partial amounts
-        var aging0to30 = invoices.Where(i => i.Status != "Paid" && (DateTime.Today - i.DueDate).TotalDays >= 0 && (DateTime.Today - i.DueDate).TotalDays <= 30).ToList();
-        var aging31to60 = invoices.Where(i => i.Status != "Paid" && (DateTime.Today - i.DueDate).TotalDays > 30 && (DateTime.Today - i.DueDate).TotalDays <= 60).ToList();
-        var aging61to90 = invoices.Where(i => i.Status != "Paid" && (DateTime.Today - i.DueDate).TotalDays > 60 && (DateTime.Today - i.DueDate).TotalDays <= 90).ToList();
-        var agingOver90 = invoices.Where(i => i.Status != "Paid" && (DateTime.Today - i.DueDate).TotalDays > 90).ToList();
+        // Aging Analysis - for unpaid/partial amounts (Cancelled invoices are not receivable)
+        var receivable = invoices.Where(i => i.Status != "Paid" && i.Status != "Cancelled").ToList();
+        var aging0to30 = receivable.Where(i => (DateTime.Today - i.DueDate).TotalDays >= 0 && (DateTime.Today - i.DueDate).TotalDays <= 30).ToList();
+        var aging31to60 = receivable.Where(i => (DateTime.Today - i.DueDate).TotalDays > 30 && (DateTime.Today - i.DueDate).TotalDays <= 60).ToList();
+        var aging61to90 = receivable.Where(i => (DateTime.Today - i.DueDate).TotalDays > 60 && (DateTime.Today - i.DueDate).TotalDays <= 90).ToList();
+        var agingOver90 = receivable.Where(i => (DateTime.Today - i.DueDate).TotalDays > 90).ToList();
 
         ViewBag.FromDate = startDate;
         ViewBag.ToDate = endDate;
@@ -1034,13 +1229,18 @@ public class ReportsController : Controller
     {
         var startDate = fromDate ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         var endDate = toDate ?? DateTime.Today;
+        var endExcl = EndExclusive(endDate);
 
-        var invoices = await _context.Invoices
+        var cid = ScopedCompanyId();
+        var invoiceQuery = _context.Invoices
             .Include(i => i.Tenant)
             .Include(i => i.Lease)
                 .ThenInclude(l => l.Unit)
                     .ThenInclude(u => u.Property)
-            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate <= endDate)
+            .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate < endExcl);
+        if (cid != null) invoiceQuery = invoiceQuery.Where(i => i.Tenant.CompanyId == cid);
+
+        var invoices = await invoiceQuery
             .OrderByDescending(i => i.InvoiceDate)
             .ToListAsync();
 
@@ -1122,14 +1322,21 @@ public class ReportsController : Controller
             .ToListAsync();
         ViewBag.Tenants = tenants;
 
-        // Build query
+        // Build query (end bound is exclusive on the day after `toDate`, so the
+        // last selected day is fully included — same rule as every other report).
+        var endExcl = EndExclusive(endDate);
         var query = _context.Payments
             .Include(p => p.Lease)
                 .ThenInclude(l => l.Unit)
                     .ThenInclude(u => u.Property)
             .Include(p => p.Lease)
                 .ThenInclude(l => l.Tenant)
-            .Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate.AddDays(1));
+            .Where(p => p.PaymentDate >= startDate && p.PaymentDate < endExcl);
+
+        // Company scope — Payments have no EF company filter.
+        var cid = ScopedCompanyId();
+        if (cid != null)
+            query = query.Where(p => p.Tenant.CompanyId == cid);
 
         // Apply filters
         if (propertyId.HasValue && propertyId.Value > 0)
@@ -1214,6 +1421,7 @@ public class ReportsController : Controller
     {
         var startDate = fromDate ?? DateTime.Today.AddMonths(-1);
         var endDate = toDate ?? DateTime.Today;
+        var endExcl = EndExclusive(endDate);
 
         var query = _context.Payments
             .Include(p => p.Lease)
@@ -1221,7 +1429,12 @@ public class ReportsController : Controller
                     .ThenInclude(u => u.Property)
             .Include(p => p.Lease)
                 .ThenInclude(l => l.Tenant)
-            .Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate.AddDays(1));
+            .Where(p => p.PaymentDate >= startDate && p.PaymentDate < endExcl);
+
+        // Company scope — Payments have no EF company filter.
+        var cid = ScopedCompanyId();
+        if (cid != null)
+            query = query.Where(p => p.Tenant.CompanyId == cid);
 
         if (propertyId.HasValue && propertyId.Value > 0)
             query = query.Where(p => p.Lease.Unit.PropertyId == propertyId.Value);

@@ -40,13 +40,25 @@ public class PaymentMoneyMathTests : IDisposable
 
     public void Dispose() => _ctx.Dispose();
 
+    /// <summary>
+    /// AES-encrypted <c>trandata</c> as K-NET posts it. The handler (audit C1)
+    /// rejects callbacks WITHOUT trandata as unauthenticated, so every call here
+    /// must carry one; <c>amt</c> must equal the seeded payment's amount.
+    /// </summary>
+    private static string Enc(string result, string paymentId, string trackId, string tranId, decimal amt)
+    {
+        var clear = $"result={result}&paymentid={paymentId}&trackid={trackId}&tranid={tranId}" +
+                    $"&amt={amt.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)}";
+        return new KnetUtil().EncryptUrlParams(clear, "0123456789ABCDEF");
+    }
+
     [Fact]
     public async Task Partial_payment_leaves_invoice_PartiallyPaid_with_correct_balance()
     {
         await SeedInvoiceAsync(invoiceId: 1, total: 500m);
         await SeedPendingPaymentAsync(paymentId: 1, invoiceId: 1, amount: 200m, trackId: "TRK_P1");
 
-        await _sut.HandleKnetResponseAsync(null, "KP_P1", "TRK_P1", "TX_1", "CAPTURED", null);
+        await _sut.HandleKnetResponseAsync(Enc("CAPTURED", "KP_P1", "TRK_P1", "TX_1", 200m), "KP_P1", "TRK_P1", "TX_1", "CAPTURED", null);
 
         var invoice = await _ctx.Invoices.AsNoTracking().FirstAsync();
         invoice.Status.Should().Be("Partially Paid",
@@ -63,13 +75,13 @@ public class PaymentMoneyMathTests : IDisposable
         await SeedPendingPaymentAsync(paymentId: 2, invoiceId: 1, amount: 300m, trackId: "TRK_PARTIAL_B");
 
         // First half captures.
-        await _sut.HandleKnetResponseAsync(null, "KP_PA", "TRK_PARTIAL_A", "TX_A", "CAPTURED", null);
+        await _sut.HandleKnetResponseAsync(Enc("CAPTURED", "KP_PA", "TRK_PARTIAL_A", "TX_A", 200m), "KP_PA", "TRK_PARTIAL_A", "TX_A", "CAPTURED", null);
         var afterFirst = await _ctx.Invoices.AsNoTracking().FirstAsync();
         afterFirst.Status.Should().Be("Partially Paid");
 
         // Second half captures — must flip to Paid (not back to Pending or
         // any other state).
-        await _sut.HandleKnetResponseAsync(null, "KP_PB", "TRK_PARTIAL_B", "TX_B", "CAPTURED", null);
+        await _sut.HandleKnetResponseAsync(Enc("CAPTURED", "KP_PB", "TRK_PARTIAL_B", "TX_B", 300m), "KP_PB", "TRK_PARTIAL_B", "TX_B", "CAPTURED", null);
 
         var afterSecond = await _ctx.Invoices.AsNoTracking().FirstAsync();
         afterSecond.Status.Should().Be("Paid");
@@ -82,13 +94,13 @@ public class PaymentMoneyMathTests : IDisposable
         await SeedInvoiceAsync(invoiceId: 1, total: 500m);
         await SeedPendingPaymentAsync(paymentId: 1, invoiceId: 1, amount: 500m, trackId: "TRK_NOREVERT");
 
-        await _sut.HandleKnetResponseAsync(null, "KP_N", "TRK_NOREVERT", "TX_N", "CAPTURED", null);
+        await _sut.HandleKnetResponseAsync(Enc("CAPTURED", "KP_N", "TRK_NOREVERT", "TX_N", 500m), "KP_N", "TRK_NOREVERT", "TX_N", "CAPTURED", null);
         var first = await _ctx.Payments.AsNoTracking().FirstAsync();
         first.Status.Should().Be(PaymentStatus.Completed);
         var firstReceipt = first.ReceiptNumber;
 
         // K-NET retries the callback with FAILED — must NOT downgrade us.
-        await _sut.HandleKnetResponseAsync(null, "KP_N", "TRK_NOREVERT", "TX_N", "FAILED", null);
+        await _sut.HandleKnetResponseAsync(Enc("FAILED", "KP_N", "TRK_NOREVERT", "TX_N", 500m), "KP_N", "TRK_NOREVERT", "TX_N", "FAILED", null);
 
         var second = await _ctx.Payments.AsNoTracking().FirstAsync();
         second.Status.Should().Be(PaymentStatus.Completed,
@@ -103,7 +115,7 @@ public class PaymentMoneyMathTests : IDisposable
         await SeedInvoiceAsync(invoiceId: 1, total: 500m);
         await SeedPendingPaymentAsync(paymentId: 1, invoiceId: 1, amount: 500m, trackId: "TRK_FAIL_NORCPT");
 
-        await _sut.HandleKnetResponseAsync(null, "KP_F", "TRK_FAIL_NORCPT", "TX_F", "CANCELED", null);
+        await _sut.HandleKnetResponseAsync(Enc("CANCELED", "KP_F", "TRK_FAIL_NORCPT", "TX_F", 500m), "KP_F", "TRK_FAIL_NORCPT", "TX_F", "CANCELED", null);
 
         var payment = await _ctx.Payments.AsNoTracking().FirstAsync();
         payment.Status.Should().Be(PaymentStatus.Failed);

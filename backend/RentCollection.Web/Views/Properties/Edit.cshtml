@@ -1,4 +1,5 @@
 ﻿@model RentCollection.Core.Entities.Property
+@inject RentCollection.Web.Services.ILookupService Lookups
 
 @{
     ViewData["Title"] = "Edit Property";
@@ -48,10 +49,10 @@
                         <div class="form-group">
                             <label asp-for="PropertyType" class="control-label"></label>
                             <select asp-for="PropertyType" class="form-control">
-                                <option value="Apartment">@L["Apartment"]</option>
-                                <option value="House">@L["House"]</option>
-                                <option value="Commercial">@L["Commercial"]</option>
-                                <option value="Condo">@L["Condo"]</option>
+                                @foreach (var opt in await Lookups.GetOptionsAsync("PropertyType"))
+                                {
+                                    <option value="@opt.Code" selected="@(Model.PropertyType == opt.Code)">@opt.Label</option>
+                                }
                             </select>
                             <span asp-validation-for="PropertyType" class="text-danger"></span>
                         </div>
@@ -64,6 +65,19 @@
                             <label asp-for="NumberOfUnits" class="control-label"></label>
                             <input asp-for="NumberOfUnits" class="form-control" type="number" min="1" />
                             <span asp-validation-for="NumberOfUnits" class="text-danger"></span>
+                            @{
+                                var actualUnits = (int)(ViewBag.ActualUnitCount ?? 0);
+                                var missing = Model.NumberOfUnits - actualUnits;
+                            }
+                            <small class="form-text text-muted">@actualUnits @L["unit(s) created so far"].</small>
+                            @if (missing > 0)
+                            {
+                                <a asp-controller="Units" asp-action="Setup"
+                                   asp-route-propertyId="@Model.PropertyId" asp-route-count="@missing"
+                                   class="btn btn-sm btn-outline-primary mt-1">
+                                    + @L["Add"] @missing @L["missing unit(s)"]
+                                </a>
+                            }
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -100,12 +114,10 @@
                         <div class="form-group">
                             <label asp-for="Governorate" class="control-label"></label>
                             <select asp-for="Governorate" class="form-control">
-                                <option value="Al Asimah">Al Asimah (Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â§Ã˜ÂµÃ™…Ã˜©)</option>
-                                <option value="Hawalli">Hawalli (Ã˜Â­Ã™Ë†Ã™â€žÃ™Å )</option>
-                                <option value="Farwaniya">Farwaniya (Ã˜Â§Ã™â€žÃ™ÂÃ˜Â±Ã™Ë†Ã˜Â§Ã™â€ Ã™Å Ã˜©)</option>
-                                <option value="Ahmadi">Ahmadi (Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â­Ã™…Ã˜Â¯Ã™Å )</option>
-                                <option value="Jahra">Jahra (Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€¡Ã˜Â±Ã˜Â§Ã˜Â¡)</option>
-                                <option value="Mubarak Al Kabeer">Mubarak Al Kabeer (Ã™…Ã˜Â¨Ã˜Â§Ã˜Â±Ã™Æ’ Ã˜Â§Ã™â€žÃ™Æ’Ã˜Â¨Ã™Å Ã˜Â±)</option>
+                                @foreach (var opt in await Lookups.GetOptionsAsync("Governorate"))
+                                {
+                                    <option value="@opt.Code" selected="@(Model.Governorate == opt.Code)">@opt.Label</option>
+                                }
                             </select>
                             <span asp-validation-for="Governorate" class="text-danger"></span>
                         </div>
@@ -150,8 +162,15 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label asp-for="CompanyId" class="control-label">@L["Company"]</label>
-                            <select asp-for="CompanyId" class="form-control" asp-items="ViewBag.CompanyId">
-                            </select>
+                            @if (User.IsInRole("SuperAdmin"))
+                            {
+                                <select asp-for="CompanyId" class="form-control" asp-items="ViewBag.CompanyId">
+                                </select>
+                            }
+                            else
+                            {
+                                <input class="form-control" value="@((ViewBag.CompanyId as SelectList)?.FirstOrDefault(i => i.Selected)?.Text ?? "—")" readonly />
+                            }
                             <span asp-validation-for="CompanyId" class="text-danger"></span>
                         </div>
                     </div>
@@ -332,7 +351,7 @@
 
 <style>
     body {
-        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
         color: #1e293b;
         min-height: 100vh;
     }
@@ -358,7 +377,7 @@
 
     .form-card {
         background: rgba(255, 255, 255, 0.8);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(138, 109, 31, 0.2);
         border-radius: 12px;
         padding: 2rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -380,7 +399,7 @@
         color: #334155;
         margin-bottom: 1.5rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #6366f1;
+        border-bottom: 2px solid #8a6d1f;
         display: inline-block;
     }
 
@@ -408,8 +427,8 @@
 
     .form-control:focus {
         outline: none;
-        border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        border-color: #8a6d1f;
+        box-shadow: 0 0 0 3px rgba(138, 109, 31, 0.1);
     }
 
     textarea.form-control {
@@ -439,14 +458,14 @@
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        background: linear-gradient(135deg, #8a6d1f 0%, #b8860b 100%);
         color: white;
     }
 
     .btn-primary:hover {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        background: linear-gradient(135deg, #6e5518 0%, #a67c00 100%);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        box-shadow: 0 4px 12px rgba(138, 109, 31, 0.3);
     }
 
     .btn-secondary {
@@ -490,7 +509,7 @@
         flex-wrap: wrap;
         margin-bottom: 1.5rem;
         padding: 1rem;
-        background: rgba(99, 102, 241, 0.05);
+        background: rgba(138, 109, 31, 0.05);
         border-radius: 8px;
     }
 
@@ -552,7 +571,7 @@
 
     .knet-config-section {
         background: rgba(255, 255, 255, 0.6);
-        border: 1px solid rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(138, 109, 31, 0.15);
         border-radius: 8px;
         padding: 1.5rem;
         margin-top: 1rem;
@@ -598,7 +617,7 @@
     }
 
     .btn-toggle-visibility:hover {
-        color: #6366f1;
+        color: #8a6d1f;
     }
 
     .page-header {

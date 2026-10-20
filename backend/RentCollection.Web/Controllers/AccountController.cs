@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -18,14 +19,27 @@ public class AccountController : Controller
     private readonly ApplicationDbContext _context;
     private readonly ILogger<AccountController> _logger;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly RentCollection.Web.Services.ILoginThrottle _loginThrottle;
+    private readonly RentCollection.Web.Services.TotpService _totp;
+    private readonly Microsoft.AspNetCore.DataProtection.IDataProtector _mfaProtector;
 
     public AccountController(
         ApplicationDbContext context,
-        ILogger<AccountController> logger)
+        ILogger<AccountController> logger,
+        RentCollection.Web.Services.ILoginThrottle loginThrottle,
+        RentCollection.Web.Services.TotpService totp,
+        Microsoft.AspNetCore.DataProtection.IDataProtectionProvider dataProtection)
     {
         _context = context;
         _logger = logger;
         _passwordHasher = new PasswordHasher();
+        _loginThrottle = loginThrottle;
+        _totp = totp;
+        // Purpose-scoped protectors: one carries the "password step passed, awaiting
+        // TOTP" state between the two login requests; one carries the pending secret
+        // during enrolment. Both are short-lived, server-signed — never trust a
+        // client-supplied userId/secret for these steps.
+        _mfaProtector = dataProtection.CreateProtector("RentCollection.Mfa.v1");
     }
 
     [HttpGet]
@@ -45,88 +59,326 @@ public class AccountController : Controller
 
         if (ModelState.IsValid)
         {
+            // SECURITY (audit H2): brute-force lockout, keyed on the submitted
+            // identifier so it survives IP rotation and the shared-hosting proxy.
+            if (_loginThrottle.IsLockedOut(model.Email ?? string.Empty, out var retryAfter))
+            {
+                _logger.LogWarning("Login blocked for locked-out identifier (retryAfter {Mins}m).",
+                    (int)Math.Ceiling(retryAfter.TotalMinutes));
+                ModelState.AddModelError(string.Empty,
+                    "Too many failed attempts. Please try again later.");
+                return View(model);
+            }
+
             // Try to find user in custom Users table by email or username
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == model.Email || u.Username == model.Email);
 
             if (user == null)
             {
+                _loginThrottle.RecordFailure(model.Email ?? string.Empty);
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-                return View(model);
-            }
-
-            if (!user.IsActive)
-            {
-                ModelState.AddModelError(string.Empty, "Your account has been deactivated. Please contact administrator.");
                 return View(model);
             }
 
             // Verify password using custom password hasher
             if (!_passwordHasher.VerifyPassword(model.Password, user.PasswordHash))
             {
+                _loginThrottle.RecordFailure(model.Email ?? string.Empty);
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return View(model);
             }
 
-            // Create claims for the user. The `companyId` claim is what
-            // backs Item 2's company-scope EF query filter — without it,
-            // logged-in users see no rows.
-            var claims = new List<Claim>
+            // SECURITY: the deactivated check runs AFTER the password check and
+            // returns the same generic message. Previously it ran first with a
+            // distinct "deactivated" message, which (a) confirmed the account
+            // existed to anyone who guessed the identifier and (b) bypassed the
+            // failure throttle entirely.
+            if (!user.IsActive)
             {
-                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.GivenName, user.FirstName),
-                new Claim(ClaimTypes.Surname, user.LastName),
-                new Claim(ClaimTypes.Role, user.Role)
-            };
-            if (user.CompanyId.HasValue)
-            {
-                claims.Add(new Claim("companyId", user.CompanyId.Value.ToString()));
+                _logger.LogWarning("Login attempt for deactivated account {UserId}.", user.UserId);
+                _loginThrottle.RecordFailure(model.Email ?? string.Empty);
+                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                return View(model);
             }
 
-            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var authProperties = new AuthenticationProperties
+            // Successful credential check — clear the failure counter.
+            _loginThrottle.Reset(model.Email ?? string.Empty);
+
+            // TOTP MFA second factor. If MFA is enabled, the password step alone
+            // must NOT sign the user in — issue a short-lived, server-signed
+            // "pending" token (proving the password was verified) and hand off to
+            // the code challenge. The trusted userId lives ONLY in the signed
+            // cookie, never in a client field.
+            if (user.MfaEnabled && !string.IsNullOrEmpty(user.MfaSecret))
             {
-                IsPersistent = model.RememberMe,
-                ExpiresUtc = model.RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : DateTimeOffset.UtcNow.AddHours(12),
-                // Sprint 25 — Remember-me fix. The cookie auth options have
-                // SlidingExpiration=true + ExpireTimeSpan=12h. With AllowRefresh
-                // at its default (true), the cookie is re-issued on every
-                // request with a fresh 12h ExpiresUtc — overwriting our
-                // 30-day window above. Setting AllowRefresh=false for the
-                // persistent path preserves the 30-day expiry across browser
-                // restarts as the user expects. Non-persistent stays default
-                // so a session cookie can still slide within its 12h window.
-                AllowRefresh = !model.RememberMe,
-            };
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(claimsIdentity),
-                authProperties);
-
-            // Update last login
-            user.LastLogin = DateTime.UtcNow;
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation($"User {user.Email} logged in successfully.");
-
-            // Never honor a ReturnUrl that points back at the auth endpoints — a
-            // stale ReturnUrl of /Account/Logout would sign the user straight back
-            // out right after logging in (a login->logout loop).
-            if (!string.IsNullOrEmpty(model.ReturnUrl)
-                && Url.IsLocalUrl(model.ReturnUrl)
-                && model.ReturnUrl.IndexOf("/Account/Logout", StringComparison.OrdinalIgnoreCase) < 0
-                && model.ReturnUrl.IndexOf("/Account/Login", StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                return Redirect(model.ReturnUrl);
+                var payload = $"{user.UserId}|{DateTime.UtcNow.Ticks}|{(model.RememberMe ? 1 : 0)}|{model.ReturnUrl}";
+                Response.Cookies.Append("MfaPending", _mfaProtector.Protect(payload), new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTimeOffset.UtcNow.AddMinutes(5),
+                    IsEssential = true,
+                });
+                return RedirectToAction(nameof(LoginMfa));
             }
-            return RedirectToAction("Index", "Dashboard");
+
+            await SignInUserAsync(user, model.RememberMe);
+            _logger.LogInformation("User {Email} logged in successfully.", user.Email);
+            return RedirectAfterLogin(model.ReturnUrl);
         }
 
         return View(model);
+    }
+
+    /// <summary>Builds the auth cookie for a fully-authenticated user.</summary>
+    private async Task SignInUserAsync(User user, bool rememberMe)
+    {
+        // The `companyId` claim backs the company-scope EF query filter — without
+        // it, logged-in users see no rows.
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+            new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.GivenName, user.FirstName),
+            new Claim(ClaimTypes.Surname, user.LastName),
+            new Claim(ClaimTypes.Role, user.Role)
+        };
+        if (user.CompanyId.HasValue)
+            claims.Add(new Claim("companyId", user.CompanyId.Value.ToString()));
+
+        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var authProperties = new AuthenticationProperties
+        {
+            IsPersistent = rememberMe,
+            ExpiresUtc = rememberMe ? DateTimeOffset.UtcNow.AddDays(30) : DateTimeOffset.UtcNow.AddHours(12),
+            AllowRefresh = !rememberMe,
+        };
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(claimsIdentity),
+            authProperties);
+
+        user.LastLogin = DateTime.UtcNow;
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Post-login redirect. Never honors a ReturnUrl pointing back at the auth
+    /// endpoints (a stale /Account/Logout would bounce the user straight out).
+    /// </summary>
+    private IActionResult RedirectAfterLogin(string? returnUrl)
+    {
+        if (!string.IsNullOrEmpty(returnUrl)
+            && Url.IsLocalUrl(returnUrl)
+            && returnUrl.IndexOf("/Account/Logout", StringComparison.OrdinalIgnoreCase) < 0
+            && returnUrl.IndexOf("/Account/Login", StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            return Redirect(returnUrl);
+        }
+        return RedirectToAction("Index", "Dashboard");
+    }
+
+    // ── TOTP MFA: login challenge (second factor) ──────────────────────────
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult LoginMfa()
+    {
+        if (!Request.Cookies.ContainsKey("MfaPending"))
+            return RedirectToAction(nameof(Login));
+        return View();
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> LoginMfa(string code)
+    {
+        if (!Request.Cookies.TryGetValue("MfaPending", out var protectedPayload))
+            return RedirectToAction(nameof(Login));
+
+        string payload;
+        try { payload = _mfaProtector.Unprotect(protectedPayload); }
+        catch { Response.Cookies.Delete("MfaPending"); return RedirectToAction(nameof(Login)); }
+
+        var parts = payload.Split('|');
+        if (parts.Length < 4 || !int.TryParse(parts[0], out var userId) || !long.TryParse(parts[1], out var ticks))
+        {
+            Response.Cookies.Delete("MfaPending");
+            return RedirectToAction(nameof(Login));
+        }
+        // 5-minute validity on the password→code window.
+        if (new DateTime(ticks, DateTimeKind.Utc) < DateTime.UtcNow.AddMinutes(-5))
+        {
+            Response.Cookies.Delete("MfaPending");
+            ModelState.AddModelError(string.Empty, "Your session expired. Please sign in again.");
+            return RedirectToAction(nameof(Login));
+        }
+        var rememberMe = parts[2] == "1";
+        var returnUrl = parts.Length > 3 ? string.Join('|', parts.Skip(3)) : null;
+
+        // Throttle code attempts per account (brute-force on 6 digits).
+        var throttleKey = $"mfa:{userId}";
+        if (_loginThrottle.IsLockedOut(throttleKey, out _))
+        {
+            ModelState.AddModelError(string.Empty, "Too many attempts. Please try again later.");
+            return View();
+        }
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user == null || !user.MfaEnabled || string.IsNullOrEmpty(user.MfaSecret))
+        {
+            Response.Cookies.Delete("MfaPending");
+            return RedirectToAction(nameof(Login));
+        }
+
+        if (!_totp.Verify(user.MfaSecret, code ?? string.Empty))
+        {
+            _loginThrottle.RecordFailure(throttleKey);
+            ModelState.AddModelError(string.Empty, "Invalid authentication code.");
+            return View();
+        }
+
+        _loginThrottle.Reset(throttleKey);
+        Response.Cookies.Delete("MfaPending");
+        await SignInUserAsync(user, rememberMe);
+        _logger.LogInformation("User {Email} logged in successfully (MFA).", user.Email);
+        return RedirectAfterLogin(returnUrl);
+    }
+
+    // ── TOTP MFA: self-service enrolment / management ──────────────────────
+
+    private int? CurrentUserId()
+        => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : (int?)null;
+
+    private static string BuildQrDataUri(string text)
+    {
+        using var gen = new QRCoder.QRCodeGenerator();
+        using var data = gen.CreateQrCode(text, QRCoder.QRCodeGenerator.ECCLevel.Q);
+        var png = new QRCoder.PngByteQRCode(data).GetGraphic(6);
+        return "data:image/png;base64," + Convert.ToBase64String(png);
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> Security()
+    {
+        var userId = CurrentUserId();
+        if (userId == null) return RedirectToAction(nameof(Login));
+        var user = await _context.Users.FindAsync(userId.Value);
+        if (user == null) return RedirectToAction(nameof(Login));
+        ViewBag.MfaEnabled = user.MfaEnabled;
+        return View();
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> EnableMfa()
+    {
+        var userId = CurrentUserId();
+        if (userId == null) return RedirectToAction(nameof(Login));
+        var user = await _context.Users.FindAsync(userId.Value);
+        if (user == null) return RedirectToAction(nameof(Login));
+        if (user.MfaEnabled)
+        {
+            TempData["MfaMessage"] = "Two-factor authentication is already enabled.";
+            return RedirectToAction(nameof(Security));
+        }
+
+        var secret = _totp.GenerateSecret();
+        // Hold the pending (unconfirmed) secret in a short-lived signed cookie tied
+        // to this user — it's only committed to the account once a valid code proves
+        // the authenticator was set up correctly.
+        Response.Cookies.Append("MfaSetup", _mfaProtector.Protect($"{userId}|{secret}"), new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTimeOffset.UtcNow.AddMinutes(10),
+            IsEssential = true,
+        });
+
+        ViewBag.Secret = secret;
+        ViewBag.QrDataUri = BuildQrDataUri(_totp.BuildOtpAuthUri(secret, user.Email));
+        return View();
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EnableMfa(string code)
+    {
+        var userId = CurrentUserId();
+        if (userId == null) return RedirectToAction(nameof(Login));
+        var user = await _context.Users.FindAsync(userId.Value);
+        if (user == null) return RedirectToAction(nameof(Login));
+
+        if (!Request.Cookies.TryGetValue("MfaSetup", out var prot))
+        {
+            TempData["MfaError"] = "Setup expired. Please start again.";
+            return RedirectToAction(nameof(EnableMfa));
+        }
+        string payload;
+        try { payload = _mfaProtector.Unprotect(prot); }
+        catch { Response.Cookies.Delete("MfaSetup"); return RedirectToAction(nameof(EnableMfa)); }
+
+        var parts = payload.Split('|');
+        if (parts.Length < 2 || parts[0] != userId.Value.ToString())
+        {
+            Response.Cookies.Delete("MfaSetup");
+            return RedirectToAction(nameof(EnableMfa));
+        }
+        var secret = parts[1];
+
+        if (!_totp.Verify(secret, code ?? string.Empty))
+        {
+            // Re-render with the SAME secret so the user can retry without rescanning.
+            ViewBag.Secret = secret;
+            ViewBag.QrDataUri = BuildQrDataUri(_totp.BuildOtpAuthUri(secret, user.Email));
+            ModelState.AddModelError(string.Empty, "That code didn't match. Check the time on your device and try again.");
+            return View();
+        }
+
+        user.MfaSecret = secret;
+        user.MfaEnabled = true;
+        user.ModifiedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        Response.Cookies.Delete("MfaSetup");
+        _logger.LogInformation("MFA enabled for {Email}.", user.Email);
+        TempData["MfaMessage"] = "Two-factor authentication is now enabled.";
+        return RedirectToAction(nameof(Security));
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DisableMfa(string password)
+    {
+        var userId = CurrentUserId();
+        if (userId == null) return RedirectToAction(nameof(Login));
+        var user = await _context.Users.FindAsync(userId.Value);
+        if (user == null) return RedirectToAction(nameof(Login));
+
+        // Require the account password to disable MFA — a hijacked session alone
+        // must not be able to remove the second factor.
+        if (!_passwordHasher.VerifyPassword(password ?? string.Empty, user.PasswordHash))
+        {
+            TempData["MfaError"] = "Incorrect password — two-factor authentication was not disabled.";
+            return RedirectToAction(nameof(Security));
+        }
+
+        user.MfaEnabled = false;
+        user.MfaSecret = null;
+        user.ModifiedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("MFA disabled for {Email}.", user.Email);
+        TempData["MfaMessage"] = "Two-factor authentication has been disabled.";
+        return RedirectToAction(nameof(Security));
     }
 
     [HttpGet]
@@ -277,9 +529,11 @@ public class AccountController : Controller
             TempData["ErrorMessage"] = "New password and confirmation do not match.";
             return RedirectToAction(nameof(Profile));
         }
-        if (newPassword.Length < 8)
+        // Shared password policy (same rule as admin create / reset).
+        var pwErr = RentCollection.Web.Services.PasswordPolicy.Validate(newPassword);
+        if (pwErr != null)
         {
-            TempData["ErrorMessage"] = "New password must be at least 8 characters long.";
+            TempData["ErrorMessage"] = pwErr;
             return RedirectToAction(nameof(Profile));
         }
         if (!_passwordHasher.VerifyPassword(currentPassword, user.PasswordHash))

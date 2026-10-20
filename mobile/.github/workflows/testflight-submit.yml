@@ -1,0 +1,126 @@
+name: TestFlight Beta Review Submit
+
+# Fills TestFlight "Test Information" + "Beta App Review Information"
+# (including the demo login) for the latest build and submits it for
+# Apple's one-time external Beta App Review. Once approved, the public
+# link https://testflight.apple.com/join/kSdrzSEX starts accepting testers.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    env:
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+      ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      APP_ID: "6795531787"
+      DEMO_CIVIL_ID: ${{ secrets.DEMO_CIVIL_ID }}
+      DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+    steps:
+      - name: Install deps
+        run: pip3 install "pyjwt[crypto]" requests
+
+      - name: Submit build for Beta App Review
+        run: |
+          python3 - <<'PY'
+          import os, time, json, jwt, requests
+
+          ISSUER = os.environ["ASC_ISSUER_ID"]
+          KEY_ID = os.environ["ASC_KEY_ID"]
+          PRIV   = os.environ["ASC_PRIVATE_KEY"]
+          APP_ID = os.environ["APP_ID"]
+          DEMO_ID = os.environ["DEMO_CIVIL_ID"]
+          DEMO_PW = os.environ["DEMO_PASSWORD"]
+          BASE = "https://api.appstoreconnect.apple.com"
+
+          token = jwt.encode(
+              {"iss": ISSUER, "iat": int(time.time()), "exp": int(time.time())+900,
+               "aud": "appstoreconnect-v1"},
+              PRIV, algorithm="ES256", headers={"kid": KEY_ID, "typ": "JWT"})
+          H = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+          def req(method, path, **kw):
+              r = requests.request(method, BASE+path, headers=H, timeout=60, **kw)
+              if r.status_code >= 300:
+                  print(f"  [{r.status_code}] {method} {path}\n  {r.text[:500]}")
+              return r
+
+          # 1) latest build
+          r = req("GET", f"/v1/builds?filter[app]={APP_ID}&sort=-version&limit=1")
+          builds = r.json().get("data", [])
+          if not builds:
+              raise SystemExit("No builds found for app")
+          b = builds[0]
+          BUILD_ID = b["id"]
+          state = b["attributes"].get("processingState")
+          ver = b["attributes"].get("version")
+          print(f"Build {ver} (id={BUILD_ID}) processingState={state}")
+          if state != "VALID":
+              raise SystemExit(f"Build not VALID yet (state={state}); wait for processing.")
+
+          # 2) Test Information (BetaAppLocalization: feedback email + description)
+          r = req("GET", f"/v1/apps/{APP_ID}/betaAppLocalizations")
+          locs = {l["attributes"]["locale"]: l["id"] for l in r.json().get("data", [])}
+          desc = ("Alrtam is a rent-collection app for tenants in Kuwait. "
+                  "Sign in with your Civil ID to view your lease, pay rent via "
+                  "KNET, download receipts, and submit maintenance requests.")
+          body = {"data": {"type": "betaAppLocalizations",
+                  "attributes": {"feedbackEmail": "demo@alrtam.co",
+                                 "description": desc}}}
+          if "en-US" in locs:
+              req("PATCH", f"/v1/betaAppLocalizations/{locs['en-US']}",
+                  data=json.dumps({"data": {"type": "betaAppLocalizations",
+                      "id": locs['en-US'],
+                      "attributes": {"feedbackEmail": "demo@alrtam.co", "description": desc}}}))
+          else:
+              body["data"]["attributes"]["locale"] = "en-US"
+              body["data"]["relationships"] = {"app": {"data": {"type": "apps", "id": APP_ID}}}
+              req("POST", "/v1/betaAppLocalizations", data=json.dumps(body))
+
+          # 3) Beta App Review Information (contact + demo account)
+          r = req("GET", f"/v1/apps/{APP_ID}/betaAppReviewDetail")
+          detail_id = r.json()["data"]["id"]
+          req("PATCH", f"/v1/betaAppReviewDetails/{detail_id}", data=json.dumps({
+              "data": {"type": "betaAppReviewDetails", "id": detail_id,
+                  "attributes": {
+                      "contactFirstName": "Ravi", "contactLastName": "Shankar",
+                      "contactEmail": "demo@alrtam.co", "contactPhone": "+965 99887766",
+                      "demoAccountName": DEMO_ID, "demoAccountPassword": DEMO_PW,
+                      "demoAccountRequired": True,
+                      "notes": ("Log in on the first screen with Civil ID = "
+                                f"{DEMO_ID} and Password = {DEMO_PW}. This demo "
+                                "tenant has an active lease and a pending invoice.")}}}))
+
+          # 4) What to Test (BetaBuildLocalization)
+          r = req("GET", f"/v1/builds/{BUILD_ID}/betaBuildLocalizations")
+          bbl = {l["attributes"]["locale"]: l["id"] for l in r.json().get("data", [])}
+          whats = ("First public TestFlight build of Alrtam. Log in with the demo "
+                   "Civil ID / password from the review notes and try: view lease, "
+                   "view pending invoice, submit a maintenance request.")
+          if "en-US" in bbl:
+              req("PATCH", f"/v1/betaBuildLocalizations/{bbl['en-US']}", data=json.dumps({
+                  "data": {"type": "betaBuildLocalizations", "id": bbl['en-US'],
+                           "attributes": {"whatsNew": whats}}}))
+          else:
+              req("POST", "/v1/betaBuildLocalizations", data=json.dumps({
+                  "data": {"type": "betaBuildLocalizations",
+                           "attributes": {"locale": "en-US", "whatsNew": whats},
+                           "relationships": {"build": {"data": {"type": "builds", "id": BUILD_ID}}}}}))
+
+          # 5) Submit for Beta App Review
+          r = req("POST", "/v1/betaAppReviewSubmissions", data=json.dumps({
+              "data": {"type": "betaAppReviewSubmissions",
+                       "relationships": {"build": {"data": {"type": "builds", "id": BUILD_ID}}}}}))
+          if r.status_code < 300:
+              st = r.json()["data"]["attributes"].get("betaReviewState")
+              print(f"SUBMITTED FOR BETA REVIEW -> state={st}")
+          elif r.status_code == 409:
+              print("Already submitted for beta review (409) — nothing to do.")
+          else:
+              raise SystemExit("Submission failed.")
+
+          print("DONE. Apple beta review typically takes ~24h. "
+                "Once approved, https://testflight.apple.com/join/kSdrzSEX accepts testers.")
+          PY

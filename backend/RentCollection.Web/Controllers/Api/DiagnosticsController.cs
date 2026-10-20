@@ -1,11 +1,17 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RentCollection.Core.Entities;
 using RentCollection.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace RentCollection.Web.Controllers.Api;
 
+// SECURITY: operational diagnostics only — SuperAdmin via the back-office
+// cookie (default scheme). The uploads probe writes to disk, and nothing here
+// may echo server paths or exception text to the caller (logged instead).
 [ApiController]
 [Route("api/diagnostics")]
+[Authorize(Roles = Roles.SuperAdmin)]
 public class DiagnosticsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -116,12 +122,11 @@ public class DiagnosticsController : ControllerBase
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Diagnostics: cannot create uploads directory {Path}", uploadsPath);
                 return Ok(new
                 {
                     success = false,
-                    message = "Cannot create uploads directory",
-                    error = ex.Message,
-                    path = uploadsPath
+                    message = "Cannot create uploads directory. See server log for details."
                 });
             }
         }
@@ -136,12 +141,11 @@ public class DiagnosticsController : ControllerBase
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Diagnostics: uploads directory {Path} is not writable", uploadsPath);
                 return Ok(new
                 {
                     success = false,
-                    message = "Directory exists but is not writable",
-                    error = ex.Message,
-                    path = uploadsPath
+                    message = "Directory exists but is not writable. See server log for details."
                 });
             }
         }
@@ -150,8 +154,7 @@ public class DiagnosticsController : ControllerBase
         {
             success = true,
             exists = exists,
-            canWrite = canWrite,
-            path = uploadsPath
+            canWrite = canWrite
         });
     }
 }

@@ -1,4 +1,5 @@
 @model RentCollection.Core.Entities.Property
+@inject RentCollection.Web.Services.ILookupService Lookups
 
 @{
     ViewData["Title"] = "Create Property";
@@ -63,10 +64,10 @@
                     <label asp-for="PropertyType">@L["Property Type"] <span class="required">*</span></label>
                     <select asp-for="PropertyType" required>
                         <option value="">@L["-- Select Type --"]</option>
-                        <option value="Apartment">@L["Apartment"]</option>
-                        <option value="House">@L["House"]</option>
-                        <option value="Commercial">@L["Commercial"]</option>
-                        <option value="Condo">@L["Condo"]</option>
+                        @foreach (var opt in await Lookups.GetOptionsAsync("PropertyType"))
+                        {
+                            <option value="@opt.Code" selected="@(Model?.PropertyType == opt.Code)">@opt.Label</option>
+                        }
                     </select>
                     <span asp-validation-for="PropertyType" class="fr-hint is-error"></span>
                 </div>
@@ -74,12 +75,10 @@
                     <label asp-for="Governorate">@L["Governorate"] <span class="required">*</span></label>
                     <select asp-for="Governorate" required>
                         <option value="">@L["-- Select Governorate --"]</option>
-                        <option value="Al Asimah">@L["Al Asimah"]</option>
-                        <option value="Hawalli">@L["Hawalli"]</option>
-                        <option value="Farwaniya">@L["Farwaniya"]</option>
-                        <option value="Ahmadi">@L["Ahmadi"]</option>
-                        <option value="Jahra">@L["Jahra"]</option>
-                        <option value="Mubarak Al Kabeer">@L["Mubarak Al Kabeer"]</option>
+                        @foreach (var opt in await Lookups.GetOptionsAsync("Governorate"))
+                        {
+                            <option value="@opt.Code" selected="@(Model?.Governorate == opt.Code)">@opt.Label</option>
+                        }
                     </select>
                     <span asp-validation-for="Governorate" class="fr-hint is-error"></span>
                 </div>
@@ -90,14 +89,26 @@
                     <label asp-for="NumberOfUnits">@L["Number of Units"] <span class="required">*</span></label>
                     <input asp-for="NumberOfUnits" type="number" min="1" required />
                     <span asp-validation-for="NumberOfUnits" class="fr-hint is-error"></span>
+                    <input name="unitPrefix" type="text" maxlength="20" style="margin-top:.45rem"
+                           placeholder="@(L["Unit no. prefix (optional, e.g. A-)"].Value)" />
+                    <span class="fr-hint">@L["Units are auto-created as prefix+1…N and listed on the property page."]</span>
                 </div>
-                <div class="fr-field">
-                    <label asp-for="CompanyId">@L["Company"] <span class="required">*</span></label>
-                    <select asp-for="CompanyId" asp-items="ViewBag.CompanyId" required>
-                        <option value="">@L["-- Select Company --"]</option>
-                    </select>
-                    <span asp-validation-for="CompanyId" class="fr-hint is-error"></span>
-                </div>
+                @* Company is derived server-side from the signed-in admin's
+                   company. Only a SuperAdmin (who spans companies) picks it. *@
+                @if (User.IsInRole("SuperAdmin"))
+                {
+                    <div class="fr-field">
+                        <label asp-for="CompanyId">@L["Company"] <span class="required">*</span></label>
+                        <select asp-for="CompanyId" asp-items="ViewBag.CompanyId" required>
+                            <option value="">@L["-- Select Company --"]</option>
+                        </select>
+                        <span asp-validation-for="CompanyId" class="fr-hint is-error"></span>
+                    </div>
+                }
+                else
+                {
+                    <div class="fr-field"></div>
+                }
                 <div class="fr-field"></div>
             </div>
         </div>
@@ -202,18 +213,10 @@
                             <label>@L["Document Type"]</label>
                             <select name="DocumentTypes[]">
                                 <option value="">@L["-- Select Type --"]</option>
-                                <option value="Deed">@L["Property Deed"]</option>
-                                <option value="Title">@L["Title Document"]</option>
-                                <option value="Building Permit">@L["Building Permit"]</option>
-                                <option value="Occupancy Certificate">@L["Occupancy Certificate"]</option>
-                                <option value="Insurance Policy">@L["Insurance Policy"]</option>
-                                <option value="Fire Safety Certificate">@L["Fire Safety Certificate"]</option>
-                                <option value="Electrical Certificate">@L["Electrical Certificate"]</option>
-                                <option value="Plumbing Certificate">@L["Plumbing Certificate"]</option>
-                                <option value="Municipality License">@L["Municipality License"]</option>
-                                <option value="Property Survey">@L["Property Survey"]</option>
-                                <option value="Floor Plan">@L["Floor Plan"]</option>
-                                <option value="Other">@L["Other"]</option>
+                                @foreach (var opt in await Lookups.GetOptionsAsync("DocumentType"))
+                                {
+                                    <option value="@opt.Code">@opt.Label</option>
+                                }
                             </select>
                         </div>
                         <div class="fr-field">
@@ -257,20 +260,11 @@
             var addBtn = document.getElementById('add-document-btn');
             if (!addBtn) return;
 
-            var typeOptions =
-                '<option value="">-- Select Type --</option>' +
-                '<option value="Deed">Property Deed</option>' +
-                '<option value="Title">Title Document</option>' +
-                '<option value="Building Permit">Building Permit</option>' +
-                '<option value="Occupancy Certificate">Occupancy Certificate</option>' +
-                '<option value="Insurance Policy">Insurance Policy</option>' +
-                '<option value="Fire Safety Certificate">Fire Safety Certificate</option>' +
-                '<option value="Electrical Certificate">Electrical Certificate</option>' +
-                '<option value="Plumbing Certificate">Plumbing Certificate</option>' +
-                '<option value="Municipality License">Municipality License</option>' +
-                '<option value="Property Survey">Property Survey</option>' +
-                '<option value="Floor Plan">Floor Plan</option>' +
-                '<option value="Other">Other</option>';
+            // Reuse the server-rendered (bilingual, admin-managed) option list from
+            // the first Document Type select so cloned rows match it exactly.
+            var firstTypeSel = document.querySelector('select[name="DocumentTypes[]"]');
+            var typeOptions = firstTypeSel ? firstTypeSel.innerHTML
+                : '<option value="">-- Select Type --</option>';
 
             function attachRemove(rowEl) {
                 var btn = rowEl.querySelector('.remove-document');

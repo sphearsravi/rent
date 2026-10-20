@@ -35,11 +35,119 @@ public class CashPaymentController : Controller
         _logger = logger;
     }
 
-    // GET: CashPayment/Record
-    public async Task<IActionResult> Record()
+    // Company scope: Invoice has no company query filter, so an InvoiceId
+    // posted from a tampered form could attach cash to another company's
+    // invoice. Guard via the owning Tenant; SuperAdmin is cross-company. A
+    // scoped admin with no companyId claim resolves to -1 (deny).
+    private int? ScopedCompanyId() =>
+        User.IsInRole(Roles.SuperAdmin) ? null
+        : int.TryParse(User.FindFirst("companyId")?.Value, out var cid) ? cid : -1;
+
+    private bool CanAccessCompany(int? entityCompanyId)
     {
-        await PopulateInvoiceDropdownAsync();
-        return View(new CashPaymentDto { PaymentDate = DateTime.UtcNow });
+        if (User.IsInRole(Roles.SuperAdmin)) return true;
+        return int.TryParse(User.FindFirst("companyId")?.Value, out var cid)
+            && entityCompanyId == cid;
+    }
+
+    // GET: CashPayment/Record?tenantId=&invoiceId=
+    // Both are optional preselections (Tenants kebab passes tenantId,
+    // an invoice page can pass invoiceId).
+    public async Task<IActionResult> Record(int? tenantId = null, int? invoiceId = null)
+    {
+        await PopulateCashFormAsync(tenantId, invoiceId);
+        return View(new CashPaymentDto { PaymentDate = KuwaitToday(), InvoiceId = invoiceId });
+    }
+
+    /// <summary>
+    /// The office works on Kuwait's calendar; the host's DateTime.Today is a
+    /// US-zone date and lagged a day every morning.
+    /// </summary>
+    private static DateTime KuwaitToday()
+    {
+        try
+        {
+            var tz = TimeZoneInfo.FindSystemTimeZoneById("Arab Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).Date;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return DateTime.UtcNow.AddHours(3).Date;
+        }
+    }
+
+    /// <summary>
+    /// Data for the redesigned Record form: every tenant with open invoices,
+    /// each invoice with its balance and whether it is the one the
+    /// pay-oldest-first rule allows next. Serialised for the client so the
+    /// clerk picks tenant → invoice → amount with the numbers in front of them.
+    /// </summary>
+    private async Task PopulateCashFormAsync(int? tenantId, int? invoiceId)
+    {
+        var scope = ScopedCompanyId();
+        var rows = await _context.Invoices
+            .AsNoTracking()
+            .Where(i => i.Status == "Pending" || i.Status == "Overdue"
+                     || i.Status == "Partially Paid" || i.Status == "Pending Verification")
+            .Where(i => scope == null || (i.Tenant != null && i.Tenant.CompanyId == scope))
+            .Select(i => new
+            {
+                i.InvoiceId,
+                i.TenantId,
+                TenantName = i.Tenant != null ? (i.Tenant.FirstName + " " + i.Tenant.LastName) : null,
+                CivilId = i.Tenant != null ? i.Tenant.PACINumber : null,
+                Phone = i.Tenant != null ? i.Tenant.Phone : null,
+                Property = (i.Lease != null && i.Lease.Unit != null && i.Lease.Unit.Property != null) ? i.Lease.Unit.Property.PropertyName : null,
+                Unit = (i.Lease != null && i.Lease.Unit != null) ? i.Lease.Unit.UnitNumber : null,
+                i.InvoiceType,
+                i.InvoiceDate,
+                i.DueDate,
+                i.Status,
+                Total = (decimal?)i.TotalAmount,
+                Paid = (decimal?)i.PaidAmount,
+            })
+            .ToListAsync();
+
+        var today = DateTime.Today;
+        var tenants = rows
+            .GroupBy(r => r.TenantId)
+            .Select(g =>
+            {
+                var first = g.First();
+                var invoices = g.OrderBy(r => r.DueDate).ThenBy(r => r.InvoiceId).Select((r, idx) => new
+                {
+                    id = r.InvoiceId,
+                    number = $"INV-{r.InvoiceId:D6}",
+                    type = string.IsNullOrEmpty(r.InvoiceType) ? "Rent" : r.InvoiceType,
+                    period = r.InvoiceDate.ToString("MMM yyyy", System.Globalization.CultureInfo.InvariantCulture),
+                    due = r.DueDate.ToString("yyyy-MM-dd"),
+                    daysLate = (today - r.DueDate.Date).Days,
+                    status = r.Status,
+                    total = r.Total ?? 0m,
+                    paid = r.Paid ?? 0m,
+                    balance = (r.Total ?? 0m) - (r.Paid ?? 0m),
+                    property = r.Property,
+                    unit = r.Unit,
+                    // Pay-oldest-first: only the oldest open invoice is payable now.
+                    eligible = idx == 0,
+                }).ToList();
+                return new
+                {
+                    id = g.Key,
+                    name = (first.TenantName ?? $"Tenant #{g.Key}").Trim(),
+                    civilId = first.CivilId,
+                    phone = first.Phone,
+                    outstanding = invoices.Sum(i => i.balance),
+                    invoices,
+                };
+            })
+            .OrderBy(t => t.name)
+            .ToList();
+
+        ViewBag.CashFormJson = System.Text.Json.JsonSerializer.Serialize(tenants);
+        ViewBag.Today = KuwaitToday();
+        ViewBag.PreselectTenantId = tenantId ?? rows.FirstOrDefault(r => r.InvoiceId == invoiceId)?.TenantId;
+        ViewBag.PreselectInvoiceId = invoiceId;
     }
 
     // POST: CashPayment/Record
@@ -56,6 +164,7 @@ public class CashPaymentController : Controller
 
         var invoice = dto.InvoiceId.HasValue
             ? await _context.Invoices
+                .Include(i => i.Tenant)
                 .Include(i => i.Lease).ThenInclude(l => l.Unit)
                 .FirstOrDefaultAsync(i => i.InvoiceId == dto.InvoiceId.Value)
             : null;
@@ -66,6 +175,8 @@ public class CashPaymentController : Controller
         }
         else
         {
+            if (!CanAccessCompany(invoice.Tenant?.CompanyId)) return NotFound();
+
             if (string.Equals(invoice.Status, "Paid", StringComparison.OrdinalIgnoreCase))
                 ModelState.AddModelError(nameof(dto.InvoiceId), "Invoice is already paid.");
 
@@ -93,12 +204,19 @@ public class CashPaymentController : Controller
 
         if (!ModelState.IsValid)
         {
-            await PopulateInvoiceDropdownAsync();
+            await PopulateCashFormAsync(dto.TenantId, dto.InvoiceId);
             return View(dto);
         }
 
         try
         {
+            // One transaction around the service (which saves the Payment +
+            // CashPayment + invoice flip internally via the SAME scoped
+            // DbContext) and the audit row, so a failed audit write can't
+            // leave an un-audited cash payment behind. Disposal without
+            // Commit rolls everything back.
+            await using var tx = await _context.Database.BeginTransactionAsync();
+
             var result = await _cashPaymentService.RecordCashPaymentAsync(
                 dto, User.Identity?.Name ?? "system");
 
@@ -115,6 +233,7 @@ public class CashPaymentController : Controller
                 Notes = $"Cash collected, receipt {result.ReceiptNumber}, pending verification"
             });
             await _context.SaveChangesAsync();
+            await tx.CommitAsync();
 
             TempData["SuccessMessage"] =
                 $"Cash payment recorded (receipt {result.ReceiptNumber}). " +
@@ -125,7 +244,7 @@ public class CashPaymentController : Controller
         {
             _logger.LogError(ex, "Failed to record cash payment for invoice {InvoiceId}", dto.InvoiceId);
             ModelState.AddModelError(string.Empty, "Could not record the cash payment.");
-            await PopulateInvoiceDropdownAsync();
+            await PopulateCashFormAsync(dto.TenantId, dto.InvoiceId);
             return View(dto);
         }
     }
@@ -140,10 +259,13 @@ public class CashPaymentController : Controller
         // A projection reads only these columns as nullable and can't throw, and
         // the LEFT-join style null checks keep orphaned invoices instead of
         // dropping them.
+        var scope = ScopedCompanyId();
         var invoices = await _context.Invoices
             .AsNoTracking()
             .Where(i => i.Status == "Pending" || i.Status == "Overdue"
                      || i.Status == "Partially Paid" || i.Status == "Pending Verification")
+            // Company scope — only the caller's company's invoices are offered.
+            .Where(i => scope == null || (i.Tenant != null && i.Tenant.CompanyId == scope))
             .OrderBy(i => i.DueDate)
             .Select(i => new
             {

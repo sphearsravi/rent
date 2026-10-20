@@ -25,6 +25,8 @@ public class KnetPaymentResponseDto
     public string? Status { get; set; }
     public string? ErrorMessage { get; set; }
     public string? TransactionReference { get; set; }
+    // Payer's app language ("ar"/"en") — used to localize the success/failure landing page.
+    public string? Language { get; set; } = "en";
 
     // Building & KNET routing info
     public int? PropertyId { get; set; }

@@ -41,6 +41,12 @@ public class BrandingSettings
     /// </summary>
     public string? FooterTerms { get; set; }
 
+    /// <summary>
+    /// Arabic version of <see cref="FooterTerms"/>, used on Arabic-culture
+    /// invoices. Falls back to <see cref="FooterTerms"/> when empty.
+    /// </summary>
+    public string? FooterTermsAr { get; set; }
+
     public class BankInfo
     {
         public string? Name { get; set; }

@@ -47,7 +47,7 @@ void main() {
       const arabicIndic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
       for (final d in arabicIndic) {
         expect(result.contains(d), isFalse,
-            reason: 'result "$result" must not contain Arabic-Indic digit $d');
+            reason: 'result "$result" must not contain Arabic-Indic digit $d',);
       }
 
       // Month name should be localized (Arabic), i.e. contains Arabic letters.

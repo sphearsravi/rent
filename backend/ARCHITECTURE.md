@@ -336,9 +336,9 @@ Admin resolves → PaymentAudit.IsResolved = true
     "RefreshTokenExpirationDays": 7
   },
   "Knet": {
-    "TranportalId": "<knet-transportal-id>",
-    "TranportalPwd": "<knet-transportal-pwd>",
-    "TerminalResourceKey": "<knet-terminal-resource-key>",
+    "TranportalId": "<KNET_TRANPORTAL_ID>",
+    "TranportalPwd": "<KNET_TRANPORTAL_PWD>",
+    "TerminalResourceKey": "<KNET_RESOURCE_KEY>",
     "PaymentApiUrl": "https://kpaytest.com.kw/kpg/PaymentHTTP.htm?param=paymentInit",
     "PaymentApiUrlProd": "https://www.kpay.com.kw/kpg/PaymentHTTP.htm?param=paymentInit",
     "UseSandbox": true,

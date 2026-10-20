@@ -16,7 +16,7 @@ written like someone is walking you through the app for the first time.
 
 1. **A web browser** — Chrome, Edge, or Firefox (latest version)
 2. **The app URL:**
-   - Demo: http://demo.example.com
+   - Demo: http://<DEMO_HOST>
    - Local: http://localhost:5032
 3. **A test login.** Use these for the demo:
    - **Admin:** `admin@test.com` / `Admin@123`

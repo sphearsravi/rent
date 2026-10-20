@@ -13,7 +13,7 @@
 
         .page-header {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             padding: 24px 32px;
             margin-bottom: 24px;
@@ -34,7 +34,7 @@
         }
 
         .page-title i {
-            color: #6366f1;
+            color: #8a6d1f;
         }
 
         .back-link {
@@ -42,7 +42,7 @@
             align-items: center;
             gap: 8px;
             padding: 10px 20px;
-            background: #6366f1;
+            background: #8a6d1f;
             color: white;
             text-decoration: none;
             border-radius: 8px;
@@ -51,14 +51,14 @@
         }
 
         .back-link:hover {
-            background: #4f46e5;
+            background: #6e5518;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 4px 12px rgba(138, 109, 31, 0.4);
         }
 
         .filter-card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             padding: 24px;
             margin-bottom: 24px;
@@ -75,7 +75,7 @@
         }
 
         .filter-title i {
-            color: #6366f1;
+            color: #8a6d1f;
         }
 
         .filter-row {
@@ -100,7 +100,7 @@
         .filter-group select,
         .filter-group input {
             padding: 10px 14px;
-            border: 1px solid rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(138, 109, 31, 0.3);
             border-radius: 8px;
             font-size: 14px;
             background: white;
@@ -111,13 +111,13 @@
         .filter-group select:focus,
         .filter-group input:focus {
             outline: none;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            border-color: #8a6d1f;
+            box-shadow: 0 0 0 3px rgba(138, 109, 31, 0.1);
         }
 
         .filter-btn {
             padding: 10px 20px;
-            background: #6366f1;
+            background: #8a6d1f;
             color: white;
             border: none;
             border-radius: 8px;
@@ -131,7 +131,7 @@
         }
 
         .filter-btn:hover {
-            background: #4f46e5;
+            background: #6e5518;
         }
 
         .clear-btn {
@@ -155,7 +155,7 @@
 
         .data-card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             overflow: hidden;
         }
@@ -170,7 +170,7 @@
         }
 
         .data-table th {
-            background: rgba(99, 102, 241, 0.1);
+            background: rgba(138, 109, 31, 0.1);
             padding: 16px;
             text-align: left;
             font-size: 13px;
@@ -183,7 +183,7 @@
 
         .data-table td {
             padding: 14px 16px;
-            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            border-bottom: 1px solid rgba(138, 109, 31, 0.1);
             font-size: 14px;
             color: #1e293b;
         }
@@ -193,7 +193,7 @@
         }
 
         .data-table tbody tr:hover {
-            background: rgba(99, 102, 241, 0.05);
+            background: rgba(138, 109, 31, 0.05);
         }
 
         .data-table tbody tr:last-child td {
@@ -219,8 +219,8 @@
             align-items: center;
             gap: 6px;
             padding: 4px 10px;
-            background: rgba(99, 102, 241, 0.1);
-            color: #6366f1;
+            background: rgba(138, 109, 31, 0.1);
+            color: #8a6d1f;
             border-radius: 6px;
             font-size: 12px;
             font-weight: 500;
@@ -305,8 +305,8 @@
 
         .table-footer {
             padding: 16px 24px;
-            background: rgba(99, 102, 241, 0.05);
-            border-top: 1px solid rgba(99, 102, 241, 0.1);
+            background: rgba(138, 109, 31, 0.05);
+            border-top: 1px solid rgba(138, 109, 31, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -359,6 +359,8 @@
             @L["Back to Pending Approvals"]
         </a>
     </div>
+
+    @await Html.PartialAsync("_AlertMessages")
 
     <!-- Filter Card -->
     <div class="filter-card">

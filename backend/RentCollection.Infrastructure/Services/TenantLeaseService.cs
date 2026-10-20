@@ -25,11 +25,20 @@ public class TenantLeaseService : ITenantLeaseService
         _logger = logger;
     }
 
+    /// <summary>
+    /// SECURITY (audit M5): Civil ID is Kuwait national-ID PII and must not be
+    /// logged in the clear. Show only the last 3 digits.
+    /// </summary>
+    private static string MaskCivilId(string? civilId)
+        => string.IsNullOrEmpty(civilId) || civilId.Length <= 3
+            ? "***"
+            : new string('*', civilId.Length - 3) + civilId[^3..];
+
     public async Task<TenantLoginResponseDto> LoginByCivilIdAsync(TenantLoginRequestDto request)
     {
         try
         {
-            _logger.LogInformation("Login attempt for Civil ID: {CivilID}", request.CivilID);
+            _logger.LogInformation("Login attempt for Civil ID: {CivilID}", MaskCivilId(request.CivilID));
 
             // Find tenant by Civil ID (GovernmentId field)
             var tenant = await _context.Tenants
@@ -37,7 +46,7 @@ public class TenantLeaseService : ITenantLeaseService
 
             if (tenant == null)
             {
-                _logger.LogWarning("Tenant not found for Civil ID: {CivilID}", request.CivilID);
+                _logger.LogWarning("Tenant not found for Civil ID: {CivilID}", MaskCivilId(request.CivilID));
                 return new TenantLoginResponseDto
                 {
                     Success = false,
@@ -49,7 +58,7 @@ public class TenantLeaseService : ITenantLeaseService
             if (string.IsNullOrEmpty(tenant.Password) ||
                 !BCrypt.Net.BCrypt.Verify(request.Password, tenant.Password))
             {
-                _logger.LogWarning("Invalid password for Civil ID: {CivilID}", request.CivilID);
+                _logger.LogWarning("Invalid password for Civil ID: {CivilID}", MaskCivilId(request.CivilID));
                 return new TenantLoginResponseDto
                 {
                     Success = false,
@@ -60,11 +69,12 @@ public class TenantLeaseService : ITenantLeaseService
             // Get all active leases for this tenant
             var activeLeases = await GetActiveLeasesByCivilIdAsync(request.CivilID);
 
-            // Generate JWT token
-            var token = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? request.CivilID);
+            // Generate JWT token (audit M2: include the revocation security stamp).
+            var token = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? request.CivilID,
+                RentCollection.Application.Security.TokenSecurityStamp.Compute(tenant.Password));
 
             _logger.LogInformation("Successful login for Civil ID: {CivilID}, Found {LeaseCount} active leases",
-                request.CivilID, activeLeases.Count);
+                MaskCivilId(request.CivilID), activeLeases.Count);
 
             return new TenantLoginResponseDto
             {

@@ -1,4 +1,5 @@
 @model RentCollection.Core.Entities.Unit
+@inject RentCollection.Web.Services.ILookupService Lookups
 @{
     ViewData["Title"] = $"Edit Unit {Model.UnitNumber}";
 }
@@ -28,8 +29,12 @@
 
         <div class="form-grid">
             <div class="form-field">
+                @* A unit belongs to one property — show it read-only rather than
+                   a dropdown of every property. PropertyId is preserved via the
+                   hidden field so the edit still posts correctly. *@
                 <label asp-for="PropertyId">@L["Property"]</label>
-                <select asp-for="PropertyId" asp-items="ViewBag.PropertyId" required></select>
+                <input type="text" value="@Model.Property?.PropertyName" readonly disabled />
+                <input type="hidden" asp-for="PropertyId" />
             </div>
             <div class="form-field">
                 <label asp-for="UnitNumber">@L["Unit number"]</label>
@@ -37,11 +42,17 @@
             </div>
             <div class="form-field">
                 <label asp-for="UnitType">@L["Type"]</label>
-                <select asp-for="UnitType" asp-items="ViewBag.UnitTypes"></select>
+                <select asp-for="UnitType">
+                    <option value="">@L["-- Type --"]</option>
+                    @foreach (var opt in await Lookups.GetOptionsAsync("UnitType"))
+                    {
+                        <option value="@opt.Code" selected="@(Model?.UnitType == opt.Code)">@opt.Label</option>
+                    }
+                </select>
             </div>
             <div class="form-field">
                 <label asp-for="FloorNumber">@L["Floor"]</label>
-                <input asp-for="FloorNumber" type="number" min="0" />
+                <input asp-for="FloorNumber" type="text" maxlength="50" placeholder="@(L["e.g. 3, Ground, Mezzanine"].Value)" />
             </div>
             <div class="form-field">
                 <label asp-for="Bedrooms">@L["Bedrooms"]</label>
@@ -82,11 +93,11 @@
         background: white; font-size: 0.9rem;
     }
     .form-field input:focus, .form-field select:focus {
-        outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+        outline: none; border-color: #8a6d1f; box-shadow: 0 0 0 3px rgba(138, 109, 31,0.1);
     }
     .form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
     .btn-primary { display: inline-flex; align-items: center; gap: 0.4rem;
-        padding: 0.6rem 1.1rem; background: linear-gradient(135deg,#6366f1,#8b5cf6);
+        padding: 0.6rem 1.1rem; background: linear-gradient(135deg,#8a6d1f,#b8860b);
         color: white; border-radius: 8px; border: 0; cursor: pointer; font-weight: 500; }
     .btn-secondary { padding: 0.6rem 1.1rem; background: #f1f5f9; color: #475569;
         border-radius: 8px; text-decoration: none; font-weight: 500; }

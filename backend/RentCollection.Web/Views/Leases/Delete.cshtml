@@ -40,10 +40,10 @@
                 <dd>@Model.LeaseStartDate.ToString("MMM dd, yyyy") - @Model.LeaseEndDate.ToString("MMM dd, yyyy")</dd>
 
                 <dt>@L["Monthly Rent"]</dt>
-                <dd class="highlight-amount">@Model.MonthlyRent.ToString("C")</dd>
+                <dd class="highlight-amount">@RentCollection.Web.Helpers.CurrencyHelper.FormatKWD(Model.MonthlyRent)</dd>
 
                 <dt>@L["Security Deposit"]</dt>
-                <dd>@Model.SecurityDeposit.ToString("C")</dd>
+                <dd>@RentCollection.Web.Helpers.CurrencyHelper.FormatKWD(Model.SecurityDeposit)</dd>
 
                 <dt>@L["Lease Status"]</dt>
                 <dd>
@@ -89,7 +89,7 @@
             </div>
         }
 
-        @* LEASE_AUDIT Flaw #18 Ã¢â‚¬” surface the renewal-chain risk. *@
+        @* LEASE_AUDIT Flaw #18 - surface the renewal-chain risk. *@
         @if (ViewBag.SuccessorLeaseId != null)
         {
             var succActive = (bool?)ViewBag.SuccessorIsActive ?? false;
@@ -107,7 +107,7 @@
             </div>
         }
 
-        @* LEASE_AUDIT Flaw #19 Ã¢â‚¬” controller pre-check blocks deletion when
+        @* LEASE_AUDIT Flaw #19 - controller pre-check blocks deletion when
            invoices/payments exist; show the same warning here so the
            operator doesn't even attempt it. *@
         @if (Model.Invoices != null && Model.Invoices.Any())
@@ -151,7 +151,7 @@
 
 <style>
     body {
-        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
         color: #1e293b;
         min-height: 100vh;
     }
@@ -162,7 +162,7 @@
 
     .delete-card {
         background: rgba(255, 255, 255, 0.8);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(138, 109, 31, 0.2);
         border-radius: 12px;
         padding: 2rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -206,7 +206,7 @@
         color: #334155;
         margin-bottom: 1.5rem;
         padding-bottom: 0.75rem;
-        border-bottom: 2px solid #6366f1;
+        border-bottom: 2px solid #8a6d1f;
     }
 
     .summary-list {

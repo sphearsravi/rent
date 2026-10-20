@@ -27,6 +27,7 @@ public static class RecurringJobIds
     public const string MonthlyExecutiveDashboardEmail = "monthly-executive-dashboard-email";
     public const string LeaseExpiryReminders          = "lease-expiry-reminders";
     public const string ProcessNotificationOutbox     = "process-notification-outbox";
+    public const string ExpireStaleKnetPayments       = "expire-stale-knet-payments";
 
     /// <summary>
     /// All known IDs in one array — iterate for "is this allowed?" checks
@@ -41,6 +42,7 @@ public static class RecurringJobIds
         MonthlyExecutiveDashboardEmail,
         LeaseExpiryReminders,
         ProcessNotificationOutbox,
+        ExpireStaleKnetPayments,
     };
 
     /// <summary>
@@ -57,6 +59,7 @@ public static class RecurringJobIds
         MonthlyExecutiveDashboardEmail     => "SendMonthlyExecutiveDashboardAsync",
         LeaseExpiryReminders               => "LeaseExpiryRemindersAsync",
         ProcessNotificationOutbox          => "ProcessNotificationOutboxAsync",
+        ExpireStaleKnetPayments            => "ExpireStaleKnetPaymentsAsync",
         _ => throw new ArgumentException($"Unknown recurring job ID: {jobId}", nameof(jobId)),
     };
 }

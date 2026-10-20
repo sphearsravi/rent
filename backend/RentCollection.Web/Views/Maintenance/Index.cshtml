@@ -39,7 +39,7 @@
                 <tbody>
                     @foreach (var request in Model)
                     {
-                        <tr>
+                        <tr class="maint-row" data-status="@request.Status">
                             <td>
                                 <strong>#@request.RequestId</strong>
                             </td>
@@ -85,8 +85,13 @@
                                 @if (request.AssignedToUser != null)
                                 {
                                     <div class="assigned-user">
-                                        <div class="user-avatar-small">@request.AssignedToUser.Email.Substring(0, 1).ToUpper()</div>
-                                        <span>@request.AssignedToUser.Email.Split('@')[0]</span>
+                                        @{
+                                            var assigneeEmail = request.AssignedToUser.Email ?? "";
+                                            var assigneeInitial = string.IsNullOrEmpty(assigneeEmail) ? "?" : assigneeEmail.Substring(0, 1).ToUpper();
+                                            var assigneeHandle = string.IsNullOrEmpty(assigneeEmail) ? L["Unassigned"].Value : assigneeEmail.Split('@')[0];
+                                        }
+                                        <div class="user-avatar-small">@assigneeInitial</div>
+                                        <span>@assigneeHandle</span>
                                     </div>
                                 }
                                 else
@@ -153,7 +158,7 @@
 @section Styles {
     <style>
         body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
             color: #1e293b;
             min-height: 100vh;
         }
@@ -216,13 +221,13 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 4px 12px rgba(138, 109, 31, 0.4);
         }
 
         .alert {
@@ -242,7 +247,7 @@
 
         .maintenance-table-card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             overflow: hidden;
@@ -254,7 +259,7 @@
         }
 
         .modern-table thead {
-            background: rgba(99, 102, 241, 0.08);
+            background: rgba(138, 109, 31, 0.08);
         }
 
         .modern-table thead th {
@@ -354,7 +359,7 @@
             width: 28px;
             height: 28px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white;
             display: flex;
             align-items: center;
@@ -383,8 +388,8 @@
 
         .btn-icon:hover {
             background: #f9fafb;
-            border-color: #3b82f6;
-            color: #3b82f6;
+            border-color: #8a6d1f;
+            color: #8a6d1f;
         }
 
         .btn-icon-danger:hover {
@@ -397,7 +402,7 @@
             text-align: center;
             padding: 4rem 2rem;
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
@@ -447,4 +452,22 @@
             }
         }
     </style>
+}
+
+@section Scripts {
+    <script>
+        // Deep-link from the notification bell: ?status=open shows only the
+        // not-yet-completed requests (the "open maintenance" alert).
+        document.addEventListener('DOMContentLoaded', function () {
+            var status = new URLSearchParams(window.location.search).get('status');
+            if (!status) return;
+            var openOnly = status.toLowerCase() === 'open';
+            var done = ['Completed', 'Closed', 'Cancelled'];
+            document.querySelectorAll('tr.maint-row').forEach(function (row) {
+                var s = row.getAttribute('data-status') || '';
+                var show = openOnly ? (done.indexOf(s) < 0) : (s === status);
+                row.style.display = show ? '' : 'none';
+            });
+        });
+    </script>
 }

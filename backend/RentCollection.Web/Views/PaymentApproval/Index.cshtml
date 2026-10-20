@@ -70,25 +70,25 @@
         .btn-secondary {
             background: #f1f5f9;
             color: #1e293b;
-            border: 1.5px solid #6366f1;
+            border: 1.5px solid #8a6d1f;
         }
-        .btn-secondary i { color: #4338ca; }
+        .btn-secondary i { color: #5a4512; }
 
         .btn-secondary:hover {
             background: #ffffff;
-            border-color: #4338ca;
+            border-color: #5a4512;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(67, 56, 202, 0.18);
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 4px 12px rgba(138, 109, 31, 0.4);
         }
 
         .btn-success {
@@ -125,7 +125,7 @@
 
         .stat-card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             padding: 1.5rem;
             display: flex;
@@ -178,7 +178,7 @@
 
         .table-card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             overflow: hidden;
@@ -190,7 +190,7 @@
         }
 
         .modern-table thead {
-            background: rgba(99, 102, 241, 0.08);
+            background: rgba(138, 109, 31, 0.08);
         }
 
         .modern-table thead th {
@@ -211,7 +211,7 @@
         }
 
         .modern-table tbody tr:hover {
-            background: rgba(99, 102, 241, 0.04);
+            background: rgba(138, 109, 31, 0.04);
         }
 
         .tenant-info {
@@ -224,7 +224,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            background: linear-gradient(135deg, #b8860b, #8a6d1f);
             color: white;
             display: flex;
             align-items: center;
@@ -286,14 +286,14 @@
             text-align: center;
             padding: 4rem 2rem;
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .empty-state i {
             font-size: 4rem;
-            color: #6366f1;
+            color: #8a6d1f;
             margin-bottom: 1rem;
         }
 
@@ -336,6 +336,7 @@
 }
 
 <div class="page-container">
+    @await Html.PartialAsync("_AlertMessages")
     @{
         var recordUrl = Url.Action("Record", "CashPayment");
         var historyUrl = Url.Action("History", "PaymentApproval");
@@ -488,8 +489,12 @@
                                             <i class="fas fa-check"></i>
                                         </button>
                                     </form>
-                                    <form asp-action="Reject" asp-route-id="@payment.PaymentId" method="post" style="display: inline;">
-                                        <button type="submit" class="btn btn-danger btn-sm" title="@(L["Reject"].Value)" onclick="return confirm('Are you sure you want to reject this payment?');">
+                                    @* Reject requires a reason: prompt for it, store it in the hidden
+                                       input, and cancel the submit when it is left empty. *@
+                                    <form asp-action="Reject" asp-route-id="@payment.PaymentId" method="post" style="display: inline;"
+                                          onsubmit="var r = window.prompt('Reason for rejecting this payment (required):', ''); if (r === null || !r.trim()) { return false; } this.querySelector('input[name=reason]').value = r.trim(); return true;">
+                                        <input type="hidden" name="reason" value="" />
+                                        <button type="submit" class="btn btn-danger btn-sm" title="@(L["Reject"].Value)">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </form>

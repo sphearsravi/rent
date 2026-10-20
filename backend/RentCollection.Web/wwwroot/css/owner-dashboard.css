@@ -1,0 +1,177 @@
+/* =====================================================================
+   Owner dashboard component language (approved mockup, Oct 2026).
+   Shared by: Dashboard/Index, Reports/ExecutiveDashboard, TenantPortal/
+   Dashboard and the list-page KPI snapshots. Gold/charcoal brand.
+   All colours are tokens; semantic colours are the darker, WCAG-safe
+   text-grade variants (>= 4.5:1 on white).
+   ===================================================================== */
+:root {
+  --od-bg: #FAF8F2;
+  --od-surface: #FFFFFF;
+  --od-surface-2: #FAF8F2;
+  --od-ink: #1E1A11;
+  --od-muted: #6D6555;
+  --od-line: #E7E0CF;
+  --od-line-soft: #F0EADC;
+  --od-gold: #8A6D1F;
+  --od-gold-ink: #6F5611;
+  --od-gold-soft: #F1E7C6;
+  --od-gold-bright: #F3D47A;
+  --od-charcoal: #2E2614;
+  --od-green: #047857;
+  --od-green-soft: #DCEFE1;
+  --od-amber: #B45309;
+  --od-amber-soft: #F6E8C8;
+  --od-red: #B23B2E;
+  --od-red-soft: #F6DCD6;
+  --od-blue: #1D4ED8;
+  --od-radius: 16px;
+  --od-radius-sm: 12px;
+  --od-shadow: 0 10px 28px rgba(46, 38, 20, 0.18);
+}
+
+/* ---- page scaffold ---- */
+.od { display: flex; flex-direction: column; gap: 24px; font-variant-numeric: tabular-nums; color: var(--od-ink); }
+.od a { color: var(--od-gold); }
+.od a:hover { color: var(--od-gold-ink); }
+
+.od-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.od-eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--od-gold); font-weight: 700; }
+.od-title { margin: 0; font-size: 32px; line-height: 1.1; font-weight: 700; color: var(--od-ink); text-wrap: balance; }
+.od-sub { font-size: 14px; color: var(--od-muted); }
+.od-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.od-select { font: inherit; font-size: 14px; padding: 9px 12px; border: 1px solid var(--od-line); border-radius: 10px; background: #fff; color: var(--od-ink); min-height: 44px; }
+
+/* ---- buttons ---- */
+.od-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 10px; font-weight: 700; font-size: 14px; text-decoration: none; cursor: pointer; border: 1px solid transparent; line-height: 1; }
+/* Written with `.od a.…` too so they outrank the `.od a { color: gold }` rule
+   above — without that the primary button rendered gold-on-gold (no text). */
+.od-btn-primary, .od a.od-btn-primary { background: var(--od-gold); color: #fff; }
+.od-btn-primary:hover, .od a.od-btn-primary:hover { background: var(--od-gold-ink); color: #fff; }
+.od-btn-ghost, .od a.od-btn-ghost { background: #fff; color: var(--od-ink); border-color: var(--od-line); }
+.od-btn-ghost:hover, .od a.od-btn-ghost:hover { background: var(--od-surface-2); color: var(--od-ink); }
+.od-btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
+
+/* ---- grids ---- */
+.od-grid-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.od-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+.od-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .od-grid-2 { grid-template-columns: 1fr; } }
+
+/* ---- cards ---- */
+.od-card { background: var(--od-surface); border: 1px solid var(--od-line); border-radius: var(--od-radius); padding: 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.od-card-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.od-card-title { margin: 0; font-size: 16px; font-weight: 700; }
+.od-card-meta { font-size: 12px; color: var(--od-muted); }
+.od-card-link { font-size: 13px; font-weight: 700; margin-top: auto; }
+
+/* KPI hero (the one dark gold card) */
+.od-kpi-hero { background: linear-gradient(145deg, var(--od-charcoal), var(--od-gold)); color: #fff; border: none; box-shadow: var(--od-shadow); }
+.od-kpi-hero .od-kpi-label { color: rgba(255,255,255,0.78); }
+.od-kpi-hero .od-kpi-sub { color: rgba(255,255,255,0.85); }
+.od-kpi-hero a { color: #fff; }
+.od-kpi-label { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--od-muted); font-weight: 600; }
+.od-kpi-value { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; }
+.od-kpi-hero .od-kpi-value { font-size: 32px; }
+.od-kpi-sub { font-size: 13px; color: var(--od-muted); }
+.od-kpi-row { display: flex; justify-content: space-between; align-items: center; }
+.od-kpi-value.is-red { color: var(--od-red); }
+.od-kpi-value.is-green { color: var(--od-green); }
+
+/* progress bars */
+.od-bar { height: 8px; background: var(--od-line-soft); border-radius: 999px; overflow: hidden; }
+.od-kpi-hero .od-bar { background: rgba(255,255,255,0.22); }
+.od-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--od-gold); }
+.od-kpi-hero .od-bar > span { background: var(--od-gold-bright); }
+.od-bar.is-thin { height: 6px; }
+.od-bar > span.is-red { background: var(--od-red); }
+.od-bar > span.is-amber { background: var(--od-amber); }
+.od-bar > span.is-green { background: var(--od-green); }
+
+/* pills */
+.od-pill { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 9px; white-space: nowrap; letter-spacing: 0.02em; }
+.od-pill-red { color: var(--od-red); background: var(--od-red-soft); }
+.od-pill-amber { color: var(--od-amber); background: var(--od-amber-soft); }
+.od-pill-green { color: var(--od-green); background: var(--od-green-soft); }
+.od-pill-gold { color: var(--od-gold-ink); background: var(--od-gold-soft); }
+.od-pill-grey { color: var(--od-muted); background: var(--od-line-soft); }
+
+/* ---- attention queue ---- */
+.od-queue { display: flex; flex-direction: column; gap: 6px; }
+.od-queue-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: var(--od-radius-sm); background: var(--od-surface-2); text-decoration: none; color: inherit; min-height: 44px; }
+.od-queue-row:hover { background: var(--od-gold-soft); color: inherit; }
+.od-count { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; flex: none; }
+.od-count-gold { background: var(--od-gold-soft); color: var(--od-gold-ink); }
+.od-count-red { background: var(--od-red-soft); color: var(--od-red); }
+.od-count-amber { background: var(--od-amber-soft); color: var(--od-amber); }
+.od-count-green { background: var(--od-green-soft); color: var(--od-green); }
+.od-queue-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.od-queue-text strong { font-size: 14px; }
+.od-queue-text span { font-size: 12px; color: var(--od-muted); }
+.od-queue-cta { font-size: 13px; font-weight: 700; color: var(--od-gold); white-space: nowrap; }
+
+/* ---- trend bars ---- */
+.od-legend { display: flex; gap: 14px; font-size: 12px; color: var(--od-muted); }
+.od-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.od-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.od-trend { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; align-items: end; height: 190px; padding-top: 10px; }
+.od-trend-col { display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+.od-trend-bars { display: flex; gap: 4px; align-items: flex-end; height: 160px; }
+.od-trend-bars > span { display: block; width: 16px; border-radius: 4px 4px 0 0; }
+.od-trend-expected { background: var(--od-line); }
+.od-trend-collected { background: var(--od-gold); }
+.od-trend-collected.is-partial { opacity: 0.75; }
+.od-trend-label { font-size: 12px; color: var(--od-muted); white-space: nowrap; }
+.od-stat { display: flex; flex-direction: column; }
+.od-stat span { font-size: 12px; color: var(--od-muted); }
+.od-stat strong { font-size: 18px; }
+.od-divider-top { border-top: 1px solid var(--od-line); padding-top: 12px; }
+
+/* ---- health table ---- */
+.od-table-wrap { overflow-x: auto; }
+.od-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px; }
+.od-table th { text-align: start; padding: 10px 12px; border-bottom: 1px solid var(--od-line); color: var(--od-muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+.od-table td { padding: 12px; border-bottom: 1px solid var(--od-line-soft); vertical-align: middle; }
+.od-table tr:last-child td { border-bottom: none; }
+.od-table .num { text-align: end; }
+.od-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-inline-end: 8px; vertical-align: middle; }
+.od-dot-red { background: var(--od-red); } .od-dot-amber { background: var(--od-amber); } .od-dot-green { background: var(--od-green); }
+.od-rate { display: flex; align-items: center; gap: 8px; }
+.od-rate .od-bar { flex: 1; min-width: 80px; }
+.od-rate strong { width: 40px; }
+
+/* ---- people rows (arrears / expiries / payments) ---- */
+.od-rows { display: flex; flex-direction: column; }
+.od-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--od-line-soft); }
+.od-row:last-child { border-bottom: none; }
+.od-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--od-gold-soft); color: var(--od-gold-ink); display: grid; place-items: center; font-weight: 800; font-size: 14px; flex: none; }
+.od-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.od-row-text strong { font-size: 14px; }
+.od-row-text span { font-size: 12px; color: var(--od-muted); }
+.od-amount { font-weight: 800; white-space: nowrap; }
+.od-amount.is-red { color: var(--od-red); }
+.od-days { width: 52px; display: flex; flex-direction: column; align-items: center; border-radius: 10px; padding: 6px 0; flex: none; }
+.od-days strong { font-size: 18px; line-height: 1; }
+.od-days span { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+.od-days-red { background: var(--od-red-soft); color: var(--od-red); }
+.od-days-amber { background: var(--od-amber-soft); color: var(--od-amber); }
+.od-note { padding: 12px 14px; border-radius: var(--od-radius-sm); background: var(--od-surface-2); font-size: 13px; color: var(--od-muted); }
+.od-note strong { color: var(--od-ink); }
+
+/* compact payment tiles */
+.od-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.od-tile { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--od-radius-sm); background: var(--od-surface-2); }
+.od-tile-icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.od-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.od-tile-text strong { font-size: 14px; }
+.od-tile-text span { font-size: 12px; color: var(--od-muted); }
+
+/* empty state */
+.od-empty { padding: 28px 16px; text-align: center; color: var(--od-muted); font-size: 14px; }
+
+/* sample / warning badge */
+.od-badge-warn { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--od-amber); background: var(--od-amber-soft); border: 1px solid #E7D7A8; border-radius: 999px; padding: 4px 10px; }
+
+/* RTL: logical properties are used throughout; flip the trend partial label */
+[dir="rtl"] .od-table th { text-align: right; }
+[dir="rtl"] .od-table .num { text-align: left; }

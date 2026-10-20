@@ -8,6 +8,8 @@ public class CashPaymentDto
     public decimal Amount { get; set; }
     public DateTime PaymentDate { get; set; }
     public string? ReceiptNumber { get; set; }
+    /// <summary>Hand-written receipt-book number (optional, max 50).</summary>
+    public string? ManualReceiptNumber { get; set; }
     public string? Notes { get; set; }
 }
 

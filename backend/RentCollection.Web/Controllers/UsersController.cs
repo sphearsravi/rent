@@ -85,19 +85,27 @@ public class UsersController : Controller
         return null;
     }
 
-    private async Task<string?> ValidateDeleteAsync(User target)
+    private Task<string?> ValidateDeleteAsync(User target) => ValidateRemovalAsync(target, "delete");
+
+    /// <summary>
+    /// Deactivating (IsActive=false) removes the account from service just like a
+    /// delete does, so the same self / last-SuperAdmin / last-admin guards apply.
+    /// </summary>
+    private Task<string?> ValidateDeactivateAsync(User target) => ValidateRemovalAsync(target, "deactivate");
+
+    private async Task<string?> ValidateRemovalAsync(User target, string verb)
     {
         var actorName = User.Identity?.Name;
         if (string.Equals(actorName, target.Username, StringComparison.OrdinalIgnoreCase)
             || string.Equals(actorName, target.Email, StringComparison.OrdinalIgnoreCase))
-            return "You cannot delete your own account.";
+            return $"You cannot {verb} your own account.";
 
         if (target.Role == Roles.SuperAdmin)
         {
             var superAdminCount = await _context.Users
                 .CountAsync(u => u.Role == Roles.SuperAdmin && u.IsActive);
             if (superAdminCount <= 1)
-                return "Cannot delete the last active SuperAdmin.";
+                return $"Cannot {verb} the last active SuperAdmin.";
         }
 
         // Same admin-tier floor as ValidateRoleChangeAsync — never end up
@@ -107,9 +115,35 @@ public class UsersController : Controller
             var adminTierCount = await _context.Users
                 .CountAsync(u => (u.Role == Roles.SuperAdmin || u.Role == Roles.Admin) && u.IsActive);
             if (adminTierCount <= 1)
-                return "Cannot delete the last active admin — at least one Admin or SuperAdmin must remain.";
+                return $"Cannot {verb} the last active admin — at least one Admin or SuperAdmin must remain.";
         }
         return null;
+    }
+
+    /// <summary>
+    /// Username and Email are login identifiers (AccountController looks them up
+    /// across ALL companies), so uniqueness must be global and case-insensitive —
+    /// hence IgnoreQueryFilters. Adds ModelState errors; returns true when unique.
+    /// </summary>
+    private async Task<bool> ValidateUniqueIdentityAsync(string? username, string? email, int? excludeUserId)
+    {
+        var ok = true;
+        var uname = (username ?? string.Empty).Trim().ToLower();
+        var mail = (email ?? string.Empty).Trim().ToLower();
+
+        if (uname.Length > 0 && await _context.Users.IgnoreQueryFilters()
+                .AnyAsync(u => u.Username.ToLower() == uname && (excludeUserId == null || u.UserId != excludeUserId)))
+        {
+            ModelState.AddModelError("Username", "That username is already taken.");
+            ok = false;
+        }
+        if (mail.Length > 0 && await _context.Users.IgnoreQueryFilters()
+                .AnyAsync(u => u.Email.ToLower() == mail && (excludeUserId == null || u.UserId != excludeUserId)))
+        {
+            ModelState.AddModelError("Email", "A user with that email already exists.");
+            ok = false;
+        }
+        return ok;
     }
 
     // GET: Users
@@ -167,18 +201,73 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(User user, string password)
     {
+        // SECURITY (audit C5): the User entity was previously model-bound wholesale
+        // (no [Bind] allow-list) and added directly, with NO role-grant check on
+        // Create — so a non-SuperAdmin Admin could POST Role=SuperAdmin (and an
+        // empty CompanyId) to self-escalate to a cross-company super account. We
+        // now (a) rebuild the row from allow-listed fields only, (b) decide Role
+        // and CompanyId server-side, and (c) run the same ValidateRoleChangeAsync
+        // gate that Edit/ChangeRole use.
+        if (string.IsNullOrWhiteSpace(password))
+            ModelState.AddModelError("password", "Password is required.");
+        else
+        {
+            // SECURITY (audit M3): enforce the shared password policy on create.
+            var pwErr = RentCollection.Web.Services.PasswordPolicy.Validate(password);
+            if (pwErr != null) ModelState.AddModelError("password", pwErr);
+        }
+
+        var requestedRole = string.IsNullOrWhiteSpace(user.Role) ? Roles.Manager : user.Role;
+        var actorIsSuper = User.IsInRole(Roles.SuperAdmin);
+
+        int? actorCompanyId = null;
+        if (int.TryParse(User.FindFirst("companyId")?.Value, out var cid) && cid > 0)
+            actorCompanyId = cid;
+
+        // Enforce grant rules (incl. "only SuperAdmin can grant SuperAdmin" and the
+        // assignable-role allow-list). Target starts with no role so this checks the
+        // grant, not a mutation.
+        var roleErr = await ValidateRoleChangeAsync(
+            new User { Username = user.Username, Email = user.Email, Role = string.Empty },
+            requestedRole);
+        if (roleErr != null)
+            ModelState.AddModelError("Role", roleErr);
+
+        // Non-super actors may only create users inside their own company.
+        var companyId = actorIsSuper ? (user.CompanyId ?? actorCompanyId) : actorCompanyId;
+        if (!actorIsSuper && companyId == null)
+            ModelState.AddModelError(string.Empty, "Your account has no company assigned; cannot create users.");
+
+        // Username / Email must be unique (case-insensitive, across companies).
+        await ValidateUniqueIdentityAsync(user.Username, user.Email, excludeUserId: null);
+
         if (ModelState.IsValid)
         {
-            // Hash the password
-            user.PasswordHash = _passwordHasher.HashPassword(password);
-            user.CreatedDate = DateTime.UtcNow;
-            user.IsActive = true;
+            var newUser = new User
+            {
+                Username = user.Username,
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                PhoneNumber = user.PhoneNumber,
+                Role = requestedRole,
+                CompanyId = companyId,
+                PasswordHash = _passwordHasher.HashPassword(password),
+                CreatedDate = DateTime.UtcNow,
+                IsActive = true,
+            };
 
-            _context.Users.Add(user);
+            _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
+            // The audit service only Adds the row to the context; the first save
+            // was needed to obtain UserId, so save again or the entry is lost.
+            await _audit.WriteAsync("User", newUser.UserId, "Created", User.Identity?.Name ?? "system",
+                new { newUser.Username, newUser.Email, newUser.Role, newUser.CompanyId });
+            await _context.SaveChangesAsync();
             TempData["SuccessMessage"] = "User created successfully.";
-            _logger.LogInformation($"User {user.Email} created successfully.");
+            _logger.LogInformation("User {Email} created with role {Role} in company {CompanyId}.",
+                newUser.Email, newUser.Role, newUser.CompanyId);
 
             return RedirectToAction(nameof(Index));
         }
@@ -222,6 +311,43 @@ public class UsersController : Controller
                 if (existingUser == null)
                 {
                     return NotFound();
+                }
+
+                // SECURITY: a company Admin must never be able to edit a SuperAdmin
+                // (reset their password, deactivate them, change their email...).
+                if (existingUser.Role == Roles.SuperAdmin && !User.IsInRole(Roles.SuperAdmin))
+                {
+                    _logger.LogWarning("User {Actor} attempted to edit SuperAdmin account {TargetId}.",
+                        User.Identity?.Name, existingUser.UserId);
+                    TempData["ErrorMessage"] = "Only a SuperAdmin can edit a SuperAdmin account.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Username / Email must stay unique (case-insensitive, across companies).
+                if (!await ValidateUniqueIdentityAsync(user.Username, user.Email, excludeUserId: id))
+                    return View(user);
+
+                // Password resets go through the shared policy, same as Create.
+                if (!string.IsNullOrEmpty(newPassword))
+                {
+                    var pwErr = RentCollection.Web.Services.PasswordPolicy.Validate(newPassword);
+                    if (pwErr != null)
+                    {
+                        ModelState.AddModelError("newPassword", pwErr);
+                        return View(user);
+                    }
+                }
+
+                // Deactivation has the same blast radius as delete — apply the
+                // self / last-SuperAdmin / last-admin guards when IsActive flips off.
+                if (existingUser.IsActive && !user.IsActive)
+                {
+                    var deactErr = await ValidateDeactivateAsync(existingUser);
+                    if (deactErr != null)
+                    {
+                        TempData["ErrorMessage"] = deactErr;
+                        return RedirectToAction(nameof(Edit), new { id });
+                    }
                 }
 
                 // Role-change safeguards apply BEFORE we apply any updates.

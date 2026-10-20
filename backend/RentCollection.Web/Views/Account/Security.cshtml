@@ -1,0 +1,55 @@
+@{
+    ViewData["Title"] = "Security";
+    var mfaEnabled = (bool)(ViewBag.MfaEnabled ?? false);
+}
+
+<div class="container-fluid">
+    <div class="page-header">
+        <div>
+            <h1>@L["Security"]</h1>
+            <p class="text-muted">@L["Manage two-factor authentication for your account"]</p>
+        </div>
+    </div>
+
+    @if (TempData["MfaMessage"] != null)
+    {
+        <div class="alert alert-success"><i class="fas fa-check-circle"></i><div>@TempData["MfaMessage"]</div></div>
+    }
+    @if (TempData["MfaError"] != null)
+    {
+        <div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i><div>@TempData["MfaError"]</div></div>
+    }
+
+    <div class="info-card" style="max-width:640px;">
+        <div class="card-header">
+            <h3><i class="fas fa-shield-halved"></i> @L["Two-Factor Authentication (2FA)"]</h3>
+        </div>
+        <div class="card-body">
+            @if (mfaEnabled)
+            {
+                <p><span class="badge badge-success"><i class="fas fa-check"></i> @L["Enabled"]</span></p>
+                <p class="text-muted">@L["Your account is protected by an authenticator app. You'll be asked for a 6-digit code when you sign in."]</p>
+
+                <details style="margin-top:1rem;">
+                    <summary class="btn btn-danger btn-sm" style="cursor:pointer;list-style:none;">
+                        <i class="fas fa-times"></i> @L["Disable 2FA"]
+                    </summary>
+                    <form asp-controller="Account" asp-action="DisableMfa" method="post" style="margin-top:1rem;max-width:340px;">
+                        @Html.AntiForgeryToken()
+                        <label class="form-label">@L["Confirm your password to disable"]</label>
+                        <input type="password" name="password" class="form-control" required autocomplete="current-password" />
+                        <button type="submit" class="btn btn-danger btn-sm mt-2"><i class="fas fa-times"></i> @L["Disable 2FA"]</button>
+                    </form>
+                </details>
+            }
+            else
+            {
+                <p><span class="badge badge-secondary">@L["Not enabled"]</span></p>
+                <p class="text-muted">@L["Add a second layer of protection. You'll use an authenticator app (Google Authenticator, Microsoft Authenticator, Authy, 1Password) to generate a code at sign-in."]</p>
+                <a asp-controller="Account" asp-action="EnableMfa" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> @L["Set up 2FA"]
+                </a>
+            }
+        </div>
+    </div>
+</div>

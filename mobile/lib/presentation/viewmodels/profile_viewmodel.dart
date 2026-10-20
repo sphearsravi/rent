@@ -30,6 +30,14 @@ class ProfileViewModel extends ChangeNotifier {
   bool get isUpdating => _state == ProfileState.updating;
   bool get hasProfile => _profile != null;
 
+  /// Drop all tenant data (logout). See `resetSessionState`.
+  void reset() {
+    _state = ProfileState.initial;
+    _errorMessage = null;
+    _profile = null;
+    notifyListeners();
+  }
+
   /// Load profile
   Future<void> loadProfile(int tenantId) async {
     _state = ProfileState.loading;

@@ -1,7 +1,9 @@
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RentCollection.Application.Interfaces;
 using RentCollection.Core.Entities;
+using RentCollection.Core.Enums;
 using RentCollection.Infrastructure.Data;
 
 namespace RentCollection.Infrastructure.Services;
@@ -43,9 +45,16 @@ public class RecurringJobs
     }
 
     /// <summary>
-    /// Sprint 4 — Email the Executive Dashboard PDF for *last* month to
-    /// every recipient configured in `Reports:MonthlyEmailRecipients`
-    /// (semicolon-separated). Falls back to all admin-role users by email.
+    /// Sprint 4 — Email the Executive Dashboard PDF for *last* month.
+    ///
+    /// Two modes:
+    ///   • `Reports:MonthlyEmailRecipients` configured (semicolon-separated):
+    ///     an ops/SuperAdmin mailing list — gets ONE system-wide dashboard.
+    ///   • Otherwise: PER COMPANY. Each active company gets a dashboard scoped
+    ///     to its own tenants/units, sent only to that company's Admin users.
+    ///     (Previously one system-wide dashboard went to every company's
+    ///     admins — a cross-tenant data leak.) SuperAdmins (CompanyId null)
+    ///     get the system-wide view.
     /// Schedule: 1st of every month at 06:00 UTC (wired in Program.cs).
     /// </summary>
     public async Task SendMonthlyExecutiveDashboardAsync()
@@ -54,35 +63,96 @@ public class RecurringJobs
         var lastMonthEnd = new DateTime(today.Year, today.Month, 1).AddDays(-1);
         var lastMonthStart = new DateTime(lastMonthEnd.Year, lastMonthEnd.Month, 1);
 
-        var recipients = (_config["Reports:MonthlyEmailRecipients"] ?? "")
+        var configured = (_config["Reports:MonthlyEmailRecipients"] ?? "")
             .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
 
-        if (recipients.Count == 0)
+        var ok = 0; var failed = 0;
+
+        if (configured.Count > 0)
         {
-            recipients = await _context.Users
-                .Where(u => u.Role == "Admin" || u.Role == "SuperAdmin")
-                .Select(u => u.Email)
-                .Where(e => e != null && e.Contains("@"))
-                .Cast<string>()
-                .Distinct()
+            // Ops mailing list → system-wide figures (existing behaviour).
+            var model = await _composer.BuildAsync(lastMonthStart, lastMonthEnd);
+            (var o, var f) = await SendDashboardAsync(model, configured, lastMonthStart);
+            ok += o; failed += f;
+        }
+        else
+        {
+            // Admin users grouped by company. Job runs as system → no company
+            // filter on Users; IgnoreQueryFilters for safety should one be added.
+            var admins = await _context.Users
+                .IgnoreQueryFilters()
+                .Where(u => u.IsActive && (u.Role == "Admin" || u.Role == "SuperAdmin"))
+                .Where(u => u.Email != null && u.Email.Contains("@"))
+                .Select(u => new { u.CompanyId, u.Email, u.Role })
                 .ToListAsync();
+
+            // Per-company dashboards: only that company's Admins see its numbers.
+            var companies = await _context.Companies
+                .Where(c => c.IsActive)
+                .Select(c => new { c.CompanyId, c.CompanyName })
+                .ToListAsync();
+
+            foreach (var company in companies)
+            {
+                var recipients = admins
+                    .Where(a => a.CompanyId == company.CompanyId && a.Role == "Admin")
+                    .Select(a => a.Email!)
+                    .Distinct()
+                    .ToList();
+                if (recipients.Count == 0) continue;
+
+                try
+                {
+                    var model = await _composer.BuildAsync(lastMonthStart, lastMonthEnd, company.CompanyId);
+                    (var o, var f) = await SendDashboardAsync(model, recipients, lastMonthStart);
+                    ok += o; failed += f;
+                }
+                catch (Exception ex)
+                {
+                    // One company's failure must not stop the others.
+                    failed += recipients.Count;
+                    _logger.LogError(ex, "MonthlyExecutiveDashboard: company {CompanyId} ({Name}) failed",
+                        company.CompanyId, company.CompanyName);
+                }
+            }
+
+            // SuperAdmins (global, CompanyId == null) get the system-wide view.
+            var superAdmins = admins
+                .Where(a => a.Role == "SuperAdmin")
+                .Select(a => a.Email!)
+                .Distinct()
+                .ToList();
+            if (superAdmins.Count > 0)
+            {
+                var model = await _composer.BuildAsync(lastMonthStart, lastMonthEnd);
+                (var o, var f) = await SendDashboardAsync(model, superAdmins, lastMonthStart);
+                ok += o; failed += f;
+            }
         }
 
-        if (recipients.Count == 0)
+        if (ok == 0 && failed == 0)
         {
             _logger.LogInformation("Job: MonthlyExecutiveDashboard skipped — no recipients configured");
             return;
         }
 
-        var model = await _composer.BuildAsync(lastMonthStart, lastMonthEnd);
+        _logger.LogInformation(
+            "Job: MonthlyExecutiveDashboard sent {Ok} ok / {Failed} failed for period {From:yyyy-MM-dd}..{To:yyyy-MM-dd}",
+            ok, failed, lastMonthStart, lastMonthEnd);
+    }
+
+    /// <summary>Render one dashboard model to PDF and email it to each recipient.</summary>
+    private async Task<(int ok, int failed)> SendDashboardAsync(
+        ExecutiveDashboardPdfModel model, IReadOnlyList<string> recipients, DateTime periodStart)
+    {
         var pdfBytes = _pdf.RenderExecutiveDashboard(model);
-        var fileName = $"executive-dashboard-{lastMonthStart:yyyy-MM}.pdf";
-        var subject = $"VIIJAR — Executive Dashboard, {lastMonthStart:MMMM yyyy}";
+        var fileName = $"executive-dashboard-{periodStart:yyyy-MM}.pdf";
+        var subject = $"VIIJAR — Executive Dashboard, {periodStart:MMMM yyyy}";
         var deltaStr = model.CollectedDelta == 0
             ? ""
             : $" ({(model.CollectedDelta > 0 ? "+" : "")}{model.CollectedDelta:0.0}% vs prior period)";
-        var body = $"<p>The monthly executive dashboard for <strong>{lastMonthStart:MMMM yyyy}</strong> is attached.</p>" +
+        var body = $"<p>The monthly executive dashboard for <strong>{periodStart:MMMM yyyy}</strong> is attached.</p>" +
                    $"<p>Collected: <strong>{model.Collected:N3} {model.Currency}</strong>{deltaStr}<br>" +
                    $"Outstanding: <strong>{model.Outstanding:N3} {model.Currency}</strong><br>" +
                    $"Overdue invoices: <strong>{model.OverdueCount}</strong><br>" +
@@ -98,17 +168,18 @@ public class RecurringJobs
             if (!result.Success)
                 _logger.LogWarning("MonthlyExecutiveDashboard: send to {To} failed — {Err}", to, result.ErrorMessage);
         }
-        _logger.LogInformation(
-            "Job: MonthlyExecutiveDashboard sent {Ok} ok / {Failed} failed for period {From:yyyy-MM-dd}..{To:yyyy-MM-dd}",
-            ok, failed, lastMonthStart, lastMonthEnd);
+        return (ok, failed);
     }
 
     /// <summary>
     /// Monthly Hangfire entry point. Generates both rent AND insurance
     /// invoices in one run so they share a single transaction and an
     /// operator only needs to "Trigger now" once. Each invoice category
-    /// has its own idempotency guard.
+    /// has its own idempotency guard. DisableConcurrentExecution stops an
+    /// overlapping "Trigger now" + scheduled run from racing on the same
+    /// period (the unique index is the last line of defence, not the first).
     /// </summary>
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
     public async Task GenerateMonthlyInvoicesAsync()
     {
         await GenerateRentInvoicesAsync();
@@ -131,9 +202,12 @@ public class RecurringJobs
         var periodEnd = periodStart.AddMonths(1).AddDays(-1);
         _logger.LogInformation("Job: GenerateInsuranceInvoices for period {Start}-{End}", periodStart, periodEnd);
 
+        // Same lease-status rule as rent: a lease renewed early is flipped to
+        // "Renewed" immediately but still runs (and still carries insurance)
+        // until its LeaseEndDate. Terminated / Pending / Expired are excluded.
         var activeLeases = await _context.Leases
             .IgnoreQueryFilters()
-            .Where(l => l.Status == "Active"
+            .Where(l => (l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Renewed)
                 && l.InsuranceAmount > 0
                 && l.InsuranceFrequency != "None"
                 && l.LeaseStartDate <= periodEnd
@@ -141,64 +215,91 @@ public class RecurringJobs
             .ToListAsync();
 
         var created = 0;
+        var failedRows = 0;
         foreach (var lease in activeLeases)
         {
-            var anchor = lease.InsuranceStartDate ?? lease.LeaseStartDate;
-
-            // Cadence gate — skip the lease if this period isn't a billing period.
-            bool isBillingPeriod = lease.InsuranceFrequency switch
+            // Per-row resilience: one bad lease (unique-index race with a manual
+            // "generate" click, RowVersion conflict, bad data) must not abort the
+            // whole batch or leave a poisoned entry in the change tracker.
+            Invoice? invoice = null;
+            try
             {
-                "Monthly" => true,
-                "Annual"  => anchor.Month == periodStart.Month,
-                "OneTime" => true,  // OneTime fires once; idempotency below blocks repeats
-                _          => false,
-            };
-            if (!isBillingPeriod) continue;
+                var anchor = lease.InsuranceStartDate ?? lease.LeaseStartDate;
 
-            // OneTime: skip if ANY insurance invoice already exists for this
-            // lease (lifetime check). Monthly/Annual: skip only if one already
-            // exists in this period.
-            bool exists = lease.InsuranceFrequency == "OneTime"
-                ? await _context.Invoices.IgnoreQueryFilters().AnyAsync(i =>
-                    i.LeaseId == lease.LeaseId && i.InvoiceType == "Insurance")
-                : await _context.Invoices.IgnoreQueryFilters().AnyAsync(i =>
-                    i.LeaseId == lease.LeaseId
-                    && i.InvoiceType == "Insurance"
-                    && i.InvoiceDate >= periodStart
-                    && i.InvoiceDate <= periodEnd);
-            if (exists) continue;
+                // Cadence gate — skip the lease if this period isn't a billing period.
+                bool isBillingPeriod = lease.InsuranceFrequency switch
+                {
+                    "Monthly" => true,
+                    "Annual"  => anchor.Month == periodStart.Month,
+                    "OneTime" => true,  // OneTime fires once; idempotency below blocks repeats
+                    _          => false,
+                };
+                if (!isBillingPeriod) continue;
 
-            _context.Invoices.Add(new Invoice
+                // OneTime: skip if ANY insurance invoice already exists for this
+                // lease (lifetime check). Monthly/Annual: skip only if one already
+                // exists in this period.
+                bool exists = lease.InsuranceFrequency == "OneTime"
+                    ? await _context.Invoices.IgnoreQueryFilters().AnyAsync(i =>
+                        i.LeaseId == lease.LeaseId && i.InvoiceType == "Insurance")
+                    : await _context.Invoices.IgnoreQueryFilters().AnyAsync(i =>
+                        i.LeaseId == lease.LeaseId
+                        && i.InvoiceType == "Insurance"
+                        && i.InvoiceDate >= periodStart
+                        && i.InvoiceDate <= periodEnd);
+                if (exists) continue;
+
+                invoice = new Invoice
+                {
+                    LeaseId = lease.LeaseId,
+                    TenantId = lease.TenantId,
+                    InvoiceDate = periodStart,
+                    DueDate = RentCollection.Core.Leases.LeaseMath.ComputeDueDate(
+                        lease.PaymentDueDay, periodStart.Year, periodStart.Month),
+                    TotalAmount = lease.InsuranceAmount,
+                    PaidAmount = 0,
+                    Status = "Pending",
+                    InvoiceType = "Insurance",
+                    Notes = $"Insurance premium ({lease.InsuranceFrequency}) for {periodStart:yyyy-MM}",
+                };
+                _context.Invoices.Add(invoice);
+                // Save per row so a failure is isolated to this lease and the
+                // notification can reference the real InvoiceId.
+                await _context.SaveChangesAsync();
+                created++;
+
+                await _notifications.EnqueueTenantAsync(
+                    lease.TenantId,
+                    subject: $"Insurance premium invoice — {periodStart:MMMM yyyy}",
+                    body: $"Your insurance premium of {lease.InsuranceAmount:0.000} KWD for {periodStart:MMMM yyyy} is due.",
+                    relatedEntityType: "Invoice",
+                    relatedEntityId: invoice.InvoiceId);
+            }
+            catch (Exception ex)
             {
-                LeaseId = lease.LeaseId,
-                TenantId = lease.TenantId,
-                InvoiceDate = periodStart,
-                DueDate = RentCollection.Core.Leases.LeaseMath.ComputeDueDate(
-                    lease.PaymentDueDay, periodStart.Year, periodStart.Month),
-                TotalAmount = lease.InsuranceAmount,
-                PaidAmount = 0,
-                Status = "Pending",
-                InvoiceType = "Insurance",
-                Notes = $"Insurance premium ({lease.InsuranceFrequency}) for {periodStart:yyyy-MM}",
-            });
-            created++;
-
-            await _notifications.EnqueueTenantAsync(
-                lease.TenantId,
-                subject: $"Insurance premium invoice — {periodStart:MMMM yyyy}",
-                body: $"Your insurance premium of {lease.InsuranceAmount:0.000} KWD for {periodStart:MMMM yyyy} is due.",
-                relatedEntityType: "Invoice",
-                relatedEntityId: null);
+                failedRows++;
+                _logger.LogError(ex,
+                    "GenerateInsuranceInvoices: lease {LeaseId} failed for period {Period:yyyy-MM} — skipped, batch continues",
+                    lease.LeaseId, periodStart);
+                // Detach the failed row so the next SaveChanges doesn't re-throw on it.
+                if (invoice != null)
+                    _context.Entry(invoice).State = EntityState.Detached;
+            }
         }
 
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Job: GenerateInsuranceInvoices created {Count} invoices", created);
+        _logger.LogInformation("Job: GenerateInsuranceInvoices created {Count} invoices ({Failed} rows failed)",
+            created, failedRows);
     }
 
     /// <summary>
-    /// Generate the next month's rent invoice for every active lease.
-    /// Idempotent — checks for an existing invoice in the target month before
-    /// creating.
+    /// Generate this month's rent invoice for every lease that is running in
+    /// the period. Idempotent — checks for an existing invoice in the target
+    /// month before creating (UQ_Invoices_Lease_Type_Period backs it at the DB).
+    ///
+    /// Status rule: Active OR Renewed. Renewal flips the old lease to
+    /// "Renewed" the moment the successor is created, but the old lease keeps
+    /// running until its LeaseEndDate — previously those remaining months got
+    /// no rent invoice at all. Terminated / Pending / Expired never bill.
     /// </summary>
     public async Task GenerateRentInvoicesAsync()
     {
@@ -209,12 +310,18 @@ public class RecurringJobs
 
         var activeLeases = await _context.Leases
             .IgnoreQueryFilters()  // job runs as system, sees all companies
-            .Where(l => l.Status == "Active"
+            .Where(l => (l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Renewed)
                 && l.LeaseStartDate <= periodEnd
                 && l.LeaseEndDate >= periodStart)
             .ToListAsync();
 
-        var created = 0;
+        // Build the batch first (dedupe per lease), then save ONCE. A save per
+        // row looked safer but is O(N²): every SaveChanges re-scans the whole
+        // change tracker, so 5,000 leases took minutes (the Scale tests hung).
+        // Resilience is kept by falling back to row-by-row ONLY if the batch
+        // save throws — that isolates the offending lease(s) and the rest still
+        // land.
+        var toCreate = new List<(Lease lease, Invoice invoice)>();
         foreach (var lease in activeLeases)
         {
             var exists = await _context.Invoices
@@ -225,7 +332,7 @@ public class RecurringJobs
                     && i.InvoiceType == "Rent");
             if (exists) continue;
 
-            _context.Invoices.Add(new Invoice
+            toCreate.Add((lease, new Invoice
             {
                 LeaseId = lease.LeaseId,
                 TenantId = lease.TenantId,
@@ -240,46 +347,262 @@ public class RecurringJobs
                 Status = "Pending",
                 InvoiceType = "Rent",
                 Notes = $"Auto-generated rent invoice for {periodStart:yyyy-MM}",
-            });
-            created++;
-
-            await _notifications.EnqueueTenantAsync(
-                lease.TenantId,
-                subject: $"New rent invoice for {periodStart:MMMM yyyy}",
-                body: $"Your rent of {lease.MonthlyRent:0.000} KWD for {periodStart:MMMM yyyy} is now due.",
-                relatedEntityType: "Invoice",
-                relatedEntityId: null);
+            }));
         }
 
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Job: GenerateMonthlyInvoices created {Count} invoices", created);
+        var created = 0;
+        var failedRows = 0;
+        if (toCreate.Count > 0)
+        {
+            _context.Invoices.AddRange(toCreate.Select(t => t.invoice));
+            try
+            {
+                await _context.SaveChangesAsync(); // fast path — one round-trip
+                created = toCreate.Count;
+            }
+            catch (DbUpdateException batchEx)
+            {
+                // Slow path: something in the batch violated a constraint (e.g. the
+                // unique period index racing a manual "Generate"). Detach all, then
+                // save one at a time so only the bad row(s) are skipped.
+                _logger.LogWarning(batchEx,
+                    "GenerateRentInvoices: batch save failed — isolating per row");
+                foreach (var (_, inv) in toCreate)
+                    _context.Entry(inv).State = EntityState.Detached;
+
+                foreach (var (lease, inv) in toCreate)
+                {
+                    try
+                    {
+                        _context.Invoices.Add(inv);
+                        await _context.SaveChangesAsync();
+                        created++;
+                    }
+                    catch (Exception rowEx)
+                    {
+                        failedRows++;
+                        _logger.LogError(rowEx,
+                            "GenerateRentInvoices: lease {LeaseId} failed for period {Period:yyyy-MM} — skipped, batch continues",
+                            lease.LeaseId, periodStart);
+                        _context.Entry(inv).State = EntityState.Detached;
+                    }
+                }
+            }
+
+            // Notify AFTER the invoices are durable (we need their ids). Clear the
+            // tracker first so each enqueue's own SaveChanges stays cheap instead
+            // of re-scanning thousands of now-Unchanged invoices.
+            _context.ChangeTracker.Clear();
+            foreach (var (lease, inv) in toCreate)
+            {
+                if (inv.InvoiceId <= 0) continue; // this row failed above
+                try
+                {
+                    await _notifications.EnqueueTenantAsync(
+                        lease.TenantId,
+                        subject: $"New rent invoice for {periodStart:MMMM yyyy}",
+                        body: $"Your rent of {lease.MonthlyRent:0.000} KWD for {periodStart:MMMM yyyy} is now due.",
+                        relatedEntityType: "Invoice",
+                        relatedEntityId: inv.InvoiceId);
+                }
+                catch (Exception nex)
+                {
+                    // A failed notification must never undo or block invoicing.
+                    _logger.LogError(nex,
+                        "GenerateRentInvoices: notification enqueue failed for invoice {InvoiceId}", inv.InvoiceId);
+                }
+            }
+        }
+
+        _logger.LogInformation("Job: GenerateMonthlyInvoices created {Count} invoices ({Failed} rows failed)",
+            created, failedRows);
     }
 
     /// <summary>
-    /// Flip Pending invoices to Overdue when their due date has passed.
-    /// Runs daily at 06:00 UTC.
+    /// Flip past-due invoices with an outstanding balance to Overdue.
+    /// Covers Pending, Partially Paid AND Pending Verification (a half-paid or
+    /// awaiting-approval invoice whose due date passes is still late money —
+    /// previously only Pending flipped, so partial payers never aged).
+    /// Paid / Cancelled / already-Overdue are untouched. Runs daily at 06:00 UTC.
     /// </summary>
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
     public async Task FlipOverdueInvoicesAsync()
     {
         var today = _clock.Today;
         var overdue = await _context.Invoices
             .IgnoreQueryFilters()
-            .Where(i => i.Status == "Pending" && i.DueDate.Date < today)
+            .Where(i => (i.Status == InvoiceStatuses.Pending
+                         || i.Status == InvoiceStatuses.PartiallyPaid
+                         || i.Status == InvoiceStatuses.PendingVerification)
+                        && i.DueDate.Date < today
+                        && i.TotalAmount - i.PaidAmount > 0)
             .ToListAsync();
 
-        foreach (var inv in overdue)
+        // Flip the whole batch in ONE save (a save per row is O(N²) over the
+        // change tracker and hung the Scale tests). If the batch save fails —
+        // typically a RowVersion conflict with a concurrent payment on ONE
+        // invoice — fall back to row-by-row so only that invoice is skipped and
+        // the rest still age.
+        var flipped = 0;
+        var flippedOk = new List<Invoice>();
+        if (overdue.Count > 0)
         {
-            inv.Status = "Overdue";
-            await _notifications.EnqueueTenantAsync(
-                inv.TenantId,
-                subject: $"Invoice #{inv.InvoiceId} is overdue",
-                body: $"Your invoice of {inv.TotalAmount:0.000} KWD was due on {inv.DueDate:dd MMM yyyy}. Please settle as soon as possible.",
-                relatedEntityType: "Invoice",
-                relatedEntityId: inv.InvoiceId);
+            foreach (var inv in overdue) inv.Status = InvoiceStatuses.Overdue;
+            try
+            {
+                await _context.SaveChangesAsync();
+                flipped = overdue.Count;
+                flippedOk.AddRange(overdue);
+            }
+            catch (DbUpdateException batchEx)
+            {
+                _logger.LogWarning(batchEx, "FlipOverdueInvoices: batch save failed — isolating per row");
+                // Reset everything to Unchanged so we can retry one at a time.
+                foreach (var inv in overdue) _context.Entry(inv).State = EntityState.Detached;
+                foreach (var inv in overdue)
+                {
+                    try
+                    {
+                        _context.Attach(inv);
+                        inv.Status = InvoiceStatuses.Overdue;
+                        _context.Entry(inv).Property(i => i.Status).IsModified = true;
+                        await _context.SaveChangesAsync();
+                        flipped++;
+                        flippedOk.Add(inv);
+                    }
+                    catch (Exception rowEx)
+                    {
+                        _logger.LogError(rowEx,
+                            "FlipOverdueInvoices: invoice {InvoiceId} failed to flip — skipped, batch continues", inv.InvoiceId);
+                        _context.Entry(inv).State = EntityState.Detached;
+                    }
+                }
+            }
+
+            // Notify after the flips are durable; clear the tracker so each
+            // enqueue's own save stays cheap.
+            _context.ChangeTracker.Clear();
+            foreach (var inv in flippedOk)
+            {
+                try
+                {
+                    await _notifications.EnqueueTenantAsync(
+                        inv.TenantId,
+                        subject: $"Invoice #{inv.InvoiceId} is overdue",
+                        body: $"Your invoice of {inv.TotalAmount:0.000} KWD was due on {inv.DueDate:dd MMM yyyy}. " +
+                              $"Outstanding: {(inv.TotalAmount - inv.PaidAmount):0.000} KWD. Please settle as soon as possible.",
+                        relatedEntityType: "Invoice",
+                        relatedEntityId: inv.InvoiceId);
+                }
+                catch (Exception nex)
+                {
+                    _logger.LogError(nex,
+                        "FlipOverdueInvoices: notification enqueue failed for invoice {InvoiceId}", inv.InvoiceId);
+                }
+            }
         }
 
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Job: FlipOverdueInvoices flipped {Count}", overdue.Count);
+        _logger.LogInformation("Job: FlipOverdueInvoices flipped {Count} of {Candidates}", flipped, overdue.Count);
+    }
+
+    /// <summary>How long a KNET payment may sit in Pending (awaiting its
+    /// gateway callback) before it is treated as abandoned. KNET callbacks are
+    /// near-instant, so a generous window still catches only truly dead intents.</summary>
+    private const int StaleKnetPendingHours = 12;
+
+    /// <summary>Marker appended to Notes when a stale KNET payment is flagged.
+    /// Also used as the idempotency check so a payment is flagged once.</summary>
+    private const string StaleKnetMarker = "[stale: no KNET callback after 12h — verify with KNET inquiry before failing]";
+
+    /// <summary>
+    /// Phase 3 — flag abandoned KNET payments for review. A KNET payment stays
+    /// <c>Pending</c> until its gateway callback arrives; if the customer
+    /// abandons the hosted page (or the callback is lost) it lingers as Pending
+    /// forever and pollutes reconciliation.
+    ///
+    /// IMPORTANT: this job must NOT set <c>Failed</c>. "No callback arrived" is
+    /// not evidence that no money moved — KNET callbacks are lost (network,
+    /// our outage, browser closed on the redirect) while the card WAS charged.
+    /// Marking those Failed hides captured money and invites a double charge.
+    /// The <c>PaymentStatus</c> enum has no NeedsReview/Unknown value, so the
+    /// payment is left <c>Pending</c> with <c>HasMismatch = true</c> and a
+    /// Notes marker; the mismatch queue surfaces it to the operator.
+    ///
+    /// A KNET transaction inquiry (action=8, by trackid) must be performed
+    /// before any of these is failed — captured → credit the invoice; not
+    /// found / not captured → then Failed is safe. Rows that already carry a
+    /// <c>CheckoutPaymentId</c> or a <c>KNETReconciliation</c> row are hard
+    /// settlement evidence and are skipped. Runs daily.
+    /// </summary>
+    public async Task ExpireStaleKnetPaymentsAsync()
+    {
+        var cutoff = _clock.UtcNow.AddHours(-StaleKnetPendingHours);
+        var stale = await _context.Payments
+            .Where(p => p.PaymentType == PaymentType.KNET
+                     && p.Status == PaymentStatus.Pending
+                     && p.CreatedDate < cutoff
+                     && (p.CheckoutPaymentId == null || p.CheckoutPaymentId == "")
+                     // Idempotent: skip rows already flagged on a previous run.
+                     && (p.Notes == null || !p.Notes.Contains(StaleKnetMarker)))
+            .ToListAsync();
+
+        if (stale.Count == 0)
+        {
+            _logger.LogInformation("Job: ExpireStaleKnetPayments found none.");
+            return;
+        }
+
+        // Protect any payment that DOES have a bank-settlement reconciliation
+        // row — that is hard evidence the money actually moved, so never fail it.
+        var staleIds = stale.Select(p => p.PaymentId).ToList();
+        var settled = new HashSet<int>(await _context.KNETReconciliations
+            .Where(r => staleIds.Contains(r.PaymentId))
+            .Select(r => r.PaymentId)
+            .ToListAsync());
+
+        var flagged = 0;
+        foreach (var p in stale)
+        {
+            if (settled.Contains(p.PaymentId))
+            {
+                _logger.LogWarning(
+                    "ExpireStaleKnetPayments: payment {PaymentId} is Pending past {Hours}h but has a " +
+                    "reconciliation row — left for operator review, not flagged.",
+                    p.PaymentId, StaleKnetPendingHours);
+                continue;
+            }
+
+            // Do NOT fail. Keep Pending, raise the mismatch flag, leave a marker.
+            // Status change only after a KNET inquiry (action=8) confirms the
+            // transaction was not captured.
+            try
+            {
+                p.HasMismatch = true;
+                p.ModifiedDate = _clock.UtcNow;
+                p.Notes = (p.Notes ?? string.Empty) +
+                    $"\n{StaleKnetMarker} flagged {_clock.UtcNow:yyyy-MM-dd HH:mm} UTC";
+                p.MismatchDetails = string.IsNullOrEmpty(p.MismatchDetails)
+                    ? "StaleKnetPending: no gateway callback after 12h"
+                    : p.MismatchDetails + "; StaleKnetPending: no gateway callback after 12h";
+                await _context.SaveChangesAsync();
+                flagged++;
+
+                _logger.LogWarning(
+                    "ExpireStaleKnetPayments: payment {PaymentId} (TrackId {TrackId}, {Amount:0.000} KWD) has no KNET " +
+                    "callback after {Hours}h — flagged for review, left Pending. Run a KNET inquiry (action=8) before failing.",
+                    p.PaymentId, p.TransactionReference, p.AmountPaid, StaleKnetPendingHours);
+            }
+            catch (Exception ex)
+            {
+                // RowVersion conflict = a callback just landed. Leave it alone.
+                _logger.LogWarning(ex, "ExpireStaleKnetPayments: payment {PaymentId} could not be flagged — skipped", p.PaymentId);
+                _context.Entry(p).State = EntityState.Detached;
+            }
+        }
+
+        _logger.LogInformation(
+            "Job: ExpireStaleKnetPayments flagged {Flagged} stale KNET payment(s) for review ({Protected} protected by reconciliation).",
+            flagged, stale.Count - flagged);
     }
 
     /// <summary>
@@ -387,7 +710,10 @@ public class RecurringJobs
 
     /// <summary>
     /// Drain the notification outbox. Runs every 2 minutes.
+    /// DisableConcurrentExecution: two overlapping drains (slow SMTP + the next
+    /// tick) would both pick the same Pending rows and double-send.
     /// </summary>
+    [DisableConcurrentExecution(timeoutInSeconds: 300)]
     public async Task ProcessNotificationOutboxAsync()
     {
         var sent = await _notifications.ProcessPendingAsync(maxBatch: 50);

@@ -1,1010 +1,272 @@
-﻿@{
-    ViewData["Title"] = "Reports Dashboard";
+@{
+    ViewData["Title"] = "Reports";
+    var from = DateTime.Today.AddMonths(-1).ToString("yyyy-MM-dd");
+    var to = DateTime.Today.ToString("yyyy-MM-dd");
 }
 
-@section Styles {
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <style>
-        /* Animated Background */
-        .bg-animation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            overflow: hidden;
-            pointer-events: none;
-        }
+@*
+    Report Center (2026-10 redesign).
+    1. One period picker that every report and the snapshot share.
+    2. Four KPIs for that period with vs-prior-period deltas.
+    3. The catalogue — every report the system can produce, grouped, each
+       with what it answers and View / PDF / Excel for the chosen period.
+    4. A compact snapshot (trend, invoice status, top properties) at the end
+       for people who want a picture before they open a report.
+*@
 
-        .bg-animation .circle {
-            position: absolute;
-            border-radius: 50%;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
-            animation: float 20s infinite;
-        }
-
-        .bg-animation .circle:nth-child(1) {
-            width: 400px;
-            height: 400px;
-            top: -100px;
-            right: -100px;
-            animation-delay: 0s;
-        }
-
-        .bg-animation .circle:nth-child(2) {
-            width: 300px;
-            height: 300px;
-            bottom: -50px;
-            left: -50px;
-            animation-delay: 5s;
-        }
-
-        .bg-animation .circle:nth-child(3) {
-            width: 200px;
-            height: 200px;
-            top: 50%;
-            left: 50%;
-            animation-delay: 10s;
-        }
-
-        @@keyframes float {
-            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.5; }
-            50% { transform: translateY(-30px) rotate(180deg); opacity: 0.8; }
-        }
-
-        .app-container {
-            position: relative;
-            z-index: 1;
-            padding: 1.5rem;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        /* Header */
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-        }
-
-        .header-content h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .header-content h1 i {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-content p {
-            color: #64748b;
-            margin-top: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        /* Glassmorphic Cards */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .glass-card:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Filter Section */
-        .filter-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .filter-header h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #334155;
-        }
-
-        .filter-header i {
-            color: #818cf8;
-        }
-
-        .date-inputs {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .form-group label {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #475569;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .form-control {
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            padding: 0.875rem 1rem;
-            color: #1e293b;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-            width: 100%;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: #818cf8;
-            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
-            background: #ffffff;
-        }
-
-        .quick-filters {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        .quick-btn {
-            padding: 0.625rem 1rem;
-            border: 2px solid #e2e8f0;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 500;
-            color: #475569;
-            transition: all 0.3s ease;
-            font-size: 0.85rem;
-        }
-
-        .quick-btn:hover {
-            border-color: #818cf8;
-            color: #818cf8;
-            background: rgba(129, 140, 248, 0.1);
-        }
-
-        /* Reports Grid */
-        .reports-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .report-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .report-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            border-color: rgba(99, 102, 241, 0.4);
-        }
-
-        .report-icon {
-            height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            color: white;
-        }
-
-        .report-icon.dashboard {
-            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-        }
-
-        .report-icon.property {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        }
-
-        .report-icon.payment {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        }
-
-        .report-icon.invoice {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
-
-        .report-content {
-            padding: 1.5rem;
-        }
-
-        .report-content h3 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-        }
-
-        .report-content p {
-            color: #64748b;
-            margin-bottom: 1rem;
-            font-size: 0.875rem;
-            line-height: 1.5;
-        }
-
-        .report-features {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .report-features li {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #475569;
-            font-size: 0.85rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .report-features li i {
-            color: #34d399;
-            font-size: 0.75rem;
-        }
-
-        .report-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
-            padding: 1rem 1.5rem;
-            background: rgba(99, 102, 241, 0.05);
-            border-top: 1px solid rgba(99, 102, 241, 0.1);
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 0.75rem 1rem;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-            font-size: 0.85rem;
-            text-decoration: none;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .btn:hover::before {
-            left: 100%;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: white;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-        }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
-        }
-
-        /* Info Banner */
-        .info-banner {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 16px;
-            padding: 1.5rem;
-            display: flex;
-            gap: 1rem;
-            align-items: flex-start;
-        }
-
-        .info-icon {
-            flex-shrink: 0;
-        }
-
-        .info-icon i {
-            font-size: 2rem;
-            color: #60a5fa;
-        }
-
-        .info-content h4 {
-            margin: 0 0 0.5rem 0;
-            color: #60a5fa;
-            font-size: 1.125rem;
-            font-weight: 700;
-        }
-
-        .info-content p {
-            margin: 0;
-            color: #475569;
-            line-height: 1.6;
-            font-size: 0.9rem;
-        }
-
-        /* Responsive */
-        @@media (max-width: 768px) {
-            .page-header {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .reports-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .report-actions {
-                grid-template-columns: 1fr;
-            }
-
-            .quick-filters {
-                justify-content: center;
-            }
-        }
-    /* ─── Sprint 1/2 — KPI strip + chart cards ─── */
-    .kpi-strip {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
-        margin: 1.5rem 0 0.5rem;
-    }
-    @@media (max-width: 900px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
-    @@media (max-width: 520px) { .kpi-strip { grid-template-columns: 1fr; } }
-    .kpi-card {
-        display: flex; align-items: center; gap: 0.85rem;
-        padding: 1rem 1.1rem;
-        background: rgba(255,255,255,0.95);
-        border: 1px solid rgba(99, 102, 241,0.12);
-        border-radius: 14px;
-        text-decoration: none; color: inherit;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(99, 102, 241,0.18); }
-    .kpi-icon {
-        display: flex; align-items: center; justify-content: center;
-        width: 44px; height: 44px; border-radius: 12px;
-        background: linear-gradient(135deg,#6366f1,#8b5cf6);
-        color: white; font-size: 1.05rem;
-        flex-shrink: 0;
-    }
-    .kpi-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
-    .kpi-label { font-size: 0.7rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-    .kpi-value { font-size: 1.4rem; font-weight: 700; color: #0f172a; }
-    .kpi-delta { font-size: 0.75rem; font-weight: 600; }
-    .kpi-delta.up   { color: #10b981; }
-    .kpi-delta.down { color: #ef4444; }
-    .kpi-delta.flat { color: #94a3b8; }
-    /* Skeletons before the snapshot loads */
-    .skeleton {
-        display: inline-block; min-width: 5rem; min-height: 1.4rem;
-        background: linear-gradient(90deg,#eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
-        background-size: 200% 100%;
-        border-radius: 6px;
-        animation: skeleton-shimmer 1.4s infinite;
-    }
-    @@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-    .snapshot-meta {
-        display: flex; align-items: center; justify-content: space-between;
-        margin: 0.35rem 0 1.25rem;
-        font-size: 0.78rem; color: #64748b;
-    }
-    .snapshot-meta .quick-btn {
-        padding: 0.4rem 0.9rem;
-        background: white;
-        border: 1px solid rgba(99, 102, 241,0.15);
-        border-radius: 8px;
-        color: #6366f1;
-        cursor: pointer;
-        font-weight: 500;
-    }
-    .snapshot-meta .quick-btn:hover { background: rgba(99, 102, 241,0.08); }
-
-    .charts-row {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    @@media (max-width: 1100px) { .charts-row { grid-template-columns: 1fr 1fr; } .chart-card--wide { grid-column: 1 / -1; } }
-    @@media (max-width: 720px)  { .charts-row { grid-template-columns: 1fr; } }
-    .chart-card {
-        background: rgba(255,255,255,0.95);
-        border: 1px solid rgba(99, 102, 241,0.12);
-        border-radius: 14px;
-        padding: 1rem 1.1rem;
-    }
-    .chart-card h3 {
-        font-size: 0.85rem; font-weight: 600; color: #475569;
-        margin: 0 0 0.5rem;
-    }
-    .chart-wrap { position: relative; height: 220px; }
-    </style>
-}
-
-<!-- Animated Background -->
-<div class="bg-animation">
-    <div class="circle"></div>
-    <div class="circle"></div>
-    <div class="circle"></div>
-</div>
-
-<div class="app-container">
-    <!-- Header -->
+<div class="lp-page">
     @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
     {
-        ["Title"] = "Reports Dashboard",
-        ["Subtitle"] = "Comprehensive analytics and reporting for your rent collection system",
-        ["Crumbs"] = new (string label, string? href)[]
-            {
-                ("Admin", "/Dashboard"),
-                ("Reports", null)
-            }
+        ["Title"] = L["Reports"].Value,
+        ["Subtitle"] = L["Pick a period, then open or export any report for it"].Value,
+        ["Crumbs"] = new (string label, string? href)[] { (L["Admin"].Value, "/Dashboard"), (L["Reports"].Value, null) },
+        ["ActionsHtml"] = Html.Raw("<a class=\"lp-btn lp-btn-primary\" href=\"/Reports/MonthEndClose\"><i class=\"fas fa-lock\"></i> " + L["Month-end close"].Value + "</a>")
     })
 
-    <!-- Quick Date Filter -->
-    <div class="glass-card">
-        <div class="filter-header">
-            <i class="fas fa-calendar-alt"></i>
-            <h3>@L["Select Report Period"]</h3>
-        </div>
-        <div class="date-inputs">
-            <div class="form-group">
-                <label>@L["From Date"]</label>
-                <input type="date" id="fromDate" class="form-control" value="@DateTime.Today.AddMonths(-1).ToString("yyyy-MM-dd")">
+    @await Html.PartialAsync("_AlertMessages")
+
+    @* ── Period ── *@
+    <div class="lp-toolbar" id="periodBar">
+        <div class="lp-toolbar-row">
+            <span class="lp-chips-label" style="min-width:auto"><i class="fas fa-calendar"></i> @L["Period"]</span>
+            <input type="date" id="fromDate" class="lp-select" value="@from" aria-label="@(L["From"].Value)" />
+            <span class="lp-sub" style="margin:0">→</span>
+            <input type="date" id="toDate" class="lp-select" value="@to" aria-label="@(L["To"].Value)" />
+            <div class="lp-chips">
+                <button type="button" class="lp-chip-btn" data-period="thisMonth">@L["This Month"]</button>
+                <button type="button" class="lp-chip-btn" data-period="lastMonth">@L["Last Month"]</button>
+                <button type="button" class="lp-chip-btn" data-period="thisQuarter">@L["This Quarter"]</button>
+                <button type="button" class="lp-chip-btn" data-period="thisYear">@L["This Year"]</button>
             </div>
-            <div class="form-group">
-                <label>@L["To Date"]</label>
-                <input type="date" id="toDate" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")">
-            </div>
-        </div>
-        <div class="quick-filters">
-            <button class="quick-btn" onclick="setDateRange('thisMonth')">@L["This Month"]</button>
-            <button class="quick-btn" onclick="setDateRange('lastMonth')">@L["Last Month"]</button>
-            <button class="quick-btn" onclick="setDateRange('thisQuarter')">@L["This Quarter"]</button>
-            <button class="quick-btn" onclick="setDateRange('thisYear')">@L["This Year"]</button>
+            <div class="lp-toolbar-spacer"></div>
+            <span class="lp-result-count" id="snapshotMeta" style="white-space:nowrap">@L["Loading snapshot…"]</span>
+            <button type="button" id="refreshSnapshot" class="lp-btn" aria-label="@(L["Refresh snapshot"].Value)" title="@(L["Refresh snapshot"].Value)"><i class="fas fa-rotate"></i></button>
         </div>
     </div>
 
-    <!-- ─── Sprint 1 KPI strip + Sprint 2 charts ─── -->
-    <div class="kpi-strip" id="kpiStrip" aria-live="polite">
-        @{
-            var kpiCards = new[]
-            {
-                new { id = "kpi-collected",   icon = "fa-money-bill-trend-up", label = "Collected",      drill = "/Reports/PaymentReport" },
-                new { id = "kpi-outstanding", icon = "fa-file-invoice-dollar", label = "Outstanding",   drill = "/Reports/InvoiceStatus" },
-                new { id = "kpi-overdue",     icon = "fa-triangle-exclamation",label = "Overdue",       drill = "/Reports/InvoiceStatus?status=Overdue" },
-                new { id = "kpi-occupancy",   icon = "fa-building-circle-check", label = "Occupancy",   drill = "/Reports/PropertyPerformance" },
-            };
-        }
-        @foreach (var c in kpiCards)
+    @* ── KPIs for the period ── *@
+    @{
+        var kpis = new[]
         {
-            <a href="@c.drill" class="kpi-card" id="@c.id" aria-busy="true">
-                <div class="kpi-icon"><i class="fas @c.icon"></i></div>
-                <div class="kpi-body">
-                    <div class="kpi-label">@c.label</div>
-                    <div class="kpi-value skeleton">&nbsp;</div>
-                    <div class="kpi-delta">&nbsp;</div>
-                </div>
+            new { id = "kpi-collected",   label = L["Collected"].Value,   sub = L["completed payments in period"].Value, drill = "/Reports/PaymentReport",   hero = true },
+            new { id = "kpi-outstanding", label = L["Outstanding"].Value, sub = L["unpaid invoice balance today"].Value, drill = "/Reports/InvoiceStatus",   hero = false },
+            new { id = "kpi-overdue",     label = L["Overdue"].Value,     sub = L["invoices past due"].Value,            drill = "/Reports/InvoiceStatus?status=Overdue", hero = false },
+            new { id = "kpi-occupancy",   label = L["Occupancy"].Value,   sub = L["units occupied today"].Value,         drill = "/Reports/PropertyPerformance", hero = false },
+        };
+    }
+    <div class="od od-grid-kpi" id="kpiStrip" aria-live="polite">
+        @foreach (var c in kpis)
+        {
+            <a href="@c.drill" class="od-card od-card-link @(c.hero ? "od-kpi-hero" : "")" id="@c.id" data-drill="@c.drill" aria-busy="true">
+                <div class="od-kpi-row"><span class="od-kpi-label">@c.label</span></div>
+                <div class="od-kpi-value kpi-value lp-skel">&nbsp;</div>
+                <div class="od-kpi-sub"><span class="kpi-delta"></span> @c.sub</div>
             </a>
         }
     </div>
 
-    <div class="snapshot-meta">
-        <span id="snapshotMeta">@L["Loading snapshot…"]</span>
-        <button type="button" id="refreshSnapshot" class="quick-btn" aria-label="@(L["Refresh snapshot"].Value)">
-            <i class="fas fa-rotate"></i> @L["Refresh"]
-        </button>
+    @* ── Catalogue ── *@
+    <div class="lp-section-title"><h2>@L["Financial"]</h2></div>
+    <div class="lp-reports">
+        <div class="lp-report">
+            <div class="lp-report-head"><span class="lp-report-icon"><i class="fas fa-money-bill-trend-up"></i></span><h3>@L["Payment Report"]</h3></div>
+            <p>@L["Every payment in the period by date, tenant, property, method and status — the register you reconcile against the bank."]</p>
+            <div class="lp-report-foot">
+                <a class="lp-btn lp-btn-primary" data-report="PaymentReport" href="#"><i class="fas fa-eye"></i> @L["View"]</a>
+                <a class="lp-btn lp-btn-export" data-report="PaymentReportExcel" href="#"><i class="fas fa-file-excel"></i> Excel</a>
+            </div>
+        </div>
+        <div class="lp-report">
+            <div class="lp-report-head"><span class="lp-report-icon"><i class="fas fa-file-invoice-dollar"></i></span><h3>@L["Invoice Status & Aging"]</h3></div>
+            <p>@L["What is owed, by how long it has been owed and by whom — the arrears list to chase this week."]</p>
+            <div class="lp-report-foot">
+                <a class="lp-btn lp-btn-primary" data-report="InvoiceStatus" href="#"><i class="fas fa-eye"></i> @L["View"]</a>
+                <a class="lp-btn lp-btn-export" data-report="InvoiceStatusExcel" href="#"><i class="fas fa-file-excel"></i> Excel</a>
+                <a class="lp-btn" href="/Reports/InvoiceStatus?status=Overdue"><i class="fas fa-triangle-exclamation"></i> @L["Overdue only"]</a>
+            </div>
+        </div>
+        <div class="lp-report">
+            <div class="lp-report-head"><span class="lp-report-icon"><i class="fas fa-book"></i></span><h3>@L["GL Export & Owner Statement"]</h3></div>
+            <p>@L["Journal lines for your accountant and a per-property owner statement for the period."]</p>
+            <div class="lp-report-foot">
+                <a class="lp-btn lp-btn-primary" data-report="GlExport" data-base="/GlExport" data-from="start" data-to="end" href="#"><i class="fas fa-eye"></i> @L["GL export"]</a>
+                <a class="lp-btn" data-report="OwnerStatement" data-base="/GlExport/OwnerStatement" data-from="start" data-to="end" href="#"><i class="fas fa-file-lines"></i> @L["Owner statement"]</a>
+            </div>
+        </div>
+        <div class="lp-report">
+            <div class="lp-report-head"><span class="lp-report-icon"><i class="fas fa-lock"></i></span><h3>@L["Month-end close"]</h3></div>
+            <p>@L["Run the billing jobs, review the month's figures and lock the period so nothing changes after the books are done."]</p>
+            <div class="lp-report-foot">
+                <a class="lp-btn lp-btn-primary" href="/Reports/MonthEndClose"><i class="fas fa-eye"></i> @L["Open"]</a>
+            </div>
+        </div>
     </div>
 
-    <div class="charts-row">
-        <div class="chart-card chart-card--wide">
-            <h3>@L["Revenue — last 12 months"]</h3>
-            <div class="chart-wrap"><canvas id="trendChart" role="img" aria-label="@(L["Revenue trend over the last 12 months"].Value)"></canvas></div>
+    <div class="lp-section-title"><h2>@L["Portfolio"]</h2></div>
+    <div class="lp-reports">
+        <div class="lp-report">
+            <div class="lp-report-head"><span class="lp-report-icon"><i class="fas fa-chart-line"></i></span><h3>@L["Executive Dashboard"]</h3></div>
+            <p>@L["Collected, outstanding, occupancy and the 12-month trend on one page — the owner's monthly pack."]</p>
+            <div class="lp-report-foot">
+                <a class="lp-btn lp-btn-primary" data-report="ExecutiveDashboard" href="#"><i class="fas fa-eye"></i> @L["View"]</a>
+                <a class="lp-btn" data-report="ExecutiveDashboardPdf" data-from="from" data-to="to" href="#"><i class="fas fa-file-pdf"></i> PDF</a>
+                <a class="lp-btn lp-btn-export" data-report="ExecutiveDashboardExcel" href="#"><i class="fas fa-file-excel"></i> Excel</a>
+            </div>
         </div>
-        <div class="chart-card">
-            <h3>@L["Invoices by status"]</h3>
-            <div class="chart-wrap"><canvas id="statusChart" role="img" aria-label="@(L["Breakdown of invoices by status"].Value)"></canvas></div>
+        <div class="lp-report">
+            <div class="lp-report-head"><span class="lp-report-icon"><i class="fas fa-building"></i></span><h3>@L["Property Performance"]</h3></div>
+            <p>@L["Collection rate, occupancy and arrears per property — which buildings earn and which ones leak."]</p>
+            <div class="lp-report-foot">
+                <a class="lp-btn lp-btn-primary" data-report="PropertyPerformance" href="#"><i class="fas fa-eye"></i> @L["View"]</a>
+                <a class="lp-btn lp-btn-export" data-report="PropertyPerformanceExcel" href="#"><i class="fas fa-file-excel"></i> Excel</a>
+            </div>
         </div>
-        <div class="chart-card">
-            <h3>@L["Top 5 properties"]</h3>
-            <div class="chart-wrap"><canvas id="topPropertiesChart" role="img" aria-label="@(L["Top 5 properties by collected revenue"].Value)"></canvas></div>
+        <div class="lp-report">
+            <div class="lp-report-head"><span class="lp-report-icon"><i class="fas fa-users"></i></span><h3>@L["Tenant Payment Analysis"]</h3></div>
+            <p>@L["Who pays on time, who pays late and who has stopped — payment behaviour per tenant for the period."]</p>
+            <div class="lp-report-foot">
+                <a class="lp-btn lp-btn-primary" data-report="TenantPaymentAnalysis" href="#"><i class="fas fa-eye"></i> @L["View"]</a>
+                <a class="lp-btn lp-btn-export" data-report="TenantPaymentAnalysisExcel" href="#"><i class="fas fa-file-excel"></i> Excel</a>
+            </div>
         </div>
     </div>
 
-    <!-- Available Reports Grid -->
-    <div class="reports-grid">
-
-        <!-- Month-end close — guided checklist for sign-off -->
-        <div class="report-card">
-            <div class="report-icon dashboard">
-                <i class="fas fa-clipboard-check"></i>
-            </div>
-            <div class="report-content">
-                <h3>@L["Month-end close"]</h3>
-                <p>@L["Guided 9-step checklist for the 1st-of-the-month sign-off"]</p>
-                <ul class="report-features">
-                    <li><i class="fas fa-check"></i> @L["Invoice + lease + reconciliation status at a glance"]</li>
-                    <li><i class="fas fa-check"></i> @L["One-click \"Trigger now\" for any missed job"]</li>
-                    <li><i class="fas fa-check"></i> @L["Snapshot saved when the period is closed"]</li>
-                </ul>
-            </div>
-            <div class="report-actions">
-                <a href="/Reports/MonthEndClose" class="btn btn-primary">
-                    <i class="fas fa-clipboard-list"></i> @L["Open checklist"]
-                </a>
-            </div>
+    @* ── Snapshot charts ── *@
+    <div class="lp-section-title"><h2>@L["Snapshot"]</h2></div>
+    <div class="od-grid-3" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:1rem">
+        <div class="od-card" style="min-height:260px">
+            <div class="od-card-head"><span class="od-card-title">@L["Revenue — last 12 months"]</span></div>
+            <div style="height:210px"><canvas id="trendChart" role="img" aria-label="@(L["Revenue trend over the last 12 months"].Value)"></canvas></div>
         </div>
-
-        <!-- Report 1: Executive Dashboard -->
-        <div class="report-card">
-            <div class="report-icon dashboard">
-                <i class="fas fa-tachometer-alt"></i>
-            </div>
-            <div class="report-content">
-                <h3>@L["Executive Dashboard"]</h3>
-                <p>@L["High-level portfolio overview with key business metrics"]</p>
-                <ul class="report-features">
-                    <li><i class="fas fa-check"></i> @L["Portfolio occupancy & financial summary"]</li>
-                    <li><i class="fas fa-check"></i> @L["YTD revenue & maintenance costs"]</li>
-                    <li><i class="fas fa-check"></i> @L["Month-over-month comparison"]</li>
-                </ul>
-            </div>
-            <div class="report-actions">
-                <button onclick="viewReport('ExecutiveDashboard')" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> @L["View"]
-                </button>
-                <button onclick="exportReport('ExportExecutiveDashboard')" class="btn btn-success">
-                    <i class="fas fa-file-excel"></i> @L["Export"]
-                </button>
-                <button onclick="downloadPdf('ExecutiveDashboardPdf')" class="btn btn-secondary"
-                        aria-label="@(L["Download Executive Dashboard as PDF"].Value)">
-                    <i class="fas fa-file-pdf"></i> @L["PDF"]
-                </button>
-            </div>
+        <div class="od-card" style="min-height:260px">
+            <div class="od-card-head"><span class="od-card-title">@L["Invoices by status"]</span></div>
+            <div style="height:210px"><canvas id="statusChart" role="img" aria-label="@(L["Breakdown of invoices by status"].Value)"></canvas></div>
         </div>
-
-        <!-- Report 2: Property Performance -->
-        <div class="report-card">
-            <div class="report-icon property">
-                <i class="fas fa-building"></i>
-            </div>
-            <div class="report-content">
-                <h3>@L["Property Performance"]</h3>
-                <p>@L["Property-by-property analysis and comparison"]</p>
-                <ul class="report-features">
-                    <li><i class="fas fa-check"></i> @L["Occupancy & rent collection by property"]</li>
-                    <li><i class="fas fa-check"></i> @L["Maintenance costs & net revenue"]</li>
-                    <li><i class="fas fa-check"></i> @L["Revenue per square foot analysis"]</li>
-                </ul>
-            </div>
-            <div class="report-actions">
-                <button onclick="viewReport('PropertyPerformance')" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> @L["View"]
-                </button>
-                <button onclick="exportReport('ExportPropertyPerformance')" class="btn btn-success">
-                    <i class="fas fa-file-excel"></i> @L["Export"]
-                </button>
-            </div>
-        </div>
-
-        <!-- Report 3: Tenant Payment Analysis -->
-        <div class="report-card">
-            <div class="report-icon payment">
-                <i class="fas fa-money-bill-wave"></i>
-            </div>
-            <div class="report-content">
-                <h3>@L["Tenant Payment Analysis"]</h3>
-                <p>@L["Monitor tenant payment behavior and identify issues"]</p>
-                <ul class="report-features">
-                    <li><i class="fas fa-check"></i> @L["Payment rate & outstanding amounts"]</li>
-                    <li><i class="fas fa-check"></i> @L["Average days to pay & late payments"]</li>
-                    <li><i class="fas fa-check"></i> @L["Payment score (Excellent/Good/Fair/Poor)"]</li>
-                </ul>
-            </div>
-            <div class="report-actions">
-                <button onclick="viewReport('TenantPaymentAnalysis')" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> @L["View"]
-                </button>
-                <button onclick="exportReport('ExportTenantPaymentAnalysis')" class="btn btn-success">
-                    <i class="fas fa-file-excel"></i> @L["Export"]
-                </button>
-            </div>
-        </div>
-
-        <!-- Report 4: Invoice Status -->
-        <div class="report-card">
-            <div class="report-icon invoice">
-                <i class="fas fa-file-invoice-dollar"></i>
-            </div>
-            <div class="report-content">
-                <h3>@L["Invoice Status & Aging"]</h3>
-                <p>@L["Track billing, collection rates, and aging analysis"]</p>
-                <ul class="report-features">
-                    <li><i class="fas fa-check"></i> @L["Invoice status summary (Paid/Pending/Overdue)"]</li>
-                    <li><i class="fas fa-check"></i> @L["Aging analysis (0-30, 31-60, 61-90, 90+ days)"]</li>
-                    <li><i class="fas fa-check"></i> @L["Collection rate tracking"]</li>
-                </ul>
-            </div>
-            <div class="report-actions">
-                <button onclick="viewReport('InvoiceStatus')" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> @L["View"]
-                </button>
-                <button onclick="exportReport('ExportInvoiceStatus')" class="btn btn-success">
-                    <i class="fas fa-file-excel"></i> @L["Export"]
-                </button>
-            </div>
-        </div>
-
-        <!-- Report 5: Payment Report with Grid -->
-        <div class="report-card">
-            <div class="report-icon payment">
-                <i class="fas fa-credit-card"></i>
-            </div>
-            <div class="report-content">
-                <h3>@L["Payment Report (Grid View)"]</h3>
-                <p>@L["Detailed payment data with advanced filters and grid display"]</p>
-                <ul class="report-features">
-                    <li><i class="fas fa-check"></i> @L["Filter by property, tenant, type, status"]</li>
-                    <li><i class="fas fa-check"></i> @L["Interactive data grid with all payments"]</li>
-                    <li><i class="fas fa-check"></i> @L["KNET, Cash & Bank Transfer breakdown"]</li>
-                </ul>
-            </div>
-            <div class="report-actions">
-                <button onclick="viewReport('PaymentReport')" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> @L["View"]
-                </button>
-                <button onclick="exportReport('PaymentReportExcel')" class="btn btn-success">
-                    <i class="fas fa-file-excel"></i> @L["Export"]
-                </button>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Info Banner -->
-    <div class="info-banner">
-        <div class="info-icon">
-            <i class="fas fa-info-circle"></i>
-        </div>
-        <div class="info-content">
-            <h4>@L["About These Reports"]</h4>
-            <p>@L["All reports display amounts in Kuwaiti Dinar (KWD) with 3 decimal places for accuracy. Excel exports include formatted cells, professional styling, and multiple sheets where applicable. Select a date range above to customize the reporting period for all reports."]</p>
+        <div class="od-card" style="min-height:260px">
+            <div class="od-card-head"><span class="od-card-title">@L["Top 5 properties"]</span></div>
+            <div style="height:210px"><canvas id="topPropertiesChart" role="img" aria-label="@(L["Top 5 properties by collected revenue"].Value)"></canvas></div>
         </div>
     </div>
 </div>
 
+<style>
+    .kpi-delta.up { color: #047857; } .kpi-delta.down { color: #b91c1c; } .kpi-delta.flat { color: #94a3b8; }
+    .kpi-delta:not(:empty)::after { content: " · "; color: #cbd5e1; }
+    @@media (max-width: 1000px) { .od-grid-3 { grid-template-columns: 1fr !important; } }
+</style>
+
 @section Scripts {
     <script>
-        function setDateRange(period) {
-            const today = new Date();
-            let fromDate, toDate;
-
-            switch(period) {
-                case 'thisMonth':
-                    fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
-                    toDate = today;
-                    break;
-                case 'lastMonth':
-                    fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                    toDate = new Date(today.getFullYear(), today.getMonth(), 0);
-                    break;
-                case 'thisQuarter':
-                    const quarter = Math.floor(today.getMonth() / 3);
-                    fromDate = new Date(today.getFullYear(), quarter * 3, 1);
-                    toDate = today;
-                    break;
-                case 'thisYear':
-                    fromDate = new Date(today.getFullYear(), 0, 1);
-                    toDate = today;
-                    break;
-            }
-
-            document.getElementById('fromDate').valueAsDate = fromDate;
-            document.getElementById('toDate').valueAsDate = toDate;
-        }
-
-        function viewReport(reportName) {
-            const fromDate = document.getElementById('fromDate').value;
-            const toDate = document.getElementById('toDate').value;
-            window.location.href = `/Reports/${reportName}?fromDate=${fromDate}&toDate=${toDate}`;
-        }
-
-        function exportReport(reportName) {
-            const fromDate = document.getElementById('fromDate').value;
-            const toDate = document.getElementById('toDate').value;
-            window.location.href = `/Reports/${reportName}?fromDate=${fromDate}&toDate=${toDate}`;
-        }
-
-        // Add scroll reveal animation
-        document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.report-card, .glass-card, .info-banner');
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
-                    }
-                });
-            }, { threshold: 0.1 });
-
-            cards.forEach((card, index) => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                card.style.transition = `all 0.6s ease ${index * 0.1}s`;
-                observer.observe(card);
-            });
-        });
-
-        // ─── Sprint 3 — PDF download helper + period preset cookie ───
-        function downloadPdf(action) {
-            const from = document.getElementById('fromDate')?.value;
-            const to   = document.getElementById('toDate')?.value;
-            const params = new URLSearchParams();
-            if (from) params.set('from', from);
-            if (to)   params.set('to', to);
-            window.location.href = '/Reports/' + action + '?' + params.toString();
-        }
-
-        // Persist the picked period across visits. Cookie name matches what
-        // a future server-side preset filter would use.
-        (function persistPeriod() {
-            const PREF = 'rc-reports-period=';
-            function read() {
-                const m = document.cookie.split('; ').find(c => c.startsWith(PREF));
-                if (!m) return null;
-                try { return JSON.parse(decodeURIComponent(m.slice(PREF.length))); } catch { return null; }
-            }
-            function write(v) {
-                const d = new Date(); d.setDate(d.getDate() + 30);
-                document.cookie = PREF + encodeURIComponent(JSON.stringify(v)) +
-                    '; expires=' + d.toUTCString() + '; path=/; samesite=lax';
-            }
-            const saved = read();
-            const from = document.getElementById('fromDate');
-            const to   = document.getElementById('toDate');
-            if (saved && from && to) {
-                if (saved.from) from.value = saved.from;
-                if (saved.to)   to.value   = saved.to;
-            }
-            [from, to].forEach(el => el?.addEventListener('change',
-                () => write({ from: from?.value, to: to?.value })));
-        })();
-
-        // ─── Sprint 1/2 — KPI strip + charts on the landing ───
-        // Chart.js loaded from CDN; if it fails the charts just stay blank.
         (function () {
+            const fromEl = document.getElementById('fromDate'), toEl = document.getElementById('toDate');
+            const toInput = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+            // Period presets + persistence
+            function setPeriod(p) {
+                const t = new Date(); let a, b = t;
+                if (p === 'thisMonth') a = new Date(t.getFullYear(), t.getMonth(), 1);
+                else if (p === 'lastMonth') { a = new Date(t.getFullYear(), t.getMonth() - 1, 1); b = new Date(t.getFullYear(), t.getMonth(), 0); }
+                else if (p === 'thisQuarter') a = new Date(t.getFullYear(), Math.floor(t.getMonth() / 3) * 3, 1);
+                else a = new Date(t.getFullYear(), 0, 1);
+                fromEl.value = toInput(a); toEl.value = toInput(b);
+                persist(); loadSnapshot();
+            }
+            document.querySelectorAll('[data-period]').forEach(b => b.addEventListener('click', () => {
+                document.querySelectorAll('[data-period]').forEach(x => x.classList.remove('is-on')); b.classList.add('is-on'); setPeriod(b.dataset.period);
+            }));
+            const PREF = 'rc-reports-period=';
+            function persist() {
+                const d = new Date(); d.setDate(d.getDate() + 30);
+                document.cookie = PREF + encodeURIComponent(JSON.stringify({ from: fromEl.value, to: toEl.value })) + '; expires=' + d.toUTCString() + '; path=/; samesite=lax';
+            }
+            (function restore() {
+                const m = document.cookie.split('; ').find(c => c.startsWith(PREF)); if (!m) return;
+                try { const s = JSON.parse(decodeURIComponent(m.slice(PREF.length))); if (s.from) fromEl.value = s.from; if (s.to) toEl.value = s.to; } catch { }
+            })();
+            [fromEl, toEl].forEach(el => el.addEventListener('change', () => { persist(); loadSnapshot(); }));
+
+            // Report links carry the period (each action's parameter names differ).
+            document.querySelectorAll('[data-report]').forEach(a => a.addEventListener('click', e => {
+                e.preventDefault();
+                const base = a.dataset.base || ('/Reports/' + a.dataset.report);
+                const fromKey = a.dataset.from || 'fromDate', toKey = a.dataset.to || 'toDate';
+                const q = new URLSearchParams(); if (fromEl.value) q.set(fromKey, fromEl.value); if (toEl.value) q.set(toKey, toEl.value);
+                window.location.href = base + '?' + q.toString();
+            }));
+
+            // Snapshot: KPIs + charts
             const charts = {};
-            const KWD = (n) => (n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 3 }) + ' KWD';
-            const PCT = (n) => (n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) + '%';
-            const formatKPI = {
-                'kpi-collected':   v => KWD(v),
-                'kpi-outstanding': v => KWD(v),
-                'kpi-overdue':     v => Math.round(v).toString(),
-                'kpi-occupancy':   v => PCT(v),
-            };
-
-            function relTime(iso) {
-                const d = new Date(iso);
-                const mins = Math.round((Date.now() - d.getTime()) / 60000);
-                if (mins < 1) return 'just now';
-                if (mins < 60) return `${mins} min ago`;
-                const hrs = Math.round(mins / 60);
-                return `${hrs} hr ago`;
-            }
-
-            function renderKPI(id, payload) {
-                const card = document.getElementById(id);
-                if (!card || !payload) return;
+            const KWD = n => (n ?? 0).toLocaleString("en-US", { maximumFractionDigits: 3 }) + ' KWD';
+            const PCT = n => (n ?? 0).toLocaleString("en-US", { maximumFractionDigits: 1 }) + '%';
+            const fmt = { 'kpi-collected': KWD, 'kpi-outstanding': KWD, 'kpi-overdue': v => Math.round(v).toString(), 'kpi-occupancy': PCT };
+            function relTime(iso) { const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : Math.round(m / 60) + ' hr ago'; }
+            function renderKPI(id, p) {
+                const card = document.getElementById(id); if (!card || !p) return;
                 card.removeAttribute('aria-busy');
-                const v = card.querySelector('.kpi-value');
-                const d = card.querySelector('.kpi-delta');
-                v.classList.remove('skeleton');
-                v.textContent = formatKPI[id](payload.value);
-                if (payload.delta === null || payload.delta === undefined) {
-                    d.textContent = '';
-                    d.className = 'kpi-delta flat';
-                    return;
-                }
-                const up = payload.delta > 0, down = payload.delta < 0;
-                const arrow = up ? 'â–²' : down ? 'â–¼' : '—';
-                // "good when up" inverts the colouring (e.g. overdue going up is bad).
-                const goodWay = payload.goodWhenUp ? up : down;
-                const badWay  = payload.goodWhenUp ? down : up;
-                d.className = 'kpi-delta ' + (goodWay ? 'up' : badWay ? 'down' : 'flat');
-                d.textContent = `${arrow} ${Math.abs(payload.delta).toFixed(1)}% vs prior period`;
+                const v = card.querySelector('.kpi-value'), d = card.querySelector('.kpi-delta');
+                v.classList.remove('lp-skel'); v.textContent = fmt[id](p.value);
+                if (p.delta === null || p.delta === undefined) { d.textContent = ''; d.className = 'kpi-delta'; return; }
+                const up = p.delta > 0, down = p.delta < 0;
+                const good = p.goodWhenUp ? up : down, bad = p.goodWhenUp ? down : up;
+                d.className = 'kpi-delta ' + (good ? 'up' : bad ? 'down' : 'flat');
+                d.textContent = (up ? '▲' : down ? '▼' : '—') + ' ' + Math.abs(p.delta).toFixed(1) + '% vs prior period';
             }
-
             function renderTrend(trend) {
-                if (typeof Chart === 'undefined') return;
-                const ctx = document.getElementById('trendChart');
-                if (!ctx || !trend) return;
+                if (typeof Chart === 'undefined' || !trend) return;
                 charts.trend?.destroy();
-                charts.trend = new Chart(ctx, {
+                charts.trend = new Chart(document.getElementById('trendChart'), {
                     type: 'line',
-                    data: {
-                        labels: trend.map(t => t.label),
-                        datasets: [
-                            {
-                                label: 'This year',
-                                data: trend.map(t => t.value),
-                                borderColor: '#6366f1',
-                                backgroundColor: 'rgba(99, 102, 241,0.12)',
-                                fill: true, tension: 0.35, pointRadius: 3,
-                            },
-                            // Sprint 4 YoY overlay — same months last year, dashed grey.
-                            {
-                                label: 'Last year',
-                                data: trend.map(t => t.previous ?? 0),
-                                borderColor: '#94a3b8',
-                                backgroundColor: 'transparent',
-                                borderDash: [4, 4],
-                                fill: false, tension: 0.35, pointRadius: 2,
-                            },
-                        ],
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
-                        scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString() } } },
-                    },
+                    data: { labels: trend.map(t => t.label), datasets: [
+                        { label: 'This year', data: trend.map(t => t.value), borderColor: '#8a6d1f', backgroundColor: 'rgba(138,109,31,0.12)', fill: true, tension: 0.35, pointRadius: 3 },
+                        { label: 'Last year', data: trend.map(t => t.previous ?? 0), borderColor: '#94a3b8', borderDash: [4, 4], fill: false, tension: 0.35, pointRadius: 2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString("en-US") } } } }
                 });
             }
-
-            const STATUS_COLOURS = {
-                Paid: '#10b981', Pending: '#f59e0b', Overdue: '#ef4444',
-                'Partially Paid': '#8b5cf6', Cancelled: '#94a3b8',
-            };
-
+            const COLOURS = { Paid: '#10b981', Pending: '#f59e0b', Overdue: '#ef4444', 'Partially Paid': '#b8860b', Cancelled: '#94a3b8', 'Pending Verification': '#3b82f6' };
             function renderStatus(items) {
-                if (typeof Chart === 'undefined') return;
-                const ctx = document.getElementById('statusChart');
-                if (!ctx || !items) return;
+                if (typeof Chart === 'undefined' || !items) return;
                 charts.status?.destroy();
-                charts.status = new Chart(ctx, {
+                charts.status = new Chart(document.getElementById('statusChart'), {
                     type: 'doughnut',
-                    data: {
-                        labels: items.map(i => i.status),
-                        datasets: [{
-                            data: items.map(i => i.count),
-                            backgroundColor: items.map(i => STATUS_COLOURS[i.status] || '#cbd5e1'),
-                            borderWidth: 0,
-                        }],
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false, cutout: '60%',
-                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
-                        onClick: (_, els) => {
-                            if (!els.length) return;
-                            const label = charts.status.data.labels[els[0].index];
-                            window.location.href = `/Reports/InvoiceStatus?status=${encodeURIComponent(label)}`;
-                        },
-                    },
+                    data: { labels: items.map(i => i.status), datasets: [{ data: items.map(i => i.count), backgroundColor: items.map(i => COLOURS[i.status] || '#cbd5e1'), borderWidth: 0 }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+                        onClick: (_, els) => { if (els.length) window.location.href = '/Reports/InvoiceStatus?status=' + encodeURIComponent(charts.status.data.labels[els[0].index]); } }
                 });
             }
-
-            function renderTopProperties(items) {
-                if (typeof Chart === 'undefined') return;
-                const ctx = document.getElementById('topPropertiesChart');
-                if (!ctx || !items) return;
-                charts.topProps?.destroy();
-                charts.topProps = new Chart(ctx, {
+            function renderTop(items) {
+                if (typeof Chart === 'undefined' || !items) return;
+                charts.top?.destroy();
+                charts.top = new Chart(document.getElementById('topPropertiesChart'), {
                     type: 'bar',
-                    data: {
-                        labels: items.map(i => i.name),
-                        datasets: [{
-                            label: 'Collected', data: items.map(i => i.value),
-                            backgroundColor: '#8b5cf6', borderRadius: 6,
-                        }],
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { x: { beginAtZero: true, ticks: { callback: v => v.toLocaleString() } } },
-                    },
+                    data: { labels: items.map(i => i.name), datasets: [{ label: 'Collected', data: items.map(i => i.value), backgroundColor: '#b8860b', borderRadius: 6 }] },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { callback: v => v.toLocaleString("en-US") } } } }
                 });
             }
-
             async function loadSnapshot() {
-                const from = document.getElementById('fromDate')?.value;
-                const to   = document.getElementById('toDate')?.value;
-                const params = new URLSearchParams();
-                if (from) params.set('from', from);
-                if (to)   params.set('to', to);
-                document.querySelectorAll('.kpi-value').forEach(el => {
-                    el.classList.add('skeleton');
-                    el.textContent = ' ';
-                });
+                const q = new URLSearchParams(); if (fromEl.value) q.set('from', fromEl.value); if (toEl.value) q.set('to', toEl.value);
+                document.querySelectorAll('.kpi-value').forEach(el => { el.classList.add('lp-skel'); el.textContent = ' '; });
                 document.getElementById('snapshotMeta').textContent = 'Loading snapshot…';
+                // Drill links follow the period too.
+                document.querySelectorAll('#kpiStrip [data-drill]').forEach(a => {
+                    const u = new URL(a.dataset.drill, location.origin); if (fromEl.value) u.searchParams.set('fromDate', fromEl.value); if (toEl.value) u.searchParams.set('toDate', toEl.value); a.href = u.pathname + u.search;
+                });
                 try {
-                    const res = await fetch('/Reports/Snapshot?' + params.toString(),
-                        { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+                    const res = await fetch('/Reports/Snapshot?' + q.toString(), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
-                    renderKPI('kpi-collected',   data.kpis.collected);
-                    renderKPI('kpi-outstanding', data.kpis.outstanding);
-                    renderKPI('kpi-overdue',     data.kpis.overdueCount);
-                    renderKPI('kpi-occupancy',   data.kpis.occupancy);
-                    renderTrend(data.trend);
-                    renderStatus(data.statusBreakdown);
-                    renderTopProperties(data.topProperties);
-                    document.getElementById('snapshotMeta').textContent =
-                        `Period ${data.from?.substring(0,10)} → ${data.to?.substring(0,10)} · updated ${relTime(data.generatedAt)}`;
+                    renderKPI('kpi-collected', data.kpis.collected); renderKPI('kpi-outstanding', data.kpis.outstanding);
+                    renderKPI('kpi-overdue', data.kpis.overdueCount); renderKPI('kpi-occupancy', data.kpis.occupancy);
+                    renderTrend(data.trend); renderStatus(data.statusBreakdown); renderTop(data.topProperties);
+                    document.getElementById('snapshotMeta').textContent = (data.from || '').substring(0, 10) + ' → ' + (data.to || '').substring(0, 10) + ' · updated ' + relTime(data.generatedAt);
                 } catch (err) {
                     document.getElementById('snapshotMeta').textContent = 'Snapshot failed: ' + err.message;
+                    document.querySelectorAll('.kpi-value.lp-skel').forEach(el => { el.classList.remove('lp-skel'); el.textContent = '—'; });
                 }
             }
-
-            // Lazy-load Chart.js, then fetch the snapshot.
+            document.getElementById('refreshSnapshot').addEventListener('click', loadSnapshot);
             const s = document.createElement('script');
             s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';
-            s.onload = loadSnapshot;
-            s.onerror = loadSnapshot;   // still render KPIs even if Chart.js fails
-            document.head.appendChild(s);
-
-            document.getElementById('refreshSnapshot')?.addEventListener('click', loadSnapshot);
-            document.getElementById('fromDate')?.addEventListener('change', loadSnapshot);
-            document.getElementById('toDate')?.addEventListener('change', loadSnapshot);
+            s.onload = loadSnapshot; s.onerror = loadSnapshot; document.head.appendChild(s);
         })();
     </script>
 }

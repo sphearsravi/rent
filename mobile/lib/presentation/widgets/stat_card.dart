@@ -60,14 +60,20 @@ class StatCard extends StatelessWidget {
               child: Icon(icon, color: iconColor, size: 22),
             ),
             const SizedBox(height: 12),
-            // Big number — owns the visual weight of the card
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                    height: 1.1,
-                  ),
+            // Big number — owns the visual weight of the card. FittedBox keeps
+            // longer values (e.g. a formatted currency amount) on one line by
+            // scaling down instead of overflowing the fixed-width card.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                      height: 1.1,
+                    ),
+              ),
             ),
             const SizedBox(height: 4),
             // Label — small but full text, wraps to two lines if needed

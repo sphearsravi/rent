@@ -10,11 +10,15 @@ public class Document
     public string? RelatedEntityType { get; set; }
     public int? RelatedEntityId { get; set; }
     public string? Description { get; set; }
+    /// <summary>
+    /// Free-text audit stamp of who uploaded (the logged-in username, or
+    /// "system"). Deliberately NOT a foreign key: the app authenticates via
+    /// the custom <c>Users</c> table, not Identity's AspNetUsers, so a FK from
+    /// this column to AspNetUsers.Id could never be satisfied and made every
+    /// upload fail. The old FK_Documents_AspNetUsers has been dropped.
+    /// </summary>
     public string UploadedBy { get; set; } = string.Empty;
     public DateTime UploadedDate { get; set; } = DateTime.UtcNow;
-
-    // Navigation properties
-    public ApplicationUser? UploadedByUser { get; set; }
 
     /// <summary>
     /// Many-to-many links to Tenant / Property / Lease / MaintenanceRequest

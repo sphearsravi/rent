@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -50,8 +51,13 @@ public class KnetPaymentService : IKnetPaymentService
             // - Failed/Cancelled: expire the record and allow a fresh attempt.
             if (!string.IsNullOrEmpty(request.IdempotencyKey))
             {
+                // The key is client-generated, so it must be bound to the same
+                // invoice — otherwise a replayed/guessed key could return another
+                // invoice's payment (or its checkout URL) to this caller.
                 var existingIdempotency = await _context.PaymentIdempotencies
-                    .FirstOrDefaultAsync(p => p.IdempotencyKey == request.IdempotencyKey && p.ExpiresAt > DateTime.UtcNow);
+                    .FirstOrDefaultAsync(p => p.IdempotencyKey == request.IdempotencyKey
+                                           && p.InvoiceId == request.InvoiceId
+                                           && p.ExpiresAt > DateTime.UtcNow);
 
                 if (existingIdempotency != null && existingIdempotency.PaymentId.HasValue)
                 {
@@ -62,6 +68,14 @@ public class KnetPaymentService : IKnetPaymentService
                         // Orphan idempotency row — drop it and continue.
                         _context.PaymentIdempotencies.Remove(existingIdempotency);
                         await _context.SaveChangesAsync();
+                    }
+                    else if (existingPayment.TenantId != request.TenantId)
+                    {
+                        // Same key + invoice but a different tenant: never hand out
+                        // another tenant's payment state. Fail closed.
+                        _logger.LogWarning("Idempotency key tenant mismatch. Key={Key}, PaymentTenant={PaymentTenant}, RequestTenant={RequestTenant}",
+                            request.IdempotencyKey, existingPayment.TenantId, request.TenantId);
+                        return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Invoice ownership cannot be verified" };
                     }
                     else if (existingPayment.Status == PaymentStatus.Completed)
                     {
@@ -105,9 +119,27 @@ public class KnetPaymentService : IKnetPaymentService
             if (invoice == null)
                 return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Invoice not found" };
 
-            // Reject already-paid invoices.
-            if (string.Equals(invoice.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+            // Only invoices that are actually collectable may start a KNET
+            // payment: Pending, Overdue or Partially Paid. Paid and Cancelled
+            // have nothing to collect; "Pending Verification" has a cash/bank
+            // payment awaiting approval — paying again by card would double-pay.
+            if (string.Equals(invoice.Status, InvoiceStatuses.Paid, StringComparison.OrdinalIgnoreCase))
                 return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Invoice already paid" };
+            if (string.Equals(invoice.Status, InvoiceStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
+                return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Invoice is cancelled and cannot be paid" };
+            if (string.Equals(invoice.Status, InvoiceStatuses.PendingVerification, StringComparison.OrdinalIgnoreCase))
+                return new KnetPaymentResponseDto
+                {
+                    Success = false,
+                    ErrorMessage = "A cash or bank-transfer payment for this invoice is awaiting verification. Please wait for it to be approved or rejected before paying by KNET."
+                };
+            if (!string.Equals(invoice.Status, InvoiceStatuses.Pending, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(invoice.Status, InvoiceStatuses.Overdue, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(invoice.Status, InvoiceStatuses.PartiallyPaid, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("KNET initiation blocked — invoice {InvoiceId} in status '{Status}'", invoice.InvoiceId, invoice.Status);
+                return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Invoice is not in a payable status" };
+            }
 
             // Validate the requested amount against the remaining balance.
             // KWD is 3 decimal places — round to avoid floating-point surprises.
@@ -211,7 +243,7 @@ public class KnetPaymentService : IKnetPaymentService
             // TEST MODE: Simulate payment
             if (_settings.UseTestMode)
             {
-                return await InitiateTestPaymentAsync(request, trackId, lease.LeaseId, building, hasMismatch, mismatchDetails);
+                return await InitiateTestPaymentAsync(request, requestedAmount, trackId, lease.LeaseId, building, hasMismatch, mismatchDetails);
             }
 
             // Step 7: Build KNET redirect URL
@@ -224,7 +256,7 @@ public class KnetPaymentService : IKnetPaymentService
                 tranportalPwd: tranportalPwd,
                 terminalResourceKey: terminalResourceKey,
                 paymentApiUrl: paymentApiUrl,
-                amount: request.Amount,
+                amount: requestedAmount,   // rounded/validated — must equal what we store on the Payment row
                 trackId: trackId,
                 responseUrl: responseUrl,
                 errorUrl: errorUrl,
@@ -247,7 +279,9 @@ public class KnetPaymentService : IKnetPaymentService
                 LeaseId = lease.LeaseId,
                 TenantId = request.TenantId,
                 PropertyId = request.PropertyId,
-                AmountPaid = request.Amount,
+                // The callback compares the gateway `amt` to this value with exact
+                // equality, so it MUST be the same rounded figure sent to KNET.
+                AmountPaid = requestedAmount,
                 PaymentDate = now,
                 PaymentType = PaymentType.KNET,
                 Status = PaymentStatus.Pending,
@@ -260,7 +294,9 @@ public class KnetPaymentService : IKnetPaymentService
                 IdempotencyKey = request.IdempotencyKey,
                 HasMismatch = hasMismatch,
                 MismatchDetails = mismatchDetails,
-                Notes = $"KNET Payment initiated at {now:yyyy-MM-dd HH:mm:ss} UTC for Building: {building.PropertyName}"
+                // The [lang=..] marker lets the callback localize the
+                // success/failure page to the payer's app language.
+                Notes = $"KNET Payment initiated at {now:yyyy-MM-dd HH:mm:ss} UTC for Building: {building.PropertyName} [lang={(request.Language == "ar" ? "ar" : "en")}]"
             };
 
             await _paymentRepository.AddAsync(payment);
@@ -274,7 +310,7 @@ public class KnetPaymentService : IKnetPaymentService
                     PaymentId = payment.PaymentId,
                     InvoiceId = request.InvoiceId,
                     LeaseId = lease.LeaseId,
-                    Amount = request.Amount,
+                    Amount = requestedAmount,
                     CivilID = request.CivilID,
                     Status = "Pending",
                     RedirectUrl = knetRedirectUrl,
@@ -292,7 +328,7 @@ public class KnetPaymentService : IKnetPaymentService
                     PaymentId = payment.PaymentId,
                     AuditType = "MismatchDetected",
                     AuditTimestamp = now,
-                    Amount = request.Amount,
+                    Amount = requestedAmount,
                     IsMismatch = true,
                     MismatchType = mismatchTypeLabel,
                     ExpectedCivilID = lease.Tenant?.GovernmentId,
@@ -327,8 +363,10 @@ public class KnetPaymentService : IKnetPaymentService
         }
         catch (Exception ex)
         {
+            // Anonymous endpoint — never echo ex.Message (SQL text, connection
+            // strings, stack hints) to the caller. Full detail goes to the log.
             _logger.LogError(ex, "Error initiating KNET payment for Invoice {InvoiceId}", request.InvoiceId);
-            return new KnetPaymentResponseDto { Success = false, ErrorMessage = ex.Message };
+            return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Payment processing error" };
         }
     }
 
@@ -426,19 +464,28 @@ public class KnetPaymentService : IKnetPaymentService
                     ErrorText = parsedParams.GetValueOrDefault("ErrorText")
                 };
 
-                if (decimal.TryParse(parsedParams.GetValueOrDefault("amt"), out var amt))
+                // Culture-invariant: KNET always sends "1500.000". Under an ar-KW
+                // or de-DE thread culture the default TryParse would read the '.'
+                // as a thousands separator → 1500000 → amount check fails (or
+                // worse, passes for a different value).
+                if (decimal.TryParse(parsedParams.GetValueOrDefault("amt"), NumberStyles.Number, CultureInfo.InvariantCulture, out var amt))
                     gatewayResponse.Amount = amt;
             }
             else
             {
-                gatewayResponse = new KnetGatewayResponseDto
+                // SECURITY (audit C1): a genuine KNET callback ALWAYS delivers an
+                // encrypted `trandata` blob (the raw hex POST body). A callback with
+                // no trandata carries only forgeable cleartext query params
+                // (result/trackid) — trusting it let an unauthenticated attacker POST
+                // `trackid=<known>&result=CAPTURED` and mark an invoice paid for free.
+                // Reject outright; never build a capture from untrusted fields.
+                _logger.LogWarning(
+                    "KNET callback WITHOUT trandata rejected as unauthenticated. TrackId: {TrackId}, Result: {Result}",
+                    trackId, result);
+                return new KnetPaymentResponseDto
                 {
-                    Result = result,
-                    PaymentId = paymentId,
-                    TransactionId = tranId,
-                    TrackId = trackId,
-                    Error = error,
-                    ErrorText = errorText
+                    Success = false,
+                    ErrorMessage = "Unauthenticated callback rejected"
                 };
             }
 
@@ -458,6 +505,10 @@ public class KnetPaymentService : IKnetPaymentService
                 return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Payment record not found" };
             }
 
+            // Language the payer used (stashed in Notes at initiate as [lang=..])
+            // — drives the localized success/failure landing page.
+            var lang = (payment.Notes ?? "").Contains("[lang=ar]") ? "ar" : "en";
+
             // Idempotency guard: KNET (and browser retries) can deliver the same callback multiple times.
             // Process only when the payment is still Pending; otherwise return the existing outcome.
             if (payment.Status != PaymentStatus.Pending)
@@ -473,35 +524,45 @@ public class KnetPaymentService : IKnetPaymentService
                     KnetPaymentId = payment.CheckoutPaymentId,
                     Status = payment.Status.ToString(),
                     TransactionReference = payment.ReceiptNumber,
-                    ErrorMessage = alreadyCompleted ? null : "Payment already processed"
+                    ErrorMessage = alreadyCompleted ? null : "Payment already processed",
+                    Language = lang
                 };
             }
 
-            // Update payment with KNET response data - wrapped in transaction for atomicity
-            using var transaction = await _context.Database.BeginTransactionAsync();
             var isCaptured = string.Equals(gatewayResponse.Result, "CAPTURED", StringComparison.OrdinalIgnoreCase);
 
-            // Reject capture when gateway-reported amount disagrees with our
-            // payment record. Sprint 8 Fix #5 — tightened from "> 0.001" (which
-            // allowed a 1-fil drift to slip through) to exact equality. KWD
-            // is fil-level precision and K-NET reports the gross amount, not
-            // a net-of-fees amount, so we expect bit-perfect agreement.
-            if (isCaptured && gatewayResponse.Amount.HasValue
-                && gatewayResponse.Amount.Value != payment.AmountPaid)
+            // Reject capture unless the gateway-reported amount is PRESENT and
+            // exactly equals our payment record. Sprint 8 Fix #5 tightened this to
+            // exact equality; audit C1 further requires the amount to EXIST — a
+            // CAPTURED result with no decrypted `amt` must fail closed rather than
+            // be credited for the full pending amount. KWD is fil-level precision
+            // and K-NET reports the gross amount, so we expect bit-perfect agreement.
+            if (isCaptured && (!gatewayResponse.Amount.HasValue
+                || gatewayResponse.Amount.Value != payment.AmountPaid))
             {
                 _logger.LogWarning(
-                    "KNET amount mismatch on TrackId {TrackId}. Expected {Expected} KWD, gateway returned {Actual} KWD",
-                    resolvedTrackId, payment.AmountPaid, gatewayResponse.Amount);
+                    "KNET amount check failed on TrackId {TrackId}. Expected {Expected} KWD, gateway returned {Actual}",
+                    resolvedTrackId, payment.AmountPaid,
+                    gatewayResponse.Amount.HasValue ? gatewayResponse.Amount.Value.ToString("0.000") : "(missing)");
 
                 payment.Status = PaymentStatus.Failed;
                 payment.CheckoutPaymentId = gatewayResponse.PaymentId;
                 payment.ModifiedDate = DateTime.UtcNow;
+                // The gateway DID report CAPTURED — flag it so reconciliation looks
+                // at it even though we refused to credit the invoice.
+                payment.HasMismatch = true;
+                payment.MismatchDetails = string.IsNullOrEmpty(payment.MismatchDetails)
+                    ? "AmountMismatch: gateway CAPTURED amount differs from payment record"
+                    : payment.MismatchDetails + "; AmountMismatch: gateway CAPTURED amount differs from payment record";
                 payment.Notes = (payment.Notes ?? "") +
                     $"\nAmount mismatch at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC. " +
                     $"Expected: {payment.AmountPaid:0.000} KWD, Gateway: {gatewayResponse.Amount:0.000} KWD";
-                await _paymentRepository.UpdateAsync(payment);
-                await SyncIdempotencyStatusAsync(payment);
-                await transaction.CommitAsync();
+                await using (var mismatchTx = await _context.Database.BeginTransactionAsync())
+                {
+                    await _paymentRepository.UpdateAsync(payment);
+                    await SyncIdempotencyStatusAsync(payment);
+                    await mismatchTx.CommitAsync();
+                }
 
                 return new KnetPaymentResponseDto
                 {
@@ -510,10 +571,18 @@ public class KnetPaymentService : IKnetPaymentService
                     KnetPaymentId = gatewayResponse.PaymentId,
                     Status = payment.Status.ToString(),
                     TransactionReference = payment.ReceiptNumber,
-                    ErrorMessage = "Amount mismatch — payment rejected"
+                    ErrorMessage = "Amount mismatch — payment rejected",
+                    Language = lang
                 };
             }
 
+            // ── Step 1: persist the PAYMENT outcome first, in its own commit ──
+            // The gateway has already moved (or declined) the money; that fact
+            // must be durable BEFORE the invoice is touched. Previously payment +
+            // invoice shared one transaction, so an invoice RowVersion conflict
+            // (concurrent cash approval, overdue flip, second KNET callback)
+            // rolled back the Completed status AND the KNET PaymentId/TranId —
+            // the only evidence we held that the customer was charged.
             payment.CheckoutPaymentId = gatewayResponse.PaymentId; // Store KNET payment ID
             payment.ModifiedDate = DateTime.UtcNow;
 
@@ -526,18 +595,6 @@ public class KnetPaymentService : IKnetPaymentService
                 payment.Notes = (payment.Notes ?? "") +
                     $"\nKNET Payment CAPTURED at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC. " +
                     $"TranId: {gatewayResponse.TransactionId}, Auth: {gatewayResponse.AuthCode}, Ref: {gatewayResponse.ReferenceId}";
-
-                // Update invoice
-                if (payment.InvoiceId.HasValue)
-                {
-                    var invoice = await _invoiceRepository.GetByIdAsync(payment.InvoiceId.Value);
-                    if (invoice != null)
-                    {
-                        invoice.PaidAmount += payment.AmountPaid;
-                        invoice.Status = invoice.PaidAmount >= invoice.TotalAmount ? "Paid" : "Partially Paid";
-                        await _invoiceRepository.UpdateAsync(invoice);
-                    }
-                }
             }
             else
             {
@@ -547,15 +604,23 @@ public class KnetPaymentService : IKnetPaymentService
                     $"Result: {gatewayResponse.Result}, Error: {gatewayResponse.Error} {gatewayResponse.ErrorText}";
             }
 
-            await _paymentRepository.UpdateAsync(payment);
-
-            // Sync the idempotency record so a replay returns the final status.
-            await SyncIdempotencyStatusAsync(payment);
-
-            await transaction.CommitAsync();
+            await using (var paymentTx = await _context.Database.BeginTransactionAsync())
+            {
+                await _paymentRepository.UpdateAsync(payment);
+                // Sync the idempotency record so a replay returns the final status.
+                await SyncIdempotencyStatusAsync(payment);
+                await paymentTx.CommitAsync();
+            }
 
             _logger.LogInformation("Payment {PaymentId} updated to status {Status}. KNET Result: {Result}",
                 payment.PaymentId, payment.Status, gatewayResponse.Result);
+
+            // ── Step 2: credit the invoice (captured only) with retry ──
+            // Runs AFTER the payment commit. If it ultimately fails the payment
+            // stays Completed and is flagged for manual reconciliation — the
+            // money was taken, so the record must say so.
+            if (isCaptured && payment.InvoiceId.HasValue)
+                await CreditInvoiceForCapturedPaymentAsync(payment, resolvedTrackId);
 
             return new KnetPaymentResponseDto
             {
@@ -564,13 +629,134 @@ public class KnetPaymentService : IKnetPaymentService
                 KnetPaymentId = gatewayResponse.PaymentId,
                 Status = payment.Status.ToString(),
                 TransactionReference = payment.ReceiptNumber,
-                ErrorMessage = isCaptured ? null : $"{gatewayResponse.Result}: {gatewayResponse.Error} {gatewayResponse.ErrorText}"
+                ErrorMessage = isCaptured ? null : $"{gatewayResponse.Result}: {gatewayResponse.Error} {gatewayResponse.ErrorText}",
+                Language = lang
             };
         }
         catch (Exception ex)
         {
+            // Anonymous gateway callback — generic message to the caller, detail to the log.
             _logger.LogError(ex, "Error handling KNET response for TrackId: {TrackId}", trackId);
-            return new KnetPaymentResponseDto { Success = false, ErrorMessage = ex.Message };
+            return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Payment processing error" };
+        }
+    }
+
+    /// <summary>Appended to Payment.Notes/MismatchDetails when a captured payment
+    /// could not be applied to its invoice. Reconciliation searches for it.</summary>
+    private const string CreditFailedMarker = "Captured but invoice credit failed — needs manual reconciliation";
+
+    /// <summary>
+    /// Apply an already-COMMITTED captured payment to its invoice.
+    ///
+    ///  • Overpayment protection: credits at most the outstanding balance
+    ///    (TotalAmount − PaidAmount). PaidAmount can therefore never exceed
+    ///    TotalAmount; any excess is recorded on the payment as a mismatch
+    ///    ("refund/credit required") rather than inflating the invoice.
+    ///  • Concurrency: up to 3 attempts. A <see cref="DbUpdateConcurrencyException"/>
+    ///    (RowVersion) means someone else just changed the invoice — reload it
+    ///    and recompute against the fresh balance.
+    ///  • Give-up path: the payment stays Completed, gets HasMismatch=true and
+    ///    the <see cref="CreditFailedMarker"/>; an error is logged. Nothing is
+    ///    rolled back — the payment commit already happened and must stand.
+    /// </summary>
+    private async Task CreditInvoiceForCapturedPaymentAsync(Payment payment, string? trackId)
+    {
+        const int maxAttempts = 3;
+        var invoiceId = payment.InvoiceId!.Value;
+        Invoice? invoice = null;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                if (invoice == null)
+                    invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.InvoiceId == invoiceId);
+                else
+                    // Retry: pull the current PaidAmount/Status/RowVersion and
+                    // discard our stale in-memory edit before recomputing.
+                    await _context.Entry(invoice).ReloadAsync();
+
+                if (invoice == null)
+                {
+                    _logger.LogError("KNET capture {PaymentId} (TrackId {TrackId}) references missing invoice {InvoiceId}",
+                        payment.PaymentId, trackId, invoiceId);
+                    await FlagCreditFailureAsync(payment, "invoice not found");
+                    return;
+                }
+
+                // Overpayment protection — never push PaidAmount past TotalAmount.
+                var balance = decimal.Round(invoice.TotalAmount - invoice.PaidAmount, 3);
+                var credit = payment.AmountPaid;
+                if (credit > balance)
+                {
+                    var excess = decimal.Round(credit - balance, 3);
+                    credit = Math.Max(0m, balance);
+                    var msg = $"Overpayment of {excess:0.000} KWD captured — refund/credit required";
+                    payment.HasMismatch = true;
+                    payment.MismatchDetails = string.IsNullOrEmpty(payment.MismatchDetails)
+                        ? msg
+                        : payment.MismatchDetails + "; " + msg;
+                    payment.Notes = (payment.Notes ?? "") +
+                        $"\n{msg} (invoice {invoice.InvoiceId}: balance was {balance:0.000} KWD, captured {payment.AmountPaid:0.000} KWD)";
+                    _logger.LogWarning(
+                        "KNET overpayment on invoice {InvoiceId}: captured {Captured:0.000} KWD against balance {Balance:0.000} KWD " +
+                        "(excess {Excess:0.000}). Payment {PaymentId} flagged; invoice credited only up to balance.",
+                        invoice.InvoiceId, payment.AmountPaid, balance, excess, payment.PaymentId);
+                }
+
+                invoice.PaidAmount += credit;
+                invoice.Status = invoice.PaidAmount >= invoice.TotalAmount ? InvoiceStatuses.Paid : InvoiceStatuses.PartiallyPaid;
+                // Saves the invoice AND any mismatch flags set on the (tracked) payment.
+                await _context.SaveChangesAsync();
+                return;
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _logger.LogWarning(ex,
+                    "Invoice {InvoiceId} RowVersion conflict while crediting payment {PaymentId} (attempt {Attempt}/{Max})",
+                    invoiceId, payment.PaymentId, attempt, maxAttempts);
+                if (attempt == maxAttempts)
+                {
+                    // Drop the stale invoice edit so the flag save below doesn't re-throw on it.
+                    if (invoice != null) _context.Entry(invoice).State = EntityState.Detached;
+                    await FlagCreditFailureAsync(payment, $"RowVersion conflict after {maxAttempts} attempts");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error crediting invoice {InvoiceId} for payment {PaymentId}",
+                    invoiceId, payment.PaymentId);
+                if (invoice != null) _context.Entry(invoice).State = EntityState.Detached;
+                await FlagCreditFailureAsync(payment, ex.GetType().Name);
+                return;
+            }
+        }
+    }
+
+    /// <summary>Mark a Completed payment whose invoice credit failed so
+    /// reconciliation picks it up. Best-effort — never throws.</summary>
+    private async Task FlagCreditFailureAsync(Payment payment, string reason)
+    {
+        payment.HasMismatch = true;
+        payment.MismatchDetails = string.IsNullOrEmpty(payment.MismatchDetails)
+            ? CreditFailedMarker
+            : payment.MismatchDetails + "; " + CreditFailedMarker;
+        payment.Notes = (payment.Notes ?? "") +
+            $"\n{CreditFailedMarker} ({reason}) at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC";
+        payment.ModifiedDate = DateTime.UtcNow;
+
+        _logger.LogError(
+            "Payment {PaymentId} is Completed (KNET captured) but invoice {InvoiceId} was NOT credited: {Reason}. Manual reconciliation required.",
+            payment.PaymentId, payment.InvoiceId, reason);
+
+        try
+        {
+            await _paymentRepository.UpdateAsync(payment);
+        }
+        catch (Exception ex)
+        {
+            // The log line above is the fallback evidence trail.
+            _logger.LogError(ex, "Could not persist reconciliation flag on payment {PaymentId}", payment.PaymentId);
         }
     }
 
@@ -579,6 +765,7 @@ public class KnetPaymentService : IKnetPaymentService
     /// </summary>
     private async Task<KnetPaymentResponseDto> InitiateTestPaymentAsync(
         KnetPaymentRequestDto request,
+        decimal requestedAmount,   // rounded/validated by the caller
         string trackId,
         int leaseId,
         Property building,
@@ -586,7 +773,7 @@ public class KnetPaymentService : IKnetPaymentService
         string? mismatchDetails)
     {
         _logger.LogInformation("TEST MODE: Simulating KNET payment for Invoice {InvoiceId}, Amount: {Amount} KWD, Building: {Building}",
-            request.InvoiceId, request.Amount, building.PropertyName);
+            request.InvoiceId, requestedAmount, building.PropertyName);
 
         using var transaction = await _context.Database.BeginTransactionAsync();
         var now = DateTime.UtcNow;
@@ -596,7 +783,7 @@ public class KnetPaymentService : IKnetPaymentService
             LeaseId = leaseId,
             TenantId = request.TenantId,
             PropertyId = request.PropertyId,
-            AmountPaid = request.Amount,
+            AmountPaid = requestedAmount,
             PaymentDate = now,
             PaymentType = PaymentType.KNET,
             Status = PaymentStatus.Pending,
@@ -617,7 +804,7 @@ public class KnetPaymentService : IKnetPaymentService
 
         // Build the test redirect URL up-front so we can cache it on the idempotency row.
         var testBaseUri = new Uri(_settings.SuccessUrl);
-        var testPaymentUrl = $"{testBaseUri.Scheme}://{testBaseUri.Authority}/TenantPortal/TestPayment?paymentId={payment.PaymentId}&knetPaymentId={payment.CheckoutPaymentId}&amount={request.Amount}&invoiceId={request.InvoiceId}";
+        var testPaymentUrl = $"{testBaseUri.Scheme}://{testBaseUri.Authority}/TenantPortal/TestPayment?paymentId={payment.PaymentId}&knetPaymentId={payment.CheckoutPaymentId}&amount={requestedAmount.ToString("0.000", CultureInfo.InvariantCulture)}&invoiceId={request.InvoiceId}";
 
         // Create idempotency record (with the test redirect URL cached for resume)
         if (!string.IsNullOrEmpty(request.IdempotencyKey))
@@ -628,7 +815,7 @@ public class KnetPaymentService : IKnetPaymentService
                 PaymentId = payment.PaymentId,
                 InvoiceId = request.InvoiceId,
                 LeaseId = leaseId,
-                Amount = request.Amount,
+                Amount = requestedAmount,
                 CivilID = request.CivilID,
                 Status = "Pending",
                 RedirectUrl = testPaymentUrl,
@@ -646,7 +833,7 @@ public class KnetPaymentService : IKnetPaymentService
                 PaymentId = payment.PaymentId,
                 AuditType = "MismatchDetected",
                 AuditTimestamp = now,
-                Amount = request.Amount,
+                Amount = requestedAmount,
                 IsMismatch = true,
                 MismatchType = "CivilID/Building",
                 MismatchDetails = mismatchDetails,
@@ -689,7 +876,22 @@ public class KnetPaymentService : IKnetPaymentService
             if (payment == null)
                 return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Payment not found" };
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // Same idempotency guard as the live callback — a double-click on the
+            // test page must not credit the invoice twice.
+            if (payment.Status != PaymentStatus.Pending)
+            {
+                _logger.LogInformation("TEST MODE: payment {PaymentId} already {Status} — ignoring repeat completion", paymentId, payment.Status);
+                return new KnetPaymentResponseDto
+                {
+                    Success = payment.Status == PaymentStatus.Completed,
+                    PaymentId = payment.PaymentId.ToString(),
+                    KnetPaymentId = payment.CheckoutPaymentId,
+                    Status = payment.Status.ToString(),
+                    TransactionReference = payment.ReceiptNumber,
+                    ErrorMessage = payment.Status == PaymentStatus.Completed ? null : "Payment already processed"
+                };
+            }
+
             var completedAt = DateTime.UtcNow;
             payment.ModifiedDate = completedAt;
 
@@ -700,17 +902,6 @@ public class KnetPaymentService : IKnetPaymentService
                 // Receipt number is issued at the moment of capture.
                 payment.ReceiptNumber = $"RCPT-{payment.PaymentId:D8}";
                 payment.Notes = (payment.Notes ?? "") + $"\nPayment completed successfully at {completedAt:yyyy-MM-dd HH:mm:ss} UTC";
-
-                if (payment.InvoiceId.HasValue)
-                {
-                    var invoice = await _invoiceRepository.GetByIdAsync(payment.InvoiceId.Value);
-                    if (invoice != null)
-                    {
-                        invoice.PaidAmount += payment.AmountPaid;
-                        invoice.Status = invoice.PaidAmount >= invoice.TotalAmount ? "Paid" : "Partially Paid";
-                        await _invoiceRepository.UpdateAsync(invoice);
-                    }
-                }
             }
             else
             {
@@ -718,9 +909,17 @@ public class KnetPaymentService : IKnetPaymentService
                 payment.Notes = (payment.Notes ?? "") + $"\nPayment failed at {completedAt:yyyy-MM-dd HH:mm:ss} UTC";
             }
 
-            await _paymentRepository.UpdateAsync(payment);
-            await SyncIdempotencyStatusAsync(payment);
-            await transaction.CommitAsync();
+            // Mirror the live path: commit the payment outcome first, then credit
+            // the invoice with overpayment protection + retry.
+            await using (var transaction = await _context.Database.BeginTransactionAsync())
+            {
+                await _paymentRepository.UpdateAsync(payment);
+                await SyncIdempotencyStatusAsync(payment);
+                await transaction.CommitAsync();
+            }
+
+            if (success && payment.InvoiceId.HasValue)
+                await CreditInvoiceForCapturedPaymentAsync(payment, payment.TransactionReference);
 
             _logger.LogInformation("TEST MODE: Payment {PaymentId} completed with status {Status}", paymentId, payment.Status);
 
@@ -736,7 +935,7 @@ public class KnetPaymentService : IKnetPaymentService
         catch (Exception ex)
         {
             _logger.LogError(ex, "TEST MODE: Error completing payment {PaymentId}", paymentId);
-            return new KnetPaymentResponseDto { Success = false, ErrorMessage = ex.Message };
+            return new KnetPaymentResponseDto { Success = false, ErrorMessage = "Payment processing error" };
         }
     }
 

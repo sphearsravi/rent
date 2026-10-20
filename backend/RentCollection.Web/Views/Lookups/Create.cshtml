@@ -1,0 +1,58 @@
+@model RentCollection.Core.Entities.LookupItem
+@{
+    ViewData["Title"] = "Add Value";
+    var ar = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar";
+    var catLabel = RentCollection.Core.Entities.LookupCategories.All.FirstOrDefault(c => c.Key == Model.Category);
+}
+
+<div class="container-fluid" style="padding: 2rem;">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = L["Add Dropdown Value"].Value,
+        ["Subtitle"] = ar ? catLabel.LabelAr : catLabel.LabelEn,
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            ("Dropdown Values", Url.Action("Index", new { category = Model.Category })),
+            (ar ? catLabel.LabelAr : catLabel.LabelEn, null),
+        }
+    })
+
+    <form asp-action="Create" method="post" class="form-revamp">
+        <input type="hidden" asp-for="Category" />
+        <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+        <div class="fr-zone fr-zone-essentials">
+            <h3 class="fr-zone-title"><i class="fas fa-tag"></i> <span>@L["Value"]</span></h3>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="Code">@L["Code"] <span class="required">*</span></label>
+                    <input asp-for="Code" placeholder="e.g. Villa" required />
+                    <span class="fr-hint">@L["The stable value stored on records. Letters/numbers, no spaces preferred."]</span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="SortOrder">@L["Order"]</label>
+                    <input asp-for="SortOrder" type="number" />
+                    <span class="fr-hint">@L["Lower numbers appear first."]</span>
+                </div>
+            </div>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="LabelEn">@L["English label"]</label>
+                    <input asp-for="LabelEn" />
+                    <span class="fr-hint"></span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="LabelAr">@L["Arabic label"]</label>
+                    <input asp-for="LabelAr" dir="rtl" />
+                    <span class="fr-hint"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fr-actions">
+            <a asp-action="Index" asp-route-category="@Model.Category" class="fr-btn fr-btn-ghost">@L["Cancel"]</a>
+            <div class="fr-spacer"></div>
+            <button type="submit" class="fr-btn fr-btn-primary"><i class="fas fa-save"></i> @L["Save"]</button>
+        </div>
+    </form>
+</div>

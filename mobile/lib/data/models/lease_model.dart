@@ -15,6 +15,12 @@ class LeaseModel {
   final double? lateFeeAmount;
   final int? lateFeeGracePeriod;
 
+  // Read-only legal case status (null when no case is filed on this lease).
+  // Only status/type/next-hearing are sent to the tenant — never notes/amount.
+  final String? legalCaseStatus;
+  final String? legalCaseType;
+  final DateTime? legalCaseNextHearing;
+
   LeaseModel({
     required this.leaseId,
     this.propertyName,
@@ -30,7 +36,21 @@ class LeaseModel {
     this.status = 'Active',
     this.lateFeeAmount,
     this.lateFeeGracePeriod,
+    this.legalCaseStatus,
+    this.legalCaseType,
+    this.legalCaseNextHearing,
   });
+
+  /// Whether a legal case exists on this lease.
+  bool get hasLegalCase =>
+      legalCaseStatus != null && legalCaseStatus!.trim().isNotEmpty;
+
+  /// Whether the case is still in progress (drives banner colour).
+  bool get isLegalCaseOpen {
+    if (!hasLegalCase) return false;
+    const closed = {'Won', 'Lost', 'Settled', 'Withdrawn', 'Closed'};
+    return !closed.contains(legalCaseStatus);
+  }
 
   /// Days remaining until lease ends
   int get daysRemaining => leaseEndDate.difference(DateTime.now()).inDays;
@@ -77,6 +97,11 @@ class LeaseModel {
       status: json['status'] ?? 'Active',
       lateFeeAmount: json['lateFeeAmount']?.toDouble(),
       lateFeeGracePeriod: json['lateFeeGracePeriod'],
+      legalCaseStatus: json['legalCaseStatus'],
+      legalCaseType: json['legalCaseType'],
+      legalCaseNextHearing: json['legalCaseNextHearing'] != null
+          ? DateTime.tryParse(json['legalCaseNextHearing'].toString())
+          : null,
     );
   }
 
@@ -97,6 +122,9 @@ class LeaseModel {
       'status': status,
       'lateFeeAmount': lateFeeAmount,
       'lateFeeGracePeriod': lateFeeGracePeriod,
+      'legalCaseStatus': legalCaseStatus,
+      'legalCaseType': legalCaseType,
+      'legalCaseNextHearing': legalCaseNextHearing?.toIso8601String(),
     };
   }
 }

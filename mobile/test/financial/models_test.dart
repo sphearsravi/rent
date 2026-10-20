@@ -34,7 +34,7 @@ InvoiceDetailModel _detail(String status) {
     totalAmount: 100.0,
     paidAmount: 40.0,
     balanceAmount: 60.0,
-    invoiceDate: DateTime(2026, 7, 1),
+    invoiceDate: DateTime(2026, 7),
     dueDate: DateTime(2026, 7, 5),
     status: status,
   );
@@ -65,7 +65,6 @@ void main() {
     test('uses balanceAmount when present', () {
       final inv = _invoice(
         status: 'Pending',
-        totalAmount: 100.0,
         paidAmount: 30.0,
         balanceAmount: 65.0,
       );
@@ -75,9 +74,7 @@ void main() {
     test('computes totalAmount - paidAmount when balanceAmount null', () {
       final inv = _invoice(
         status: 'Pending',
-        totalAmount: 100.0,
         paidAmount: 30.0,
-        balanceAmount: null,
       );
       expect(inv.balance, 70.0);
     });
@@ -85,9 +82,6 @@ void main() {
     test('treats null paidAmount as 0', () {
       final inv = _invoice(
         status: 'Pending',
-        totalAmount: 100.0,
-        paidAmount: null,
-        balanceAmount: null,
       );
       expect(inv.balance, 100.0);
     });

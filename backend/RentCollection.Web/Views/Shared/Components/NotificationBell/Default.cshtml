@@ -1,0 +1,51 @@
+@model List<RentCollection.Web.ViewComponents.BellAlert>
+@{
+    var total = Model.Sum(a => a.Count);
+}
+<div class="notification-wrapper">
+    <div class="notification-icon" id="notifToggle" role="button" tabindex="0" title="@(L["Alerts"].Value)" aria-haspopup="true" aria-expanded="false">
+        <i class="fas fa-bell"></i>
+        @if (total > 0)
+        {
+            <span class="notification-badge">@(total > 99 ? "99+" : total.ToString())</span>
+        }
+    </div>
+    <div class="notification-dropdown" id="notifDropdown" role="menu">
+        <div class="notif-head">@L["Alerts"]</div>
+        @if (!Model.Any())
+        {
+            <div class="notif-empty"><i class="fas fa-check-circle"></i> @L["All clear — nothing needs attention."]</div>
+        }
+        else
+        {
+            @foreach (var a in Model)
+            {
+                <a href="@a.Href" class="notif-item" role="menuitem">
+                    <span class="notif-ic" style="color:@a.Color;"><i class="fas @a.Icon"></i></span>
+                    <span class="notif-label">@L[a.Label]</span>
+                    <span class="notif-count">@a.Count</span>
+                </a>
+            }
+        }
+    </div>
+</div>
+
+<style>
+    .notification-wrapper { position: relative; }
+    .notification-icon { cursor: pointer; }
+    .notification-dropdown {
+        position: absolute; top: calc(100% + 10px); inset-inline-end: 0;
+        width: 300px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+        box-shadow: 0 12px 30px rgba(15,23,42,0.14); z-index: 1100; overflow: hidden; display: none;
+    }
+    .notification-dropdown.show { display: block; }
+    .notif-head { padding: 0.75rem 1rem; font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+    .notif-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 1rem; text-decoration: none; color: #334155; border-bottom: 1px solid #f8fafc; }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: #f8fafc; }
+    .notif-ic { width: 22px; text-align: center; font-size: 0.95rem; }
+    .notif-label { flex: 1; font-size: 0.85rem; }
+    .notif-count { background: #faf5e6; color: #6e5518; font-weight: 700; border-radius: 999px; padding: 0.05rem 0.5rem; font-size: 0.8rem; }
+    .notif-empty { padding: 1.25rem 1rem; color: #64748b; font-size: 0.85rem; text-align: center; }
+    .notif-empty i { color: #10b981; margin-inline-end: 0.4rem; }
+</style>

@@ -11,8 +11,8 @@ namespace RentCollection.E2ETests;
 /// password (no email), then that tenant logs in via the mobile API.
 ///
 /// Point it at the LIVE SmarterASP backend to run it against production:
-///   RC_E2E_BASE_URL=http://<deploy-host>
-///   RC_E2E_DB="Data Source=<sql-host>;Initial Catalog=<database>;User Id=<db-user>;Password=...;Encrypt=True;TrustServerCertificate=True;"
+///   RC_E2E_BASE_URL=http://<DEMO_HOST>
+///   RC_E2E_DB="Data Source=<DB_HOST>;Initial Catalog=<DB_NAME>;User Id=<DB_USER>;Password=<DB_PASSWORD>;Encrypt=True;TrustServerCertificate=True;"
 ///   RC_E2E_HEADED=1 RC_E2E_SLOWMO=1200
 /// Creates one tenant and deletes it again (self-cleaning).
 /// </summary>
@@ -72,7 +72,7 @@ public sealed class TenantLoginLiveTest : IClassFixture<E2EFixture>
             token.Should().NotBeNullOrEmpty("login must return a JWT");
             tenantId = body.GetProperty("data").GetProperty("tenantId").GetInt32();
 
-            Console.WriteLine($"LOGIN_LIVE_OK  civilId={username}  password={password}  tenantId={tenantId}  token={token!.Substring(0, 12)}…");
+            Console.WriteLine($"LOGIN_LIVE_OK  civilId={username}  password=***  tenantId={tenantId}  token=***");
         }
         finally
         {

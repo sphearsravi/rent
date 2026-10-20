@@ -30,7 +30,7 @@ public class TenantWorkflowTests : IDisposable
 
         // Setup JWT token service mock
         _mockJwtTokenService
-            .Setup(x => x.GenerateToken(It.IsAny<int>(), It.IsAny<string>()))
+            .Setup(x => x.GenerateToken(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<bool>()))
             .Returns("test_jwt_token_12345");
 
         _tenantLeaseService = new TenantLeaseService(

@@ -41,6 +41,15 @@ class LeaseViewModel extends ChangeNotifier {
   double get totalMonthlyRent =>
       _leases.fold(0.0, (sum, lease) => sum + lease.monthlyRent);
 
+  /// Drop all tenant data (logout). See `resetSessionState`.
+  void reset() {
+    _state = LeaseState.initial;
+    _errorMessage = null;
+    _leases = [];
+    _selectedLease = null;
+    notifyListeners();
+  }
+
   /// Load all leases
   Future<void> loadLeases(int tenantId) async {
     _state = LeaseState.loading;

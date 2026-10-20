@@ -8,12 +8,17 @@ using RentCollection.Application.Interfaces;
 using RentCollection.Core.Entities;
 using RentCollection.Core.Enums;
 using RentCollection.Infrastructure.Data;
+using RentCollection.Web.Helpers;
 
 namespace RentCollection.Web.Controllers;
 
 [Authorize(Roles = Roles.Operational)]
 public class TenantsController : Controller
 {
+    /// <summary>One live lease line for the tenants list (2026-10 redesign).</summary>
+    public sealed record TenantLeaseRow(int TenantId, int LeaseId, string PropertyName, string UnitNumber,
+        DateTime LeaseEndDate, decimal MonthlyRent, string Status);
+
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _environment;
     private readonly IPdfService _pdf;
@@ -43,8 +48,12 @@ public class TenantsController : Controller
             // the toolbar "Show archived" toggle can show soft-deleted rows
             // alongside live ones. They render with .is-archived styling and
             // expose a Restore action in the kebab (Sprint 4).
+            // SECURITY: IgnoreQueryFilters() also strips the company scope, so
+            // re-apply it by hand — archived rows must still be our own.
+            var isSuperAdmin = User.IsInRole(Roles.SuperAdmin);
+            var cid = ScopedCompanyId() ?? -1;
             var q = includeArchived
-                ? _context.Tenants.IgnoreQueryFilters()
+                ? _context.Tenants.IgnoreQueryFilters().Where(t => isSuperAdmin || t.CompanyId == cid)
                 : _context.Tenants.AsQueryable();
 
             var tenants = await q
@@ -57,6 +66,30 @@ public class TenantsController : Controller
 
             ViewBag.Properties = properties;
             ViewBag.IncludeArchived = includeArchived;
+
+            // 2026-10 list redesign — where each tenant lives right now (live
+            // leases → property · unit, earliest end, total rent), so the list
+            // shows the facts an operator actually scans for, in one line.
+            var tenantIds = tenants.Select(t => t.TenantId).ToList();
+            var liveLeases = await _context.Leases.AsNoTracking()
+                .Where(l => tenantIds.Contains(l.TenantId)
+                            && (l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Pending))
+                .Select(l => new TenantLeaseRow(
+                    l.TenantId, l.LeaseId, l.Unit.Property.PropertyName, l.Unit.UnitNumber,
+                    l.LeaseEndDate, l.MonthlyRent, l.Status))
+                .ToListAsync();
+            ViewBag.LeasesByTenant = liveLeases
+                .GroupBy(l => l.TenantId)
+                .ToDictionary(g => g.Key, g => g.OrderBy(l => l.LeaseEndDate).ToList());
+
+            // Latest legal case per tenant → drives the ⚖️ badge in the list.
+            var cases = await _context.LegalCases.AsNoTracking()
+                .OrderByDescending(c => c.FiledDate).ThenByDescending(c => c.LegalCaseId)
+                .ToListAsync();
+            ViewBag.CaseByTenant = cases
+                .GroupBy(c => c.TenantId)
+                .ToDictionary(g => g.Key, g => g.First());
+
             return View(tenants);
         }
         catch (Exception ex)
@@ -73,7 +106,7 @@ public class TenantsController : Controller
     /// Portfolio KPI strip for the /Tenants landing. One round trip
     /// (5 aggregates) — same pattern as Properties/Snapshot.
     /// </summary>
-    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any)]
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client)]
     public async Task<IActionResult> Snapshot()
     {
         var today = DateTime.Today;
@@ -118,7 +151,7 @@ public class TenantsController : Controller
     /// Health thresholds configurable via Tenants:OverdueAmberDays /
     /// Tenants:OverdueRedDays (defaults 30 / 30).
     /// </summary>
-    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "ids" })]
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "ids" })]
     public async Task<IActionResult> KpiBatch(string? ids, [FromServices] IConfiguration config)
     {
         var idList = (ids ?? "")
@@ -300,7 +333,7 @@ public class TenantsController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to parse import file {Name}", file.FileName);
-            ViewBag.ErrorMessage = "Couldn't parse the file: " + ex.Message;
+            ViewBag.ErrorMessage = "Couldn't parse the file. Make sure it is a valid .csv or .xlsx and try again.";
             return View();
         }
 
@@ -333,13 +366,20 @@ public class TenantsController : Controller
 
         // Pre-load existing dedupe keys (Email, PACINumber) and Company lookup
         // — one round-trip each, so the per-row loop stays in memory.
+        // SECURITY: dedupe within the caller's company only. IgnoreQueryFilters()
+        // keeps archived rows in the set but we re-pin CompanyId by hand so a
+        // company-A import never probes company-B's emails / Civil IDs.
+        var isSuperAdmin = User.IsInRole(Roles.SuperAdmin);
+        var callerCompanyId = ScopedCompanyId() ?? -1;
+        var dedupeScope = _context.Tenants.IgnoreQueryFilters()
+            .Where(t => isSuperAdmin || t.CompanyId == callerCompanyId);
         var existingEmails = new HashSet<string>(
-            await _context.Tenants.IgnoreQueryFilters()
+            await dedupeScope
                 .Where(t => t.Email != null && t.Email != "")
                 .Select(t => t.Email!.ToLower()).ToListAsync(),
             StringComparer.OrdinalIgnoreCase);
         var existingPacis = new HashSet<string>(
-            await _context.Tenants.IgnoreQueryFilters()
+            await dedupeScope
                 .Where(t => t.PACINumber != null && t.PACINumber != "")
                 .Select(t => t.PACINumber!).ToListAsync(),
             StringComparer.OrdinalIgnoreCase);
@@ -347,7 +387,12 @@ public class TenantsController : Controller
             .Select(c => new { c.CompanyId, c.CompanyName })
             .ToListAsync();
         var companyByName = companies.ToDictionary(c => c.CompanyName.ToLowerInvariant(), c => c.CompanyId);
-        var defaultCompanyId = companies.FirstOrDefault()?.CompanyId ?? 0;
+        // Non-SuperAdmins always import into their own company (the Company
+        // column is ignored). SuperAdmin may route rows by Company name and
+        // falls back to the first company when the column is blank/unknown.
+        var defaultCompanyId = isSuperAdmin
+            ? (companies.FirstOrDefault()?.CompanyId ?? 0)
+            : Math.Max(callerCompanyId, 0);
 
         string? Cell(string?[] row, int idx) =>
             idx >= 0 && idx < row.Length ? row[idx]?.Trim() : null;
@@ -390,14 +435,22 @@ public class TenantsController : Controller
             // available CompanyId so the FK is satisfied. We log the fallback
             // in the result row so the operator knows.
             int companyId = defaultCompanyId;
-            if (!string.IsNullOrWhiteSpace(companyName)
-                && companyByName.TryGetValue(companyName.ToLowerInvariant(), out var resolved))
-                companyId = resolved;
-            else if (!string.IsNullOrWhiteSpace(companyName))
-                rr.Reason = $"company '{companyName}' not found — assigned to default";
+            if (isSuperAdmin)
+            {
+                if (!string.IsNullOrWhiteSpace(companyName)
+                    && companyByName.TryGetValue(companyName.ToLowerInvariant(), out var resolved))
+                    companyId = resolved;
+                else if (!string.IsNullOrWhiteSpace(companyName))
+                    rr.Reason = $"company '{companyName}' not found — assigned to default";
+            }
 
-            if (companyId == 0)
-            { rr.Reason = "no companies exist in DB — create one first"; results.Add(rr); continue; }
+            if (companyId <= 0)
+            {
+                rr.Reason = isSuperAdmin
+                    ? "no companies exist in DB — create one first"
+                    : "your account isn't linked to a company — ask an admin to set it";
+                results.Add(rr); continue;
+            }
 
             var tenant = new Tenant
             {
@@ -539,6 +592,27 @@ public class TenantsController : Controller
             return BadRequest(new { error = "no ids" });
 
         var tenants = await _context.Tenants.Where(t => ids.Contains(t.TenantId)).ToListAsync();
+
+        // Never archive a tenant who still has a live (Active / Pending) lease —
+        // the lease would point at an invisible tenant. Terminate it first.
+        var tenantIds = tenants.Select(t => t.TenantId).ToList();
+        var withLiveLease = await _context.Leases
+            .Where(l => tenantIds.Contains(l.TenantId)
+                && (l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Pending))
+            .Select(l => l.TenantId)
+            .Distinct()
+            .ToListAsync();
+        if (withLiveLease.Count > 0)
+        {
+            TempData["ErrorMessage"] =
+                $"{withLiveLease.Count} tenant(s) still have an Active or Pending lease and were not archived. Terminate the lease first.";
+            return BadRequest(new
+            {
+                error = "Some tenants still have an Active or Pending lease — terminate the lease first.",
+                blocked = withLiveLease
+            });
+        }
+
         var now = DateTime.UtcNow;
         var who = User.Identity?.Name;
         foreach (var t in tenants)
@@ -550,6 +624,63 @@ public class TenantsController : Controller
         await _context.SaveChangesAsync();
         return Json(new { archived = tenants.Count });
     }
+
+    /// <summary>
+    /// SECURITY (audit H1): actions that fetch a tenant with IgnoreQueryFilters()
+    /// strip BOTH the soft-delete AND the company scope, so a raw TenantId lookup
+    /// would otherwise let a company-A admin Restore / Forget / Export a company-B
+    /// tenant. Every such action must re-check ownership through this guard.
+    /// SuperAdmin is cross-company by design; everyone else is pinned to the
+    /// company on their claim.
+    /// </summary>
+    /// <summary>
+    /// Adds a field-level ModelState error on PACINumber when another tenant
+    /// (any company, archived included — the DB index is global) already
+    /// carries this Civil ID as PACINumber or GovernmentId. Names the clash
+    /// only when the caller may see that tenant.
+    /// </summary>
+    private async Task AddDuplicateCivilIdErrorAsync(string? civilId, int? excludeTenantId)
+    {
+        civilId = civilId?.Trim();
+        if (string.IsNullOrEmpty(civilId)) return;
+
+        var dup = await _context.Tenants.IgnoreQueryFilters().AsNoTracking()
+            .Where(t => (excludeTenantId == null || t.TenantId != excludeTenantId)
+                        && (t.PACINumber == civilId || t.GovernmentId == civilId))
+            .OrderBy(t => t.IsDeleted).ThenBy(t => t.TenantId)
+            .Select(t => new { t.TenantId, t.FirstName, t.LastName, t.CompanyId, t.IsDeleted })
+            .FirstOrDefaultAsync();
+        if (dup == null) return;
+
+        string who;
+        if (!CanAccessCompany(dup.CompanyId))
+            who = "a tenant in another company";
+        else if (dup.IsDeleted)
+            who = $"archived tenant {dup.FirstName} {dup.LastName} (#{dup.TenantId}) — restore that record instead";
+        else
+            who = $"{dup.FirstName} {dup.LastName} (#{dup.TenantId}) — open that tenant instead of creating a duplicate";
+
+        ModelState.AddModelError(nameof(Tenant.PACINumber), $"Civil ID {civilId} is already registered to {who}.");
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException is Microsoft.Data.SqlClient.SqlException sql && (sql.Number == 2601 || sql.Number == 2627);
+
+    private bool CanAccessCompany(int? entityCompanyId)
+    {
+        if (User.IsInRole(Roles.SuperAdmin)) return true;
+        return int.TryParse(User.FindFirst("companyId")?.Value, out var cid)
+            && entityCompanyId == cid;
+    }
+
+    /// <summary>
+    /// null = SuperAdmin (unscoped); otherwise the caller's CompanyId claim,
+    /// or -1 when the claim is missing so nothing matches. Mirrors
+    /// PaymentApprovalController.ScopedCompanyId.
+    /// </summary>
+    private int? ScopedCompanyId() =>
+        User.IsInRole(Roles.SuperAdmin) ? null
+        : int.TryParse(User.FindFirst("companyId")?.Value, out var cid) ? cid : -1;
 
     /// <summary>
     /// Sprint 4 — un-archive a soft-deleted tenant. Surfaced only when the
@@ -564,6 +695,7 @@ public class TenantsController : Controller
         var tenant = await _context.Tenants.IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.TenantId == id);
         if (tenant == null) return NotFound();
+        if (!CanAccessCompany(tenant.CompanyId)) return NotFound();   // audit H1
         if (!tenant.IsDeleted) return Json(new { restored = false, reason = "not archived" });
 
         tenant.IsDeleted = false;
@@ -586,6 +718,12 @@ public class TenantsController : Controller
     [Authorize(Roles = Roles.AnyAdmin)]
     public async Task<IActionResult> ResendLogin(int id)
     {
+        // SECURITY: the credential service takes a raw TenantId and has no
+        // company context of its own. Resolve the tenant through the filtered
+        // DbSet first so a company-A admin can't reset a company-B login.
+        var tenantExists = await _context.Tenants.AnyAsync(t => t.TenantId == id);
+        if (!tenantExists) return NotFound();
+
         var result = await _credentials.IssueAsync(
             tenantId: id,
             issueReason: "Admin resend",
@@ -810,6 +948,37 @@ public class TenantsController : Controller
         ViewBag.TenantDocuments = tenantDocuments;
         ViewBag.LeaseDocuments = leaseDocuments;
 
+        // Open legal case (if any) for the ⚖️ badge on the header.
+        ViewBag.OpenCase = await _context.LegalCases
+            .Where(c => c.TenantId == tenant.TenantId)
+            .OrderByDescending(c => c.FiledDate).ThenByDescending(c => c.LegalCaseId)
+            .FirstOrDefaultAsync();
+
+        // 2026-10 detail redesign — the KPI strip, the per-lease Outstanding
+        // column and the "Open invoices" table. Unpaid = not Paid, not
+        // Cancelled, and still carrying a balance; ordered oldest-due first.
+        var openInvoices = await _context.Invoices.AsNoTracking()
+            .Where(i => (i.TenantId == tenant.TenantId || leaseIds.Contains(i.LeaseId))
+                        && i.Status != InvoiceStatuses.Paid && i.Status != InvoiceStatuses.Cancelled
+                        && i.TotalAmount - i.PaidAmount > 0)
+            .OrderBy(i => i.DueDate).ThenBy(i => i.InvoiceId)
+            .ToListAsync();
+        ViewBag.OpenInvoices = openInvoices;
+        ViewBag.OutstandingByLease = openInvoices
+            .GroupBy(i => i.LeaseId)
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.TotalAmount - i.PaidAmount));
+        ViewBag.Outstanding = openInvoices.Sum(i => i.TotalAmount - i.PaidAmount);
+
+        // Latest completed payment (date + amount) for the "Last payment" tile.
+        var lastPayment = await _context.Payments.AsNoTracking()
+            .Where(p => (p.TenantId == tenant.TenantId || leaseIds.Contains(p.LeaseId))
+                        && p.Status == PaymentStatus.Completed)
+            .OrderByDescending(p => p.PaymentDate).ThenByDescending(p => p.PaymentId)
+            .Select(p => new { p.PaymentDate, p.AmountPaid })
+            .FirstOrDefaultAsync();
+        ViewBag.LastPaymentDate = lastPayment?.PaymentDate;
+        ViewBag.LastPaymentAmount = lastPayment?.AmountPaid;
+
         return View(tenant);
     }
 
@@ -821,11 +990,19 @@ public class TenantsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("FirstName,LastName,PACINumber,BuildingPACINumber,Email,Phone,DateOfBirth,GovernmentId,CompanyId,EmergencyContact,EmergencyPhone,EmploymentStatus")] Tenant tenant,
+    public async Task<IActionResult> Create([Bind("FirstName,LastName,PACINumber,BuildingPACINumber,Email,Phone,DateOfBirth,GovernmentId,EmergencyContact,EmergencyPhone,EmploymentStatus")] Tenant tenant,
         int? PropertyId, int? UnitId, List<IFormFile>? Documents, List<string>? DocumentTypes,
         string? InitialPassword = null,
-        [FromForm(Name = "__SaveAndAddAnother")] string? saveAndAddAnother = null)
+        [FromForm(Name = "__SaveAndAddAnother")] string? saveAndAddAnother = null,
+        [FromForm(Name = "CompanyId")] int? postedCompanyId = null)
     {
+        // SECURITY: CompanyId is deliberately NOT in the [Bind] list — a non-
+        // SuperAdmin must never be able to create a tenant in another company.
+        // Only SuperAdmin may honour a posted CompanyId (if the form offers one).
+        tenant.CompanyId = 0;
+        if (User.IsInRole(Roles.SuperAdmin) && postedCompanyId is > 0)
+            tenant.CompanyId = postedCompanyId.Value;
+
         // Sprint 22 — Company Assignment is no longer asked on the form; it's
         // derived server-side. Resolve it from the logged-in admin's claim…
         if (tenant.CompanyId <= 0)
@@ -864,6 +1041,10 @@ public class TenantsController : Controller
             ModelState.AddModelError("CompanyId",
                 "Your account isn't linked to a company. Ask an admin to set your CompanyId on the Users page.");
         }
+
+        // QA finding: a duplicate Civil ID used to surface as the generic
+        // "Error creating tenant" from the unique index. Name the clash instead.
+        await AddDuplicateCivilIdErrorAsync(tenant.PACINumber, excludeTenantId: null);
 
         if (ModelState.IsValid)
         {
@@ -947,9 +1128,18 @@ public class TenantsController : Controller
                 }
                 return RedirectToAction(nameof(Index));
             }
+            catch (DbUpdateException dbEx) when (IsUniqueViolation(dbEx))
+            {
+                // Race with another operator, or a clash the pre-check can't see.
+                _logger.LogWarning(dbEx, "Unique violation creating tenant {Name}", $"{tenant.FirstName} {tenant.LastName}".Trim());
+                _context.Entry(tenant).State = EntityState.Detached;
+                ModelState.AddModelError(nameof(Tenant.PACINumber),
+                    $"Civil ID {tenant.PACINumber} is already registered to another tenant. Open that tenant instead of creating a duplicate.");
+            }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", $"Error creating tenant: {ex.Message}");
+                _logger.LogError(ex, "Error creating tenant {Name}", $"{tenant.FirstName} {tenant.LastName}".Trim());
+                ModelState.AddModelError("", "Error creating tenant. Please check the details and try again.");
             }
         }
         ViewData["CompanyId"] = new SelectList(await _context.Companies.ToListAsync(), "CompanyId", "CompanyName", tenant.CompanyId);
@@ -974,18 +1164,53 @@ public class TenantsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("TenantId,FirstName,LastName,PACINumber,BuildingPACINumber,Email,Phone,DateOfBirth,GovernmentId,CompanyId,EmergencyContact,EmergencyPhone,EmploymentStatus,Status,CreatedDate")] Tenant tenant)
+    public async Task<IActionResult> Edit(int id, [Bind("TenantId,FirstName,LastName,PACINumber,BuildingPACINumber,Email,Phone,DateOfBirth,GovernmentId,EmergencyContact,EmergencyPhone,EmploymentStatus,Status")] Tenant tenant)
     {
         if (id != tenant.TenantId)
         {
             return NotFound();
         }
 
+        // The form still posts a CompanyId <select>; it is intentionally not
+        // bound (company is never editable here) so drop any binding noise.
+        ModelState.Remove(nameof(Tenant.CompanyId));
+
+        // LOAD-THEN-COPY. `_context.Update(postedModel)` marked EVERY column
+        // modified, so anything the form didn't post (Password, CompanyId,
+        // MustChangePasswordOnNextLogin, DeletedAt, …) was overwritten with
+        // defaults — wiping tenant logins on each edit. Loading the tracked row
+        // through the filtered DbSet also enforces the company scope.
+        var existing = await _context.Tenants.FirstOrDefaultAsync(t => t.TenantId == id);
+        if (existing == null)
+        {
+            return NotFound();
+        }
+
+        // Only check when the Civil ID actually changed: 23 imported tenants
+        // still share the placeholder ID and must stay editable until the
+        // owner supplies real ones.
+        if (!string.Equals(existing.PACINumber?.Trim(), tenant.PACINumber?.Trim(), StringComparison.Ordinal))
+            await AddDuplicateCivilIdErrorAsync(tenant.PACINumber, excludeTenantId: id);
+
         if (ModelState.IsValid)
         {
             try
             {
-                _context.Update(tenant);
+                existing.FirstName = tenant.FirstName;
+                existing.LastName = tenant.LastName;
+                existing.PACINumber = tenant.PACINumber;
+                existing.BuildingPACINumber = tenant.BuildingPACINumber;
+                existing.Email = tenant.Email;
+                existing.Phone = tenant.Phone;
+                existing.DateOfBirth = tenant.DateOfBirth;
+                existing.GovernmentId = tenant.GovernmentId;
+                existing.EmergencyContact = tenant.EmergencyContact;
+                existing.EmergencyPhone = tenant.EmergencyPhone;
+                existing.EmploymentStatus = tenant.EmploymentStatus;
+                if (!string.IsNullOrWhiteSpace(tenant.Status))
+                    existing.Status = tenant.Status;
+                existing.ModifiedDate = DateTime.UtcNow;
+
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Tenant updated successfully!";
             }
@@ -1002,6 +1227,8 @@ public class TenantsController : Controller
             }
             return RedirectToAction(nameof(Index));
         }
+        // Re-render with the real (unbound) company so the dropdown stays honest.
+        tenant.CompanyId = existing.CompanyId;
         ViewData["CompanyId"] = new SelectList(await _context.Companies.ToListAsync(), "CompanyId", "CompanyName", tenant.CompanyId);
         return View(tenant);
     }
@@ -1033,6 +1260,18 @@ public class TenantsController : Controller
         var tenant = await _context.Tenants.FindAsync(id);
         if (tenant != null)
         {
+            // Never archive a tenant who still has a live (Active / Pending)
+            // lease — the lease would point at an invisible tenant.
+            var hasLiveLease = await _context.Leases.AnyAsync(l =>
+                l.TenantId == id
+                && (l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Pending));
+            if (hasLiveLease)
+            {
+                TempData["ErrorMessage"] =
+                    "This tenant still has an Active or Pending lease. Terminate the lease before archiving the tenant.";
+                return RedirectToAction(nameof(Index));
+            }
+
             // Item 10: soft-delete. Tenants accumulate legally-required
             // history (leases, payments, receipts) so we never hard-delete —
             // GDPR right-to-erasure can be honoured via the Forget action.
@@ -1062,6 +1301,7 @@ public class TenantsController : Controller
             .Include(t => t.MaintenanceRequests)
             .FirstOrDefaultAsync(t => t.TenantId == id);
         if (tenant == null) return NotFound();
+        if (!CanAccessCompany(tenant.CompanyId)) return NotFound();   // audit H1
 
         var dump = new
         {
@@ -1091,6 +1331,7 @@ public class TenantsController : Controller
     {
         var tenant = await _context.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.TenantId == id);
         if (tenant == null) return NotFound();
+        if (!CanAccessCompany(tenant.CompanyId)) return NotFound();   // audit H1 — irreversible PII wipe
 
         tenant.FirstName = "[REDACTED]";
         tenant.LastName = "[REDACTED]";
@@ -1125,10 +1366,12 @@ public class TenantsController : Controller
                 Directory.CreateDirectory(uploadsPath);
             }
 
+            var saved = new List<Document>();
             for (int i = 0; i < documents.Count; i++)
             {
                 var file = documents[i];
-                if (file != null && file.Length > 0 && i < documentTypes.Count && !string.IsNullOrEmpty(documentTypes[i]))
+                if (file != null && file.Length > 0 && i < documentTypes.Count && !string.IsNullOrEmpty(documentTypes[i])
+                    && UploadValidation.IsAllowed(file))
                 {
                     // Generate unique file name
                     var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
@@ -1155,14 +1398,37 @@ public class TenantsController : Controller
                     };
 
                     _context.Documents.Add(document);
+                    saved.Add(document);
                 }
             }
 
+            if (saved.Count == 0) return;
+            await _context.SaveChangesAsync();
+
+            // Mirror DocumentsController.Upload: stamp a DocumentLink per file
+            // (after SaveChanges so DocumentId is set). Without the link row,
+            // DocumentsController.CanAccessDocumentAsync can't resolve the
+            // document's company and the file is invisible to other admins.
+            foreach (var document in saved)
+            {
+                _context.DocumentLinks.Add(new DocumentLink
+                {
+                    DocumentId = document.DocumentId,
+                    EntityType = entityType,
+                    EntityId = entityId,
+                    LinkedAt = DateTime.UtcNow,
+                    LinkedBy = User.Identity?.Name
+                });
+            }
             await _context.SaveChangesAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error uploading documents for {EntityType} {EntityId}", entityType, entityId);
+            // Don't swallow silently — the record itself was saved, but the
+            // operator needs to know the attachments didn't make it.
+            TempData["WarningMessage"] =
+                "Saved, but one or more documents could not be uploaded. Attach them again from the Details page.";
         }
     }
 }

@@ -1,0 +1,50 @@
+@{
+    ViewData["Title"] = "Two-Factor Authentication";
+    Layout = null;
+    var _ci = System.Globalization.CultureInfo.CurrentUICulture;
+    var _isRtl = _ci.TextInfo.IsRightToLeft;
+    var _dir = _isRtl ? "rtl" : "ltr";
+    var _lang = _ci.TwoLetterISOLanguageName;
+}
+<!DOCTYPE html>
+<html lang="@_lang" dir="@_dir">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.rtl.css" asp-append-version="true" />
+</head>
+<body class="login-body">
+    <div class="container" style="max-width:420px;margin-top:8vh;">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <div class="text-center mb-3">
+                    <i class="fas fa-shield-halved fa-2x text-primary"></i>
+                    <h4 class="mt-2">@L["Two-Factor Authentication"]</h4>
+                    <p class="text-muted small mb-0">@L["Enter the 6-digit code from your authenticator app."]</p>
+                </div>
+
+                <div asp-validation-summary="All" class="text-danger small"></div>
+
+                <form asp-controller="Account" asp-action="LoginMfa" method="post" autocomplete="off">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                               class="form-control form-control-lg text-center" style="letter-spacing:0.4em;"
+                               placeholder="000000" autofocus required />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-check"></i> @L["Verify"]
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="/Account/Login" class="small text-muted">@L["Back to sign in"]</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

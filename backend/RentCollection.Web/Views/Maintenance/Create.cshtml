@@ -1,4 +1,5 @@
 @model RentCollection.Core.Entities.MaintenanceRequest
+@inject RentCollection.Web.Services.ILookupService Lookups
 @{
     ViewData["Title"] = "Create Maintenance Request";
 }
@@ -62,12 +63,10 @@
                         </label>
                         <select asp-for="Category" class="form-control" required>
                             <option value="">@L["Select type"]</option>
-                            <option value="Plumbing">Plumbing</option>
-                            <option value="Electrical">Electrical</option>
-                            <option value="HVAC">HVAC</option>
-                            <option value="Appliance">Appliance</option>
-                            <option value="General">General</option>
-                            <option value="Other">Other</option>
+                            @foreach (var opt in await Lookups.GetOptionsAsync("MaintenanceCategory"))
+                            {
+                                <option value="@opt.Code" selected="@(Model?.Category == opt.Code)">@opt.Label</option>
+                            }
                         </select>
                         <span asp-validation-for="Category" class="text-danger"></span>
                     </div>
@@ -77,9 +76,10 @@
                             <i class="fas fa-exclamation-circle"></i> @L["Priority"] <span class="required">*</span>
                         </label>
                         <select asp-for="Priority" class="form-control" required>
-                            <option value="Low">Low</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="High">High</option>
+                            @foreach (var opt in await Lookups.GetOptionsAsync("MaintenancePriority"))
+                            {
+                                <option value="@opt.Code" selected="@(Model?.Priority == opt.Code)">@opt.Label</option>
+                            }
                         </select>
                         <span asp-validation-for="Priority" class="text-danger"></span>
                     </div>
@@ -128,7 +128,7 @@
 @section Styles {
     <style>
         body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
             color: #1e293b;
             min-height: 100vh;
         }
@@ -191,7 +191,7 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white;
         }
 
@@ -213,7 +213,7 @@
 
         .form-card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             padding: 2rem;
@@ -245,7 +245,7 @@
             content: '';
             width: 4px;
             height: 24px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             border-radius: 2px;
         }
 
@@ -290,8 +290,8 @@
 
         .form-control:focus {
             outline: none;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            border-color: #8a6d1f;
+            box-shadow: 0 0 0 3px rgba(138, 109, 31, 0.1);
         }
 
         textarea.form-control {

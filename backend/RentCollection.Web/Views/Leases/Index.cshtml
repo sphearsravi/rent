@@ -1,15 +1,35 @@
-﻿@model List<RentCollection.Core.Entities.Lease>
+@model List<RentCollection.Core.Entities.Lease>
+@using RentCollection.Core.Entities
 @{
     ViewData["Title"] = "Leases";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var caseByLease = ViewBag.CaseByLease as Dictionary<int, LegalCase> ?? new();
 
-    // Group leases by property
-    var leasesByProperty = Model
-        .GroupBy(l => l.Unit.Property)
-        .OrderBy(g => g.Key.PropertyName)
+    // Group leases by property (same grouping the old page used).
+    var groups = Model
+        .Where(l => l.Unit != null)
+        .GroupBy(l => l.Unit!.Property)
+        .OrderBy(g => g.Key?.PropertyName)
         .ToList();
+    var openAll = Model.Count <= 80 || groups.Count == 1;
+
+    static string NatKey(string? s) => System.Text.RegularExpressions.Regex.Replace(s ?? "", @"\d+", m => m.Value.PadLeft(8, '0'));
+    static string Initials(Tenant? t) => t == null ? "?" :
+        string.Concat(new[] { t.FirstName, t.LastName }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s![0])).ToUpperInvariant();
+
+    string Chip(string? status) => status switch
+    {
+        LeaseStatuses.Active => "lp-chip-green",
+        LeaseStatuses.Pending => "lp-chip-amber",
+        LeaseStatuses.Renewed => "lp-chip-gold",
+        LeaseStatuses.Terminated => "lp-chip-red",
+        LeaseStatuses.Expired => "lp-chip-grey",
+        _ => "lp-chip-grey",
+    };
+    var statusOrder = new[] { LeaseStatuses.Active, LeaseStatuses.Pending, LeaseStatuses.Expired, LeaseStatuses.Renewed, LeaseStatuses.Terminated };
 }
 
-<div class="page-container">
+<div class="lp-page" data-lp-scope>
     @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
     {
         ["Title"] = L["Leases"].Value,
@@ -17,1450 +37,366 @@
         ["ActionLabel"] = L["Create Lease"].Value,
         ["ActionHref"] = Url.Action("Create", "Leases"),
         ["Crumbs"] = new (string label, string? href)[]
-            {
-                (L["Admin"].Value, "/Dashboard"),
-                (L["Leases"].Value, null)
-            }
+        {
+            (L["Admin"].Value, "/Dashboard"),
+            (L["Leases"].Value, null),
+        }
     })
 
     @await Html.PartialAsync("_AlertMessages")
+    @Html.AntiForgeryToken()
 
-    <!-- ─── Portfolio KPI strip ─── -->
-    <div class="leases-strip" id="leasesStrip" aria-live="polite">
-        <div class="kpi-card"><div class="kpi-icon ki-total"><i class="fas fa-file-contract"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Total leases"]</div><div class="kpi-value skeleton" data-k="totalLeases">&nbsp;</div>
-            <div class="kpi-sub">@L["all statuses"]</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-active"><i class="fas fa-circle-check"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Active"]</div><div class="kpi-value skeleton" data-k="activeLeases">&nbsp;</div>
-            <div class="kpi-sub">@L["in force"]</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-soon"><i class="fas fa-clock"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Expiring ≤ 30d"]</div><div class="kpi-value skeleton" data-k="expiringSoon">&nbsp;</div>
-            <div class="kpi-sub">@L["renew or terminate"]</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-bad"><i class="fas fa-triangle-exclamation"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Past end date"]</div><div class="kpi-value skeleton" data-k="expired">&nbsp;</div>
-            <div class="kpi-sub">@L["still Active"]</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon ki-mrr"><i class="fas fa-coins"></i></div>
-            <div class="kpi-body"><div class="kpi-label">@L["Monthly rent roll"]</div><div class="kpi-value skeleton" data-k="monthlyRentRoll">&nbsp;</div>
-            <div class="kpi-sub">@L["from Active leases"]</div></div></div>
+    @* ── KPI strip (filled by /Leases/Snapshot) ── *@
+    <div class="od od-grid-kpi lp-kpi-5" id="leasesStrip" aria-live="polite">
+        <div class="od-card od-kpi-hero">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Monthly rent roll"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="monthlyRentRoll">&nbsp;</div>
+            <div class="od-kpi-sub">@L["from Active leases"]</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Total leases"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="totalLeases">&nbsp;</div>
+            <div class="od-kpi-sub">@L["all statuses"]</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Active"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="activeLeases">&nbsp;</div>
+            <div class="od-kpi-sub">@L["in force"]</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Expiring ≤ 30d"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="expiringSoon">&nbsp;</div>
+            <div class="od-kpi-sub">@L["renew or terminate"]</div>
+        </div>
+        <div class="od-card">
+            <div class="od-kpi-row"><span class="od-kpi-label">@L["Past end date"]</span></div>
+            <div class="od-kpi-value lp-skel" data-k="expired">&nbsp;</div>
+            <div class="od-kpi-sub">@L["still Active"]</div>
+        </div>
     </div>
 
-    <!-- ─── Toolbar: chips + expiring + export ─── -->
-    <div class="leases-toolbar">
-        <div class="filter-chips" id="filterChips" aria-label="@(L["Active filters"].Value)"></div>
-        <div class="toolbar-right">
-            <label class="toolbar-label" for="expiringFilter">@L["Expiring"]</label>
-            <select id="expiringFilter" class="toolbar-select" onchange="filterLeases()">
-                <option value="">@L["Any"]</option>
-                <option value="30">@L["≤ 30 days"]</option>
-                <option value="60">@L["≤ 60 days"]</option>
-                <option value="90">@L["≤ 90 days"]</option>
+    @* ── Toolbar: instant client-side search + chips (all leases are on the page) ── *@
+    <div class="lp-toolbar" id="leaseFilters">
+        <div class="lp-toolbar-row">
+            <label class="lp-search">
+                <i class="fas fa-search"></i>
+                <input type="search" id="leaseSearch" data-lp-search placeholder="@(L["Tenant, Civil ID, unit or property…"].Value)" />
+            </label>
+            <select id="propertyFilter" class="lp-select">
+                <option value="">@L["All properties"]</option>
+                @foreach (var p in groups.Select(g => g.Key).Where(p => p != null))
+                {
+                    <option value="@p!.PropertyId">@p.PropertyName</option>
+                }
             </select>
-            <a id="exportExcelLink" class="btn-export" href="/Leases/ExportExcel" aria-label="@(L["Export filtered leases as Excel"].Value)">
+            <span class="lp-result-count" data-lp-count data-all="@(L["Showing all {0} leases"].Value)" data-some="@(L["Showing {0} of {1} leases"].Value)"></span>
+            <div class="lp-toolbar-spacer"></div>
+            <button type="button" class="lp-btn" id="clearLeaseFilters">@L["Clear filters"]</button>
+            <a class="lp-btn lp-btn-export" id="exportExcelLink" download href="/Leases/ExportExcel">
                 <i class="fas fa-file-excel"></i> @L["Export"]
             </a>
         </div>
+        <div class="lp-toolbar-row">
+            <div class="lp-chips" data-lp-filter="status">
+                <span class="lp-chips-label">@L["Status"]</span>
+                <button type="button" class="lp-chip-btn is-on" data-value="">@L["All"]</button>
+                @foreach (var s in statusOrder)
+                {
+                    <button type="button" class="lp-chip-btn" data-value="@s">@L[s]</button>
+                }
+            </div>
+            <div class="lp-chips" data-lp-filter="expiring">
+                <span class="lp-chips-label">@L["Expiring"]</span>
+                <button type="button" class="lp-chip-btn is-on" data-value="">@L["Any"]</button>
+                <button type="button" class="lp-chip-btn" data-value="30">@L["≤ 30 days"]</button>
+                <button type="button" class="lp-chip-btn" data-value="60">@L["≤ 60 days"]</button>
+                <button type="button" class="lp-chip-btn" data-value="90">@L["≤ 90 days"]</button>
+                <button type="button" class="lp-chip-btn" data-value="past">@L["Past end"]</button>
+            </div>
+        </div>
+        <div class="lp-toolbar-row">
+            <div class="lp-chips" data-lp-filter="case">
+                <span class="lp-chips-label">@L["Legal case"]</span>
+                <button type="button" class="lp-chip-btn is-on" data-value="">@L["All"]</button>
+                <button type="button" class="lp-chip-btn" data-value="__open">@L["Has open case"]</button>
+                <button type="button" class="lp-chip-btn" data-value="__any">@L["Has any case"]</button>
+                @foreach (var s in LegalCaseStatuses.All)
+                {
+                    <button type="button" class="lp-chip-btn" data-value="@s">@L[s]</button>
+                }
+            </div>
+            @* Property filter is a <select>; the kit filters on chip groups, so this
+               hidden group mirrors it (one chip per property, driven by script). *@
+            <div class="lp-chips" data-lp-filter="property" hidden>
+                <button type="button" class="lp-chip-btn is-on" data-value=""></button>
+                @foreach (var p in groups.Select(g => g.Key).Where(p => p != null))
+                {
+                    <button type="button" class="lp-chip-btn" data-value="@p!.PropertyId"></button>
+                }
+            </div>
+        </div>
     </div>
 
-    @Html.AntiForgeryToken()
-
-    <!-- Search/Filter Section -->
-    <div class="filter-section">
-        <div class="filter-row">
-            <div class="search-group">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="@(L["Search by tenant name, email, or PACI..."].Value)" onkeyup="filterLeases()">
-            </div>
-            <div class="filter-group">
-                <label>@L["Building:"]</label>
-                <select id="buildingFilter" onchange="filterLeases()">
-                    <option value="">@L["All Buildings"]</option>
-                    @foreach (var prop in leasesByProperty.Select(g => g.Key).OrderBy(p => p.PropertyName))
-                    {
-                        <option value="@prop.PropertyId">@prop.PropertyName</option>
-                    }
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>@L["Status:"]</label>
-                <select id="statusFilter" onchange="filterLeases()">
-                    <option value="">@L["All Status"]</option>
-                    <option value="Active">@L["Active"]</option>
-                    <option value="Terminated">@L["Terminated"]</option>
-                    <option value="Expired">@L["Expired"]</option>
-                </select>
-            </div>
-            <button class="btn-clear" onclick="clearFilters()">
-                <i class="fas fa-times"></i> @L["Clear"]
-            </button>
-        </div>
-        <div class="filter-results">
-            <span id="resultCount">@L["Showing all leases"]</span>
-        </div>
-    </div>
-
-    @if (leasesByProperty.Any())
+    @if (!Model.Any())
     {
-        <div class="properties-container">
-            @foreach (var propertyGroup in leasesByProperty)
-            {
-                var property = propertyGroup.Key;
-                var propertyLeases = propertyGroup.ToList();
-                var activeLeases = propertyLeases.Count(l => l.Status == "Active");
-                var totalRent = propertyLeases.Where(l => l.Status == "Active").Sum(l => l.MonthlyRent);
-
-                <div class="property-section" data-property-id="@property.PropertyId" data-property-name="@property.PropertyName.ToLower()">
-                    <!-- Property Header with Image -->
-                    <div class="property-header">
-                        <div class="property-image">
-                            @if (!string.IsNullOrEmpty(property.ImageUrl))
-                            {
-                                <img src="@property.ImageUrl" alt="@property.PropertyName" />
-                            }
-                            else
-                            {
-                                <div class="property-placeholder">
-                                    <i class="fas fa-building"></i>
-                                </div>
-                            }
-                        </div>
-                        <div class="property-info">
-                            <div class="property-title">
-                                <h2>@property.PropertyName</h2>
-                                <span class="property-type">@property.PropertyType</span>
-                            </div>
-                            <div class="property-address">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <span>@property.Address, @property.Area, @property.Governorate</span>
-                            </div>
-                            <div class="property-stats">
-                                <div class="stat">
-                                    <i class="fas fa-users"></i>
-                                    <span><strong>@activeLeases</strong> @L["Active Tenants"]</span>
-                                </div>
-                                <div class="stat">
-                                    <i class="fas fa-door-open"></i>
-                                    <span><strong>@property.NumberOfUnits</strong> @L["Total Units"]</span>
-                                </div>
-                                <div class="stat">
-                                    <i class="fas fa-money-bill-wave"></i>
-                                    <span><strong>KWD @totalRent.ToString("N3")</strong> @L["Monthly Income"]</span>
-                                </div>
-                            </div>
-                        </div>
-                        <a href="/Properties/Details/@property.PropertyId" class="btn-view-property">
-                            <i class="fas fa-external-link-alt"></i> @L["View Property"]
-                        </a>
-                    </div>
-
-                    <!-- Tenants List -->
-                    <div class="tenants-container">
-                        <div class="tenants-header">
-                            <h3><i class="fas fa-users"></i> @L["Tenants"] (@propertyLeases.Count)</h3>
-                        </div>
-                        <div class="tenants-table">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>@L["Tenant"]</th>
-                                        <th>@L["Unit"]</th>
-                                        <th>@L["Contact"]</th>
-                                        <th>@L["Lease Period"]</th>
-                                        <th>@L["Monthly Rent"]</th>
-                                        <th>@L["Collection"]</th>
-                                        <th>@L["Status"]</th>
-                                        <th>@L["Actions"]</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var lease in propertyLeases.OrderBy(l => l.Unit.UnitNumber))
-                                    {
-                                        // LEASE_AUDIT Flaw #14 — use LeaseMath
-                                        // so the day-difference doesn't oscillate
-                                        // by Â±1 around midnight UTC.
-                                        var daysRemaining = RentCollection.Core.Leases.LeaseMath.DaysRemaining(lease.LeaseEndDate);
-                                        var isExpiring = daysRemaining <= 30 && daysRemaining >= 0;
-                                        var isPastEnd  = daysRemaining < 0;
-
-                                        // LEASE_AUDIT Flaw #7 — data-status now
-                                        // reflects DB truth, not a view-derived
-                                        // override. row-expired stays as a
-                                        // VISUAL cue independent of state.
-                                        var dbStatus = lease.Status ?? "Active";
-                                        var statusClass = dbStatus.ToLower();
-                                        if (isPastEnd && dbStatus == "Active") statusClass = "expiring";
-
-                                        <tr class="tenant-row @(isPastEnd ? "row-expired" : isExpiring ? "row-expiring" : "")"
-                                            data-lease-id="@lease.LeaseId"
-                                            data-tenant-name="@((lease.Tenant?.FirstName ?? "").ToLower()) @((lease.Tenant?.LastName ?? "").ToLower())"
-                                            data-tenant-email="@(lease.Tenant?.Email?.ToLower() ?? "")"
-                                            data-tenant-paci="@(lease.Tenant?.PACINumber?.ToLower() ?? "")"
-                                            data-status="@dbStatus"
-                                            data-unit="@((lease.Unit?.UnitNumber ?? "").ToLower())"
-                                            data-days-remaining="@daysRemaining">
-                                            <td data-label="Tenant">
-                                                <a class="tenant-info tenant-info-link" href="/Tenants/Details/@lease.TenantId">
-                                                    <div class="tenant-avatar">
-                                                        @{
-                                                            var firstInit = !string.IsNullOrEmpty(lease.Tenant?.FirstName) ? lease.Tenant.FirstName[0] : 'T';
-                                                            var lastInit = !string.IsNullOrEmpty(lease.Tenant?.LastName) ? lease.Tenant.LastName[0] : 'N';
-                                                        }
-                                                        @firstInit@lastInit
-                                                    </div>
-                                                    <div>
-                                                        <strong>@(lease.Tenant?.FirstName ?? "Unknown") @(lease.Tenant?.LastName ?? "")</strong>
-                                                        @if (!string.IsNullOrEmpty(lease.Tenant?.PACINumber))
-                                                        {
-                                                            <small class="paci">PACI: @lease.Tenant.PACINumber</small>
-                                                        }
-                                                    </div>
-                                                </a>
-                                            </td>
-                                            <td data-label="Unit">
-                                                <div class="unit-info">
-                                                    <i class="fas fa-door-closed"></i>
-                                                    <span>@(lease.Unit?.UnitNumber ?? "N/A")</span>
-                                                    <small>@(lease.Unit?.UnitType ?? "")</small>
-                                                </div>
-                                            </td>
-                                            <td data-label="Contact">
-                                                <div class="contact-info">
-                                                    @if (!string.IsNullOrEmpty(lease.Tenant?.Email))
-                                                    {
-                                                        <a href="mailto:@lease.Tenant.Email" title="@lease.Tenant.Email">
-                                                            <i class="fas fa-envelope"></i>
-                                                        </a>
-                                                    }
-                                                    @if (!string.IsNullOrEmpty(lease.Tenant?.Phone))
-                                                    {
-                                                        <a href="tel:@lease.Tenant.Phone" title="@lease.Tenant.Phone">
-                                                            <i class="fas fa-phone"></i>
-                                                        </a>
-                                                    }
-                                                </div>
-                                            </td>
-                                            <td data-label="Lease period">
-                                                <div class="lease-period">
-                                                    <span>@lease.LeaseStartDate.ToString("MMM dd, yyyy")</span>
-                                                    <span class="separator">@L["to"]</span>
-                                                    <span>@lease.LeaseEndDate.ToString("MMM dd, yyyy")</span>
-                                                    @if (lease.Status == "Active")
-                                                    {
-                                                        @if (isPastEnd)
-                                                        {
-                                                            <span class="days-badge expired">@L["Past end"] @Math.Abs(daysRemaining)@L["d ago"]</span>
-                                                        }
-                                                        else if (isExpiring)
-                                                        {
-                                                            <span class="days-badge expiring">@daysRemaining @L["days left"]</span>
-                                                        }
-                                                    }
-                                                </div>
-                                            </td>
-                                            <td data-label="Monthly rent">
-                                                <span class="rent-amount">KWD @lease.MonthlyRent.ToString("N3")</span>
-                                            </td>
-                                            <td data-label="Collection">
-                                                <a class="collection-cell" href="/Invoices?leaseId=@lease.LeaseId" title="@(L["View invoices for this lease"].Value)">
-                                                    <span class="coll-outstanding skeleton">&nbsp;</span>
-                                                    <small class="coll-sub skeleton">&nbsp;</small>
-                                                </a>
-                                            </td>
-                                            <td data-label="Status">
-                                                <span class="status-badge status-@statusClass">@(lease.Status ?? "Active")</span>
-                                            </td>
-                                            <td class="col-actions" data-label="Actions">
-                                                <div class="kebab-wrap">
-                                                    <button type="button" class="kebab-btn" aria-label="@(L["More actions"].Value)" aria-haspopup="menu" aria-expanded="false">
-                                                        <i class="fas fa-ellipsis-vertical"></i>
-                                                    </button>
-                                                    <div class="kebab-menu" role="menu" hidden>
-                                                        <a href="/Leases/Details/@lease.LeaseId" role="menuitem"><i class="fas fa-eye"></i> @L["View"]</a>
-                                                        <a href="/Leases/History/@lease.LeaseId" role="menuitem"><i class="fas fa-clock-rotate-left"></i> @L["History"]</a>
-                                                        <a href="/Leases/Edit/@lease.LeaseId" role="menuitem"><i class="fas fa-edit"></i> @L["Edit"]</a>
-                                                        <a href="/Tenants/Details/@lease.TenantId" role="menuitem"><i class="fas fa-user"></i> @L["View tenant"]</a>
-                                                        <a href="/Invoices?leaseId=@lease.LeaseId" role="menuitem"><i class="fas fa-file-invoice-dollar"></i> @L["Invoices"]</a>
-                                                        <a href="/CashPayment/Record?tenantId=@lease.TenantId" role="menuitem"><i class="fas fa-money-bill"></i> @L["Record payment"]</a>
-                                                        @if (lease.Status == "Active" || lease.Status == "Expired")
-                                                        {
-                                                            <a href="/Leases/Details/@lease.LeaseId#renew" role="menuitem"><i class="fas fa-arrows-rotate"></i> @L["Renew"]</a>
-                                                        }
-                                                        @if (lease.Status == "Active")
-                                                        {
-                                                            <a href="/Leases/Details/@lease.LeaseId#terminate" role="menuitem" class="danger-item"><i class="fas fa-circle-stop"></i> @L["Terminate"]</a>
-                                                        }
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-
-        <!-- No Results Message (shown when filter returns no results) -->
-        <div class="no-results-message" id="noResultsMessage">
-            <i class="fas fa-search"></i>
-            <h4>@L["No matching results found"]</h4>
-            <p>@L["Try adjusting your search or filter criteria"]</p>
+        <div class="lp-empty">
+            <i class="fas fa-file-contract"></i>
+            <h3>@L["No Leases Found"]</h3>
+            <p>@L["Start by creating a lease agreement for your tenants"]</p>
+            <p style="margin-top:0.6rem"><a class="lp-btn lp-btn-primary" href="/Leases/Create"><i class="fas fa-file-signature"></i> @L["Create Lease"]</a></p>
         </div>
     }
     else
     {
-        <div class="empty-state">
-            <i class="fas fa-file-contract"></i>
-            <h3>@L["No Leases Found"]</h3>
-            <p>@L["Start by creating a lease agreement for your tenants"]</p>
-            <a href="/Leases/Create" class="btn btn-primary">
-                <i class="fas fa-file-contract"></i> @L["Create Lease"]
-            </a>
+        <div class="lp-empty" data-lp-empty hidden>
+            <i class="fas fa-search"></i>
+            <h3>@L["No matching results found"]</h3>
+            <p>@L["Try adjusting your search or filter criteria"]</p>
         </div>
+    }
+
+    @* ── Leases grouped by property ── *@
+    @foreach (var g in groups)
+    {
+        var prop = g.Key;
+        var leases = g.OrderBy(l => Array.IndexOf(statusOrder, l.Status ?? "") is var i && i < 0 ? 99 : i)
+                      .ThenBy(l => NatKey(l.Unit?.UnitNumber)).ToList();
+        var activeCount = leases.Count(l => l.Status == LeaseStatuses.Active);
+        var rentRoll = leases.Where(l => l.Status == LeaseStatuses.Active).Sum(l => l.MonthlyRent);
+        var attention = leases.Count(l => l.Status == LeaseStatuses.Active && l.LeaseEndDate.Date < DateTime.Today)
+                      + leases.Count(l => l.Status == LeaseStatuses.Pending);
+        var openCases = leases.Count(l => caseByLease.TryGetValue(l.LeaseId, out var c) && c.IsOpen);
+        var initials = string.Concat((prop?.PropertyName ?? "?").Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0])).ToUpperInvariant();
+
+        <details class="lp-group" @(openAll ? "open" : "")>
+            <summary>
+                <span class="lp-group-mark">@initials</span>
+                <div>
+                    <div class="lp-group-title">@(prop?.PropertyName ?? L["Unknown property"].Value)</div>
+                    <div class="lp-group-meta">
+                        <span data-lp-group-count>@leases.Count</span> @L["leases"]
+                        @if (!string.IsNullOrWhiteSpace(prop?.Area) || !string.IsNullOrWhiteSpace(prop?.Governorate))
+                        {
+                            <text> · @string.Join(", ", new[] { prop?.Area, prop?.Governorate }.Where(s => !string.IsNullOrWhiteSpace(s)))</text>
+                        }
+                        @if (attention > 0)
+                        {
+                            <text> · </text><span class="lp-chip lp-chip-amber" title="@(L["Past end date or awaiting activation"].Value)">@attention @L["need attention"]</span>
+                        }
+                        @if (openCases > 0)
+                        {
+                            <text> · </text><span class="lp-chip lp-chip-red"><i class="fas fa-scale-balanced"></i> @openCases @L["open legal"]</span>
+                        }
+                    </div>
+                </div>
+                <div class="lp-group-stats">
+                    <div class="lp-group-stat"><b>@activeCount / @(prop?.NumberOfUnits ?? leases.Count)</b><span>@L["Active / units"]</span></div>
+                    <div class="lp-group-stat"><b>@rentRoll.ToString("N3", inv)</b><span>@L["Rent roll / mo"]</span></div>
+                    <a class="lp-btn" href="/Properties/Details/@prop?.PropertyId" onclick="event.stopPropagation()"><i class="fas fa-building"></i> @L["Property"]</a>
+                    <i class="fas fa-chevron-down lp-group-chevron"></i>
+                </div>
+            </summary>
+            <div class="lp-table-wrap">
+                <table class="lp-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="tenant">@L["Tenant"]</th>
+                            <th data-sort="unit">@L["Unit"]</th>
+                            <th data-sort="end">@L["Lease period"]</th>
+                            <th class="lp-num" data-sort="rent">@L["Rent (KWD)"]</th>
+                            <th class="lp-num">@L["Collection"]</th>
+                            <th data-sort="status">@L["Status"]</th>
+                            <th class="lp-right">@L["Actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var lease in leases)
+                        {
+                            var t = lease.Tenant;
+                            var status = lease.Status ?? LeaseStatuses.Active;
+                            var days = RentCollection.Core.Leases.LeaseMath.DaysRemaining(lease.LeaseEndDate);
+                            var isActive = status == LeaseStatuses.Active;
+                            var pastEnd = isActive && days < 0;
+                            // Tokens the chip filters match against (space-separated).
+                            var expiringTokens = pastEnd ? "past"
+                                : isActive && days >= 0 ? string.Join(" ", new[] { 30, 60, 90 }.Where(h => days <= h)) : "";
+                            caseByLease.TryGetValue(lease.LeaseId, out var lc);
+                            var caseTokens = lc == null ? "" : $"__any {(lc.IsOpen ? "__open " : "")}{lc.Status}";
+                            var search = $"{t?.FirstName} {t?.LastName} {t?.PACINumber} {t?.Email} {lease.Unit?.UnitNumber} {prop?.PropertyName} {status} #{lease.LeaseId}".ToLowerInvariant();
+
+                            <tr data-search="@search" data-lease-id="@lease.LeaseId"
+                                data-status="@status" data-expiring="@expiringTokens" data-case="@caseTokens" data-property="@prop?.PropertyId"
+                                data-sort-tenant="@t?.FirstName @t?.LastName" data-sort-unit="@NatKey(lease.Unit?.UnitNumber)"
+                                data-sort-end="@lease.LeaseEndDate.ToString("yyyy-MM-dd")" data-sort-rent="@lease.MonthlyRent" data-sort-status="@status">
+                                <td data-label="@L["Tenant"]">
+                                    <div class="lp-cell-person">
+                                        <span class="lp-avatar">@Initials(t)</span>
+                                        <div>
+                                            <a class="lp-link lp-primary" href="/Tenants/Details/@lease.TenantId">@(t == null ? L["Unknown"].Value : $"{t.FirstName} {t.LastName}")</a>
+                                            @if (!string.IsNullOrEmpty(t?.PACINumber)) { <span class="lp-sub lp-mono">@t.PACINumber</span> }
+                                        </div>
+                                    </div>
+                                </td>
+                                <td data-label="@L["Unit"]">
+                                    <a class="lp-link" href="/Units/Details/@lease.UnitId">@L["Unit"] @(lease.Unit?.UnitNumber ?? "—")</a>
+                                    @if (!string.IsNullOrWhiteSpace(lease.Unit?.UnitType)) { <span class="lp-sub">@L[lease.Unit.UnitType]</span> }
+                                </td>
+                                <td data-label="@L["Lease period"]">
+                                    <span style="white-space:nowrap">@lease.LeaseStartDate.ToString("dd MMM yyyy", inv) → @lease.LeaseEndDate.ToString("dd MMM yyyy", inv)</span>
+                                    <span class="lp-sub">
+                                        @if (pastEnd) { <span class="lp-chip lp-chip-red">@L["Past end"] · @Math.Abs(days) @L["days"]</span> }
+                                        else if (isActive && days <= 30) { <span class="lp-chip lp-chip-amber">@days @L["days left"]</span> }
+                                        else if (isActive) { <text>@days @L["days left"]</text> }
+                                        else if (status == LeaseStatuses.Pending) { <text>@L["awaiting activation"]</text> }
+                                        else if (lease.TerminationDate.HasValue) { <text>@L["ended"] @lease.TerminationDate.Value.ToString("dd MMM yyyy", inv)</text> }
+                                    </span>
+                                </td>
+                                <td class="lp-num" data-label="@L["Rent (KWD)"]">
+                                    <span class="lp-amount">@lease.MonthlyRent.ToString("N3", inv)</span>
+                                    @if (lease.SecurityDeposit > 0) { <span class="lp-sub">@L["deposit"] @lease.SecurityDeposit.ToString("N3", inv)</span> }
+                                </td>
+                                <td class="lp-num" data-label="@L["Collection"]">
+                                    <a class="lp-link" href="/Invoices?leaseId=@lease.LeaseId" title="@(L["View invoices for this lease"].Value)">
+                                        <span class="lp-amount lp-skel coll-outstanding">&nbsp;</span>
+                                        <span class="lp-sub lp-skel coll-sub">&nbsp;</span>
+                                    </a>
+                                </td>
+                                <td data-label="@L["Status"]">
+                                    <span class="lp-chip @Chip(status)">@L[status]</span>
+                                    @if (lc != null)
+                                    {
+                                        <a class="lp-chip @(lc.IsOpen ? "lp-chip-amber" : "lp-chip-grey")" style="margin-top:4px;display:inline-flex" href="/Leases/Details/@lease.LeaseId#legal-case" title="@(L["Legal Case"].Value): @lc.Status">
+                                            <i class="fas fa-scale-balanced"></i> @L[lc.Status]
+                                        </a>
+                                    }
+                                </td>
+                                <td class="lp-right" data-label="@L["Actions"]">
+                                    <div class="lp-row-actions">
+                                        @if (status == LeaseStatuses.Pending)
+                                        {
+                                            <a class="lp-btn lp-btn-primary" style="padding:0.3rem 0.6rem;font-size:0.76rem" href="/Leases/Details/@lease.LeaseId#activate"><i class="fas fa-play"></i> @L["Activate"]</a>
+                                        }
+                                        else if (pastEnd)
+                                        {
+                                            <a class="lp-btn lp-btn-primary" style="padding:0.3rem 0.6rem;font-size:0.76rem" href="/Leases/Details/@lease.LeaseId#renew"><i class="fas fa-arrows-rotate"></i> @L["Renew"]</a>
+                                        }
+                                        <a class="lp-icon-btn" title="@(L["View"].Value)" href="/Leases/Details/@lease.LeaseId"><i class="fas fa-eye"></i></a>
+                                        <div class="kebab-wrap">
+                                            <button type="button" class="kebab-btn" aria-label="@(L["More actions"].Value)" aria-haspopup="menu" aria-expanded="false"><i class="fas fa-ellipsis-vertical"></i></button>
+                                            <div class="kebab-menu" role="menu" hidden>
+                                                <a href="/Leases/Details/@lease.LeaseId" role="menuitem"><i class="fas fa-eye"></i> @L["View"]</a>
+                                                <a href="/Leases/History/@lease.LeaseId" role="menuitem"><i class="fas fa-clock-rotate-left"></i> @L["History"]</a>
+                                                <a href="/Leases/Edit/@lease.LeaseId" role="menuitem"><i class="fas fa-edit"></i> @L["Edit"]</a>
+                                                <a href="/Tenants/Details/@lease.TenantId" role="menuitem"><i class="fas fa-user"></i> @L["View tenant"]</a>
+                                                <a href="/Invoices?leaseId=@lease.LeaseId" role="menuitem"><i class="fas fa-file-invoice-dollar"></i> @L["Invoices"]</a>
+                                                <a href="/CashPayment/Record?tenantId=@lease.TenantId" role="menuitem"><i class="fas fa-money-bill"></i> @L["Record payment"]</a>
+                                                @if (status == LeaseStatuses.Active || status == LeaseStatuses.Expired)
+                                                {
+                                                    <a href="/Leases/Details/@lease.LeaseId#renew" role="menuitem"><i class="fas fa-arrows-rotate"></i> @L["Renew"]</a>
+                                                }
+                                                @if (status == LeaseStatuses.Active)
+                                                {
+                                                    <a href="/Leases/Details/@lease.LeaseId#terminate" role="menuitem" class="danger-item"><i class="fas fa-circle-stop"></i> @L["Terminate"]</a>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
     }
 </div>
 
-@section Styles {
-    <style>
-        body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
-            color: #1e293b;
-            min-height: 100vh;
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-
-        .page-container {
-            padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .page-header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin: 0;
-            color: #334155;
-        }
-
-        .text-muted {
-            color: #475569;
-            margin: 0.5rem 0 0 0;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-        }
-
-        /* Property Sections */
-        .properties-container {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        .property-section {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
-        }
-
-        /* Property Header */
-        .property-header {
-            display: flex;
-            align-items: stretch;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-bottom: 1px solid #e2e8f0;
-            position: relative;
-        }
-
-        .property-image {
-            width: 200px;
-            min-height: 160px;
-            flex-shrink: 0;
-        }
-
-        .property-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .property-placeholder {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .property-placeholder i {
-            font-size: 3.5rem;
-            color: white;
-            opacity: 0.9;
-        }
-
-        .property-info {
-            flex: 1;
-            padding: 1.25rem 1.5rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .property-title {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .property-title h2 {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin: 0;
-        }
-
-        .property-type {
-            background: rgba(99, 102, 241, 0.1);
-            color: #6366f1;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .property-address {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #64748b;
-            font-size: 0.875rem;
-            margin-bottom: 1rem;
-        }
-
-        .property-address i {
-            color: #ef4444;
-        }
-
-        .property-stats {
-            display: flex;
-            gap: 2rem;
-        }
-
-        .property-stats .stat {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.875rem;
-            color: #475569;
-        }
-
-        .property-stats .stat i {
-            color: #6366f1;
-        }
-
-        .property-stats .stat strong {
-            color: #1e293b;
-        }
-
-        .btn-view-property {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            padding: 0.5rem 1rem;
-            background: white;
-            color: #6366f1;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 0.8rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.375rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s;
-        }
-
-        .btn-view-property:hover {
-            background: #6366f1;
-            color: white;
-        }
-
-        /* Tenants Container */
-        .tenants-container {
-            padding: 0;
-        }
-
-        .tenants-header {
-            padding: 1rem 1.5rem;
-            background: #fafafa;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .tenants-header h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #475569;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .tenants-header h3 i {
-            color: #6366f1;
-        }
-
-        /* Tenants Table */
-        .tenants-table {
-            overflow-x: auto;
-        }
-
-        .tenants-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .tenants-table th {
-            background: #f8fafc;
-            padding: 0.875rem 1rem;
-            text-align: left;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .tenants-table td {
-            padding: 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            vertical-align: middle;
-        }
-
-        .tenant-row:hover {
-            background: rgba(99, 102, 241, 0.03);
-        }
-
-        .tenant-row.row-expired {
-            background: rgba(239, 68, 68, 0.05);
-        }
-
-        .tenant-row.row-expiring {
-            background: rgba(245, 158, 11, 0.05);
-        }
-
-        /* Tenant Info */
-        .tenant-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .tenant-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #6366f1);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.85rem;
-            flex-shrink: 0;
-        }
-
-        .tenant-info strong {
-            display: block;
-            color: #1e293b;
-            font-size: 0.9rem;
-        }
-
-        .tenant-info .paci {
-            display: block;
-            color: #94a3b8;
-            font-size: 0.75rem;
-            margin-top: 0.125rem;
-        }
-
-        /* Unit Info */
-        .unit-info {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .unit-info i {
-            color: #6366f1;
-        }
-
-        .unit-info span {
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        .unit-info small {
-            color: #94a3b8;
-            font-size: 0.75rem;
-        }
-
-        /* Contact Info */
-        .contact-info {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .contact-info a {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: #f1f5f9;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .contact-info a:hover {
-            background: #6366f1;
-            color: white;
-        }
-
-        /* Lease Period */
-        .lease-period {
-            display: flex;
-            flex-direction: column;
-            gap: 0.125rem;
-            font-size: 0.85rem;
-        }
-
-        .lease-period .separator {
-            color: #94a3b8;
-            font-size: 0.7rem;
-        }
-
-        .days-badge {
-            display: inline-block;
-            padding: 0.125rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            margin-top: 0.25rem;
-        }
-
-        .days-badge.expired {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-
-        .days-badge.expiring {
-            background: #fef3c7;
-            color: #d97706;
-        }
-
-        /* Rent Amount */
-        .rent-amount {
-            font-weight: 700;
-            color: #059669;
-            font-size: 0.95rem;
-        }
-
-        /* Status Badge */
-        .status-badge {
-            padding: 0.375rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status-active {
-            background: #dcfce7;
-            color: #16a34a;
-        }
-
-        .status-terminated {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-
-        .status-expired {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-
-        .status-expiring {
-            background: #fef3c7;
-            color: #d97706;
-        }
-
-        /* Action Buttons */
-        .action-buttons {
-            display: flex;
-            gap: 0.375rem;
-        }
-
-        .btn-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            background: #f1f5f9;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            text-decoration: none;
-        }
-
-        .btn-icon:hover {
-            background: #6366f1;
-            color: white;
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-        }
-
-        .empty-state i {
-            font-size: 4rem;
-            color: #cbd5e1;
-            margin-bottom: 1rem;
-        }
-
-        .empty-state h3 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin: 0 0 0.5rem 0;
-            color: #1e293b;
-        }
-
-        .empty-state p {
-            color: #64748b;
-            margin-bottom: 1.5rem;
-        }
-
-        /* Filter Section */
-        .filter-section {
-            background: white;
-            border-radius: 12px;
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-
-        .filter-row {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .search-group {
-            flex: 1;
-            min-width: 250px;
-            position: relative;
-            display: flex;
-            align-items: center;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 0.625rem 1rem;
-            transition: all 0.2s;
-        }
-
-        .search-group:focus-within {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-
-        .search-group i {
-            color: #94a3b8;
-            margin-right: 0.75rem;
-        }
-
-        .search-group input {
-            flex: 1;
-            border: none;
-            background: transparent;
-            outline: none;
-            font-size: 0.9rem;
-            color: #1e293b;
-        }
-
-        .search-group input::placeholder {
-            color: #94a3b8;
-        }
-
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .filter-group label {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #64748b;
-            white-space: nowrap;
-        }
-
-        .filter-group select {
-            padding: 0.625rem 2rem 0.625rem 0.875rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            background: #f8fafc url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.5rem center/1.25rem;
-            font-size: 0.9rem;
-            color: #1e293b;
-            cursor: pointer;
-            min-width: 150px;
-            appearance: none;
-            transition: all 0.2s;
-        }
-
-        .filter-group select:focus {
-            border-color: #6366f1;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-
-        .btn-clear {
-            padding: 0.625rem 1rem;
-            background: #f1f5f9;
-            color: #64748b;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.375rem;
-            transition: all 0.2s;
-        }
-
-        .btn-clear:hover {
-            background: #e2e8f0;
-            color: #475569;
-        }
-
-        .filter-results {
-            margin-top: 0.75rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid #f1f5f9;
-        }
-
-        .filter-results span {
-            font-size: 0.85rem;
-            color: #64748b;
-        }
-
-        .filter-results strong {
-            color: #6366f1;
-        }
-
-        /* Hidden state for filtered elements */
-        .property-section.hidden,
-        .tenant-row.hidden {
-            display: none !important;
-        }
-
-        .no-results-message {
-            text-align: center;
-            padding: 3rem 2rem;
-            background: white;
-            border-radius: 12px;
-            color: #64748b;
-            display: none;
-        }
-
-        .no-results-message.show {
-            display: block;
-        }
-
-        .no-results-message i {
-            font-size: 3rem;
-            color: #cbd5e1;
-            margin-bottom: 1rem;
-        }
-
-        .no-results-message h4 {
-            font-size: 1.1rem;
-            color: #475569;
-            margin: 0 0 0.5rem 0;
-        }
-
-        /* Responsive */
-        @@media (max-width: 1024px) {
-            .property-header {
-                flex-direction: column;
-            }
-
-            .property-image {
-                width: 100%;
-                height: 180px;
-            }
-
-            .btn-view-property {
-                position: static;
-                margin-top: 1rem;
-                align-self: flex-start;
-            }
-
-            .property-info {
-                padding: 1.25rem;
-            }
-
-            .property-stats {
-                flex-wrap: wrap;
-                gap: 1rem;
-            }
-        }
-
-        @@media (max-width: 768px) {
-            .page-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
-
-            .tenants-table {
-                font-size: 0.85rem;
-            }
-
-            .tenants-table th,
-            .tenants-table td {
-                padding: 0.75rem 0.5rem;
-            }
-
-            .filter-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .search-group {
-                min-width: auto;
-            }
-
-            .filter-group {
-                width: 100%;
-            }
-
-            .filter-group select {
-                flex: 1;
-            }
-
-            /* Mobile: drop the horizontal-scroll table, render rows as cards.
-             * data-label on every <td> becomes a ::before pill label. */
-            .tenants-table { overflow: visible; }
-            .tenants-table table, .tenants-table tbody, .tenants-table tr { display: block; width: 100%; }
-            .tenants-table thead { display: none; }
-            .tenants-table tr.tenant-row {
-                background: white;
-                border: 1px solid #e2e8f0;
-                border-radius: 12px;
-                padding: 0.4rem 0.8rem;
-                margin: 0.7rem 0.85rem;
-                box-shadow: 0 1px 3px rgba(15,23,42,0.06);
-            }
-            .tenants-table tr.tenant-row.row-expired { border-color: rgba(239,68,68,0.35); }
-            .tenants-table tr.tenant-row.row-expiring { border-color: rgba(245,158,11,0.35); }
-            .tenants-table td {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 0.75rem;
-                padding: 0.55rem 0 !important;
-                border-bottom: 1px dashed #f1f5f9 !important;
-                text-align: right;
-            }
-            .tenants-table td:last-child { border-bottom: 0 !important; }
-            .tenants-table td::before {
-                content: attr(data-label);
-                font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.4px;
-                font-weight: 600; color: #64748b; flex-shrink: 0;
-            }
-            .tenants-table td[data-label="Tenant"]::before { display: none; }
-            .tenants-table td[data-label="Tenant"] { justify-content: flex-start; text-align: left; }
-            .tenants-table td.col-actions::before { display: none; }
-            .tenants-table td.col-actions { justify-content: flex-end; }
-            .lease-period { align-items: flex-end; }
-            .kebab-menu { right: 0; left: auto; }
-        }
-
-        /* ─── Leases revamp — KPI strip, toolbar, chips, kebab ─── */
-        .leases-strip {
-            display: grid; grid-template-columns: repeat(5, 1fr);
-            gap: 0.85rem; margin: 0 0 1rem;
-        }
-        @@media (max-width: 1200px) { .leases-strip { grid-template-columns: repeat(3, 1fr); } }
-        @@media (max-width: 720px)  { .leases-strip { grid-template-columns: repeat(2, 1fr); } }
-        @@media (max-width: 460px)  { .leases-strip { grid-template-columns: 1fr; } }
-        .leases-strip .kpi-card {
-            display: flex; align-items: center; gap: 0.7rem;
-            padding: 0.85rem 1rem;
-            background: rgba(255,255,255,0.95);
-            border: 1px solid rgba(99, 102, 241,0.12);
-            border-radius: 12px;
-        }
-        .leases-strip .kpi-icon {
-            width: 36px; height: 36px; border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-size: 0.95rem;
-            background: linear-gradient(135deg,#6366f1,#8b5cf6);
-        }
-        .ki-active { background: linear-gradient(135deg,#10b981,#22c55e) !important; }
-        .ki-soon   { background: linear-gradient(135deg,#f59e0b,#f97316) !important; }
-        .ki-bad    { background: linear-gradient(135deg,#ef4444,#f43f5e) !important; }
-        .ki-mrr    { background: linear-gradient(135deg,#3b82f6,#06b6d4) !important; }
-        .kpi-body  { min-width: 0; }
-        .kpi-label { font-size: 0.65rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
-        .kpi-value { font-size: 1.25rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
-        .kpi-sub   { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
-
-        .skeleton {
-            display: inline-block; min-width: 4rem; min-height: 1.1rem;
-            background: linear-gradient(90deg,#eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
-            background-size: 200% 100%;
-            border-radius: 6px;
-            animation: lse-shimmer 1.4s infinite;
-        }
-        @@keyframes lse-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-        .leases-toolbar {
-            display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
-            margin: 0 0 0.75rem;
-        }
-        .filter-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; flex: 1; min-width: 0; }
-        .filter-chip {
-            display: inline-flex; align-items: center; gap: 0.4rem;
-            padding: 0.3rem 0.7rem;
-            background: rgba(99, 102, 241,0.08);
-            color: #4338ca;
-            border-radius: 999px;
-            font-size: 0.75rem; font-weight: 500;
-            border: 1px solid rgba(99, 102, 241,0.18);
-        }
-        .filter-chip button {
-            background: none; border: 0; cursor: pointer; color: #4338ca;
-            padding: 0; line-height: 1; font-size: 0.85rem;
-        }
-        .toolbar-right { display: flex; align-items: center; gap: 0.5rem; }
-        .toolbar-label { font-size: 0.75rem; color: #64748b; font-weight: 500; }
-        .toolbar-select {
-            padding: 0.4rem 0.6rem; font-size: 0.85rem;
-            border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;
-        }
-        .btn-export {
-            display: inline-flex; align-items: center; gap: 0.4rem;
-            padding: 0.45rem 0.85rem;
-            background: linear-gradient(135deg,#10b981,#22c55e);
-            color: white; border-radius: 8px; text-decoration: none;
-            font-size: 0.85rem; font-weight: 500;
-        }
-        .btn-export:hover { box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
-
-        /* Kebab */
-        .col-actions { text-align: right; }
-        .kebab-wrap  { position: relative; display: inline-block; }
-        .kebab-btn {
-            background: none; border: 1px solid transparent; border-radius: 8px;
-            padding: 0.3rem 0.5rem; cursor: pointer; color: #64748b;
-        }
-        .kebab-btn:hover { background: #f1f5f9; color: #6366f1; }
-        .kebab-menu {
-            position: absolute; top: 100%; right: 0; z-index: 10;
-            background: white; min-width: 200px;
-            border: 1px solid #e2e8f0; border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(15,23,42,0.12);
-            padding: 0.35rem; margin-top: 4px;
-        }
-        .kebab-menu[hidden] { display: none; }
-        .kebab-menu a, .kebab-menu button {
-            display: flex; align-items: center; gap: 0.6rem; width: 100%;
-            padding: 0.5rem 0.75rem; border-radius: 6px;
-            color: #334155; text-decoration: none; font-size: 0.85rem;
-            background: none; border: 0; cursor: pointer; text-align: start;
-        }
-        .kebab-menu a:hover, .kebab-menu button:hover { background: #f8fafc; color: #6366f1; }
-        .kebab-menu a i, .kebab-menu button i { width: 16px; color: #94a3b8; }
-        .kebab-menu .danger-item:hover { background: rgba(239,68,68,0.08); color: #dc2626; }
-        .kebab-menu .danger-item:hover i { color: #dc2626; }
-
-        /* Tenant link (S2) */
-        .tenant-info-link { text-decoration: none; color: inherit; }
-        .tenant-info-link:hover strong { color: #6366f1; }
-
-        /* Collection cell (S2) — outstanding above, MTD/last-paid below */
-        .collection-cell {
-            display: inline-flex; flex-direction: column; align-items: flex-start;
-            text-decoration: none; color: inherit;
-            min-width: 90px;
-        }
-        .coll-outstanding { font-weight: 700; font-size: 0.92rem; color: #0f172a; }
-        .coll-outstanding.muted { color: #94a3b8; font-weight: 500; }
-        .coll-outstanding.bad   { color: #b91c1c; }
-        .coll-sub  { font-size: 0.72rem; color: #94a3b8; margin-top: 1px; }
-        .collection-cell:hover .coll-outstanding:not(.muted) { color: #6366f1; }
-    </style>
-}
-
 @section Scripts {
     <script>
-        function filterLeases() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
-            const buildingFilter = document.getElementById('buildingFilter').value;
-            const statusFilter = document.getElementById('statusFilter').value;
-
-            const propertySections = document.querySelectorAll('.property-section');
-            // Sprint 1 — expiring filter: Active leases with lease end ≤ horizon
-            // AND end ≥ today (past-due rows are caught by status="Expired").
-            const expiringFilter = parseInt(document.getElementById('expiringFilter')?.value || '0', 10);
-
-            let totalVisibleTenants = 0;
-            let visibleProperties = 0;
-
-            propertySections.forEach(section => {
-                const propertyId = section.dataset.propertyId;
-                const propertyName = section.dataset.propertyName || '';
-
-                // Check if property matches building filter
-                const matchesBuilding = !buildingFilter || propertyId === buildingFilter;
-
-                if (!matchesBuilding) {
-                    section.classList.add('hidden');
-                    return;
-                }
-
-                // Filter tenant rows within this property
-                const tenantRows = section.querySelectorAll('.tenant-row');
-                let visibleRowsInProperty = 0;
-
-                tenantRows.forEach(row => {
-                    const tenantName = row.dataset.tenantName || '';
-                    const tenantEmail = row.dataset.tenantEmail || '';
-                    const tenantPaci = row.dataset.tenantPaci || '';
-                    const status = row.dataset.status || '';
-                    const unit = row.dataset.unit || '';
-                    const daysRemaining = parseInt(row.dataset.daysRemaining || '999', 10);
-
-                    // Check search term matches
-                    const matchesSearch = !searchTerm ||
-                        tenantName.includes(searchTerm) ||
-                        tenantEmail.includes(searchTerm) ||
-                        tenantPaci.includes(searchTerm) ||
-                        unit.includes(searchTerm) ||
-                        propertyName.includes(searchTerm);
-
-                    // Check status filter matches
-                    const matchesStatus = !statusFilter || status === statusFilter;
-
-                    // Expiring: only Active leases with end within horizon
-                    // (past-due rows have status="Expired" and are excluded
-                    // here on purpose — pick the Expired status filter for those).
-                    const matchesExpiring = !expiringFilter ||
-                        (status === 'Active' && daysRemaining >= 0 && daysRemaining <= expiringFilter);
-
-                    if (matchesSearch && matchesStatus && matchesExpiring) {
-                        row.classList.remove('hidden');
-                        visibleRowsInProperty++;
-                        totalVisibleTenants++;
-                    } else {
-                        row.classList.add('hidden');
-                    }
-                });
-
-                // Show/hide property section based on whether it has visible tenants
-                if (visibleRowsInProperty > 0) {
-                    section.classList.remove('hidden');
-                    visibleProperties++;
-
-                    // Update tenant count in header
-                    const tenantsHeader = section.querySelector('.tenants-header h3');
-                    if (tenantsHeader) {
-                        const icon = tenantsHeader.querySelector('i');
-                        tenantsHeader.innerHTML = '';
-                        if (icon) tenantsHeader.appendChild(icon);
-                        tenantsHeader.innerHTML += ` Tenants (${visibleRowsInProperty})`;
-                    }
-                } else {
-                    section.classList.add('hidden');
-                }
-            });
-
-            // Update result count
-            updateResultCount(totalVisibleTenants, visibleProperties, searchTerm || buildingFilter || statusFilter);
-
-            // Show/hide no results message
-            const noResultsMessage = document.getElementById('noResultsMessage');
-            const propertiesContainer = document.querySelector('.properties-container');
-
-            if (visibleProperties === 0 && propertiesContainer) {
-                noResultsMessage.classList.add('show');
-            } else {
-                noResultsMessage.classList.remove('show');
-            }
-        }
-
-        function updateResultCount(tenantCount, propertyCount, hasFilters) {
-            const resultCountElement = document.getElementById('resultCount');
-            if (hasFilters) {
-                resultCountElement.innerHTML = `Found <strong>${tenantCount}</strong> tenant(s) in <strong>${propertyCount}</strong> building(s)`;
-            } else {
-                resultCountElement.innerHTML = 'Showing all leases';
-            }
-        }
-
-        function clearFilters() {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('buildingFilter').value = '';
-            document.getElementById('statusFilter').value = '';
-            const exp = document.getElementById('expiringFilter');
-            if (exp) exp.value = '';
-
-            // Show all property sections and tenant rows
-            document.querySelectorAll('.property-section').forEach(section => {
-                section.classList.remove('hidden');
-
-                // Restore tenant counts
-                const allRows = section.querySelectorAll('.tenant-row');
-                allRows.forEach(row => row.classList.remove('hidden'));
-
-                const tenantsHeader = section.querySelector('.tenants-header h3');
-                if (tenantsHeader) {
-                    const icon = tenantsHeader.querySelector('i');
-                    tenantsHeader.innerHTML = '';
-                    if (icon) tenantsHeader.appendChild(icon);
-                    tenantsHeader.innerHTML += ` Tenants (${allRows.length})`;
-                }
-            });
-
-            // Hide no results message
-            document.getElementById('noResultsMessage').classList.remove('show');
-
-            // Reset result count
-            document.getElementById('resultCount').innerHTML = 'Showing all leases';
-        }
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add debounce for search input to improve performance
-            let searchTimeout;
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(filterLeases, 150);
-                });
-            }
-        });
-
-        // ─── Snapshot, chips, kebab, mobile (Leases revamp) ───
         (function () {
-            const KWD = (n) => (n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 3 }) + ' KWD';
-            const INT = (n) => Math.round(n ?? 0).toLocaleString();
+            const T = {
+                notInvoiced: @Json.Serialize(L["Not invoiced yet"].Value),
+                paidUp: @Json.Serialize(L["Paid up"].Value),
+                mtd: @Json.Serialize(L["MTD"].Value),
+                last: @Json.Serialize(L["last"].Value),
+                firstInvoice: @Json.Serialize(L["first invoice on the due day"].Value),
+                noPayments: @Json.Serialize(L["no payments yet"].Value),
+            };
+            const scope = document.querySelector('[data-lp-scope]');
 
-            // 1. Portfolio snapshot
-            async function loadSnapshot() {
-                try {
-                    const res = await fetch('/Leases/Snapshot', { credentials: 'same-origin' });
-                    if (!res.ok) throw new Error('HTTP ' + res.status);
-                    const d = await res.json();
-                    const fmt = {
-                        totalLeases: INT, activeLeases: INT,
-                        expiringSoon: INT, expired: INT,
-                        monthlyRentRoll: KWD,
-                    };
+            // 1. KPI strip
+            fetch('/Leases/Snapshot', { credentials: 'same-origin' })
+                .then(r => r.ok ? r.json() : Promise.reject(r.status))
+                .then(d => {
                     document.querySelectorAll('#leasesStrip [data-k]').forEach(el => {
-                        const k = el.dataset.k;
-                        if (d[k] === undefined) return;
-                        el.classList.remove('skeleton');
-                        el.textContent = (fmt[k] || INT)(d[k]);
+                        const k = el.dataset.k; if (d[k] === undefined) return;
+                        el.classList.remove('lp-skel');
+                        el.textContent = k === 'monthlyRentRoll' ? LP.kwd(d[k]) : Math.round(d[k]).toLocaleString('en-US');
                     });
-                } catch (e) {
-                    document.querySelectorAll('#leasesStrip .skeleton').forEach(el => {
-                        el.classList.remove('skeleton'); el.textContent = '—';
-                    });
-                }
+                })
+                .catch(() => document.querySelectorAll('#leasesStrip .lp-skel').forEach(el => { el.classList.remove('lp-skel'); el.textContent = '—'; }));
+
+            // 2. Per-row collection figures (outstanding / MTD / last payment)
+            const ids = Array.from(document.querySelectorAll('tr[data-lease-id]')).map(r => r.dataset.leaseId);
+            if (ids.length) {
+                fetch('/Leases/KpiBatch?ids=' + ids.join(','), { credentials: 'same-origin' })
+                    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+                    .then(rows => {
+                        const byId = new Map(rows.map(r => [String(r.leaseId), r]));
+                        document.querySelectorAll('tr[data-lease-id]').forEach(row => {
+                            const r = byId.get(row.dataset.leaseId); if (!r) return;
+                            const out = row.querySelector('.coll-outstanding'), sub = row.querySelector('.coll-sub');
+                            out.classList.remove('lp-skel'); sub.classList.remove('lp-skel');
+                            if (r.outstanding > 0) { out.textContent = LP.kwd(r.outstanding); out.classList.add('lp-amount-bad'); }
+                            else if ((r.invoiceCount || 0) === 0) { out.textContent = T.notInvoiced; out.classList.add('lp-amount-muted'); }
+                            else { out.textContent = T.paidUp; out.classList.add('lp-amount-good'); }
+                            const parts = [];
+                            if (r.mtdCollected > 0) parts.push(T.mtd + ' ' + LP.kwd(r.mtdCollected));
+                            if (r.lastPaymentDate) parts.push(T.last + ' ' + LP.shortDate(r.lastPaymentDate));
+                            sub.textContent = parts.length ? parts.join(' · ') : ((r.invoiceCount || 0) === 0 ? T.firstInvoice : T.noPayments);
+                        });
+                    })
+                    .catch(() => document.querySelectorAll('.coll-outstanding, .coll-sub').forEach(el => { el.classList.remove('lp-skel'); el.textContent = '—'; }));
             }
 
-            // 2. Filter chips — show what's active, Ã— to clear, sync export link
-            function refreshChips() {
-                const search = document.getElementById('searchInput')?.value.trim();
-                const bldgSel = document.getElementById('buildingFilter');
-                const bldgText = bldgSel?.selectedIndex > 0 ? bldgSel.options[bldgSel.selectedIndex].text : '';
-                const status = document.getElementById('statusFilter')?.value;
-                const expiring = document.getElementById('expiringFilter')?.value;
-
-                const chips = [
-                    { label: search && `“${search}”`, clear: () => { document.getElementById('searchInput').value = ''; window.filterLeases?.(); } },
-                    { label: bldgText && `Building · ${bldgText}`, clear: () => { bldgSel.value = ''; window.filterLeases?.(); } },
-                    { label: status   && `Status · ${status}`, clear: () => { document.getElementById('statusFilter').value = ''; window.filterLeases?.(); } },
-                    { label: expiring && `Expires ≤${expiring}d`, clear: () => { document.getElementById('expiringFilter').value = ''; window.filterLeases?.(); } },
-                ].filter(c => c.label);
-
-                const host = document.getElementById('filterChips');
-                if (host) {
-                    host.innerHTML = '';
-                    chips.forEach(c => {
-                        const el = document.createElement('span');
-                        el.className = 'filter-chip';
-                        el.innerHTML = `${c.label} <button type="button" aria-label="Remove filter">Ã—</button>`;
-                        el.querySelector('button').addEventListener('click', c.clear);
-                        host.appendChild(el);
-                    });
-                }
-                // Export link tracks filters.
-                const exp = document.getElementById('exportExcelLink');
-                if (exp) {
-                    const q = new URLSearchParams();
-                    if (search) q.set('search', search);
-                    if (bldgSel?.value) q.set('propertyId', bldgSel.value);
-                    if (status) q.set('status', status);
-                    if (expiring) q.set('expiring', expiring);
-                    exp.href = '/Leases/ExportExcel' + (q.toString() ? '?' + q.toString() : '');
-                }
+            // 3. Property <select> drives the hidden "property" chip group.
+            const propSel = document.getElementById('propertyFilter');
+            const propGroup = scope.querySelector('[data-lp-filter="property"]');
+            function setChip(group, value) {
+                if (!group) return;
+                group.querySelectorAll('.lp-chip-btn').forEach(b => b.classList.toggle('is-on', b.dataset.value === value));
             }
+            propSel.addEventListener('change', () => { setChip(propGroup, propSel.value); LP.refresh(scope); syncExport(); });
+            scope.querySelectorAll('[data-lp-filter]').forEach(g => g.addEventListener('click', () => setTimeout(syncExport, 0)));
+            document.getElementById('leaseSearch').addEventListener('input', () => setTimeout(syncExport, 150));
 
-            // 3. Hook into existing filterLeases() / clearFilters()
-            const origFilter = window.filterLeases;
-            if (origFilter) {
-                window.filterLeases = function () {
-                    origFilter.apply(this, arguments);
-                    refreshChips();
-                };
-            }
-            const origClear = window.clearFilters;
-            if (origClear) {
-                window.clearFilters = function () {
-                    origClear.apply(this, arguments);
-                    refreshChips();
-                };
-            }
-
-            // 4. Kebab open/close
-            document.querySelectorAll('.kebab-btn').forEach(btn => {
-                btn.addEventListener('click', e => {
-                    e.stopPropagation();
-                    const menu = btn.parentElement.querySelector('.kebab-menu');
-                    const wasOpen = !menu.hasAttribute('hidden');
-                    document.querySelectorAll('.kebab-menu').forEach(m => m.setAttribute('hidden', ''));
-                    document.querySelectorAll('.kebab-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
-                    if (!wasOpen) {
-                        menu.removeAttribute('hidden');
-                        btn.setAttribute('aria-expanded', 'true');
-                    }
-                });
-            });
-            document.addEventListener('click', () => {
-                document.querySelectorAll('.kebab-menu').forEach(m => m.setAttribute('hidden', ''));
-                document.querySelectorAll('.kebab-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+            // 4. Clear everything
+            document.getElementById('clearLeaseFilters').addEventListener('click', () => {
+                document.getElementById('leaseSearch').value = '';
+                propSel.value = '';
+                scope.querySelectorAll('[data-lp-filter]').forEach(g => setChip(g, ''));
+                LP.refresh(scope); syncExport();
             });
 
-            // 5. Per-row KPI batch (outstanding + MTD + last payment)
-            async function loadRowKpis() {
-                const ids = Array.from(document.querySelectorAll('.tenant-row[data-lease-id]'))
-                    .map(r => r.dataset.leaseId).filter(Boolean);
-                if (!ids.length) return;
-                try {
-                    const res = await fetch('/Leases/KpiBatch?ids=' + ids.join(','),
-                        { credentials: 'same-origin' });
-                    if (!res.ok) throw new Error('HTTP ' + res.status);
-                    const rows = await res.json();
-                    const byId = new Map(rows.map(r => [String(r.leaseId), r]));
-                    document.querySelectorAll('.tenant-row[data-lease-id]').forEach(row => {
-                        const r = byId.get(row.dataset.leaseId);
-                        if (!r) return;
-                        const out = row.querySelector('.coll-outstanding');
-                        const sub = row.querySelector('.coll-sub');
-                        if (!out || !sub) return;
-                        out.classList.remove('skeleton');
-                        sub.classList.remove('skeleton');
-                        if (r.outstanding > 0) {
-                            out.textContent = KWD(r.outstanding);
-                            out.classList.add('bad');
-                            out.classList.remove('muted');
-                        } else {
-                            out.textContent = 'Paid up';
-                            out.classList.add('muted');
-                            out.classList.remove('bad');
-                        }
-                        const parts = [];
-                        if (r.mtdCollected > 0)
-                            parts.push(`MTD ${KWD(r.mtdCollected)}`);
-                        if (r.lastPaymentDate) {
-                            const d = new Date(r.lastPaymentDate);
-                            parts.push('last ' + d.toLocaleDateString(undefined, { month: 'short', day: '2-digit' }));
-                        }
-                        sub.textContent = parts.length ? parts.join(' · ') : 'no payments yet';
-                    });
-                } catch (e) {
-                    document.querySelectorAll('.coll-outstanding.skeleton, .coll-sub.skeleton').forEach(el => {
-                        el.classList.remove('skeleton'); el.textContent = '—';
-                    });
-                }
+            // 5. Export link follows the current filters
+            function syncExport() {
+                const q = new URLSearchParams();
+                const s = document.getElementById('leaseSearch').value.trim(); if (s) q.set('search', s);
+                if (propSel.value) q.set('propertyId', propSel.value);
+                const on = k => (scope.querySelector('[data-lp-filter="' + k + '"] .lp-chip-btn.is-on') || {}).dataset?.value || '';
+                if (on('status')) q.set('status', on('status'));
+                if (on('expiring') && on('expiring') !== 'past') q.set('expiring', on('expiring'));
+                document.getElementById('exportExcelLink').href = '/Leases/ExportExcel' + (q.toString() ? '?' + q : '');
             }
 
-            // Boot
-            loadSnapshot();
-            loadRowKpis();
-            refreshChips();
+            // 6. Deep links: ?propertyId= (Property details), ?status=, ?case=__open, ?expiring=30 (notification bell)
+            const p = new URLSearchParams(location.search);
+            if (p.get('propertyId')) { propSel.value = p.get('propertyId'); setChip(propGroup, propSel.value); }
+            if (p.get('status')) setChip(scope.querySelector('[data-lp-filter="status"]'), p.get('status'));
+            if (p.get('case')) setChip(scope.querySelector('[data-lp-filter="case"]'), p.get('case'));
+            if (p.get('expiring')) setChip(scope.querySelector('[data-lp-filter="expiring"]'), p.get('expiring'));
+            if (p.get('search')) document.getElementById('leaseSearch').value = p.get('search');
+            LP.refresh(scope); syncExport();
         })();
     </script>
 }

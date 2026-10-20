@@ -131,6 +131,38 @@ public class InvoicePdfModel
     /// invoice reads "SECURITY DEPOSIT INVOICE" instead of just "INVOICE".
     /// </summary>
     public string InvoiceType { get; set; } = "Rent";
+
+    /// <summary>
+    /// Render culture — "en" (default) or "ar". When Arabic, the PDF is produced
+    /// right-to-left with Arabic labels and an Arabic-capable font. Numbers/amounts
+    /// stay in Western digits, matching the app's i18n rule.
+    /// </summary>
+    public string Culture { get; set; } = "en";
+    public bool IsArabic => Culture?.StartsWith("ar", StringComparison.OrdinalIgnoreCase) == true;
+
+    // ── 2026-10 redesign additions ──
+
+    /// <summary>Tenant phone — shown under BILL TO when present.</summary>
+    public string? TenantPhone { get; set; }
+
+    /// <summary>Tenant email — shown under BILL TO when present.</summary>
+    public string? TenantEmail { get; set; }
+
+    /// <summary>Lease term, shown under PROPERTY &amp; UNIT when both are known.</summary>
+    public DateTime? LeaseStartDate { get; set; }
+    public DateTime? LeaseEndDate { get; set; }
+
+    /// <summary>
+    /// Completed payments already applied to this invoice — rendered as a
+    /// "Payments received" table so a partially paid invoice explains itself.
+    /// </summary>
+    public List<InvoicePdfPayment> Payments { get; set; } = new();
+
+    /// <summary>
+    /// When the document was produced. Drives the "Overdue by N days" /
+    /// "Due in N days" callout and the footer timestamp. Defaults to now.
+    /// </summary>
+    public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
 }
 
 public class InvoicePdfLine
@@ -138,6 +170,9 @@ public class InvoicePdfLine
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }
 }
+
+/// <summary>One completed payment applied to an invoice (invoice PDF).</summary>
+public record InvoicePdfPayment(DateTime PaymentDate, string Method, string? Reference, decimal Amount);
 
 public class ReceiptPdfModel
 {
@@ -152,5 +187,19 @@ public class ReceiptPdfModel
     public string Currency { get; set; } = "KWD";
     public string? TransactionReference { get; set; }
     public string? InvoiceNumber { get; set; }
+    /// <summary>Hand-written receipt-book number for cash (printed when present).</summary>
+    public string? ManualReceiptNumber { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>
+    /// Balance still owed on the invoice after this payment (null when the
+    /// payment isn't tied to an invoice). 0 renders as "Invoice settled".
+    /// </summary>
+    public decimal? InvoiceBalanceAfter { get; set; }
+
+    /// <summary>"en" (default) or "ar" — same rule as the invoice.</summary>
+    public string Culture { get; set; } = "en";
+    public bool IsArabic => Culture?.StartsWith("ar", StringComparison.OrdinalIgnoreCase) == true;
+
+    public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
 }

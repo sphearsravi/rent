@@ -71,6 +71,32 @@ class StorageService {
     return _prefs.getBool(AppConstants.rememberMeKey) ?? false;
   }
 
+  // ============ Remembered login credentials (encrypted) ============
+  // Stored in secure storage (Keychain / EncryptedSharedPreferences), NOT in
+  // plain SharedPreferences, because they include the password.
+
+  /// Persist the login credentials so the login form can prefill them.
+  Future<void> saveCredentials(String civilId, String password) async {
+    await _secureStorage.write(key: AppConstants.savedCivilIdKey, value: civilId);
+    await _secureStorage.write(key: AppConstants.savedPasswordKey, value: password);
+  }
+
+  /// Read the remembered Civil ID (null if none saved).
+  Future<String?> getSavedCivilId() async {
+    return await _secureStorage.read(key: AppConstants.savedCivilIdKey);
+  }
+
+  /// Read the remembered password (null if none saved).
+  Future<String?> getSavedPassword() async {
+    return await _secureStorage.read(key: AppConstants.savedPasswordKey);
+  }
+
+  /// Forget any saved credentials (when "Remember me" is unchecked).
+  Future<void> clearCredentials() async {
+    await _secureStorage.delete(key: AppConstants.savedCivilIdKey);
+    await _secureStorage.delete(key: AppConstants.savedPasswordKey);
+  }
+
   /// Check if user is logged in
   Future<bool> isLoggedIn() async {
     final tenantId = getTenantId();

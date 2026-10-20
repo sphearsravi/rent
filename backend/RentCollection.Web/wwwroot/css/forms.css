@@ -12,7 +12,7 @@
 .form-revamp {
     --fr-bg:        #ffffff;
     --fr-border:    #e2e8f0;
-    --fr-border-fc: #6366f1;    /* focus ring */
+    --fr-border-fc: #8a6d1f;    /* focus ring */
     --fr-text:      #1e293b;
     --fr-muted:     #64748b;
     --fr-label:     #334155;
@@ -37,8 +37,8 @@
 }
 .form-revamp .fr-zone-essentials {
     /* lift the primary zone visually */
-    box-shadow: 0 4px 12px rgba(99,102,241,0.08);
-    border-color: #c7d2fe;
+    box-shadow: 0 4px 12px rgba(138, 109, 31,0.08);
+    border-color: #e6d4a0;
 }
 .form-revamp .fr-zone-title {
     font-size: 0.9rem;
@@ -135,7 +135,7 @@
 .form-revamp .fr-field textarea:focus {
     outline: none;
     border-color: var(--fr-border-fc);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 0 0 3px rgba(138, 109, 31, 0.12);
 }
 .form-revamp .fr-field input[readonly] {
     background: var(--fr-section);
@@ -209,7 +209,7 @@
     text-decoration: none;
 }
 .form-revamp .fr-btn-primary {
-    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    background: linear-gradient(135deg, #8a6d1f 0%, #5a4512 100%);
     color: #fff;
     border-color: rgba(255,255,255,0.15);
     box-shadow: 0 4px 10px -2px rgba(67, 56, 202, 0.35);
@@ -325,3 +325,86 @@
     from { opacity: 0; transform: translateY(-12px); }
     to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ─── Lease wizard (Leases/Create, 2026-10) ─────────────────────────── */
+.lw-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; }
+@media (max-width: 1100px) { .lw-grid { grid-template-columns: minmax(0, 1fr); } .lw-summary { position: static !important; } }
+.lw-main { min-width: 0; }
+.lw-step {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%;
+    background: #8A6D1F; color: #fff; font-size: 0.8rem; font-weight: 700; margin-right: 0.35rem;
+}
+[dir="rtl"] .lw-step { margin-right: 0; margin-left: 0.35rem; }
+.lw-availability {
+    display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.5rem;
+    padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 0.85rem;
+    background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;
+}
+.lw-availability.is-bad { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.lw-availability i { margin-top: 0.15rem; }
+.lw-quick { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.35rem; }
+.lw-quick-btn {
+    border: 1px solid #e2e8f0; background: #fff; border-radius: 999px;
+    padding: 0.15rem 0.6rem; font-size: 0.75rem; color: #334155; cursor: pointer;
+}
+.lw-quick-btn:hover { border-color: #8A6D1F; color: #8A6D1F; }
+.lw-field-link { justify-content: flex-end; }
+.lw-conflict {
+    display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 1rem;
+    padding: 0.9rem 1rem; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d;
+}
+.lw-conflict > i { font-size: 1.1rem; margin-top: 0.15rem; color: #dc2626; }
+.lw-conflict strong { display: block; margin-bottom: 0.2rem; }
+.lw-conflict-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.5rem; }
+.lw-chip { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+.lw-chip-active { background: #dcfce7; color: #16a34a; }
+.lw-chip-pending { background: #fef3c7; color: #b45309; }
+.lw-summary { position: sticky; top: 1rem; }
+.lw-summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05); overflow: hidden; }
+.lw-summary-head {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.8rem 1rem;
+    background: #2E2614; color: #C9A647; font-weight: 700; letter-spacing: 0.02em;
+}
+.lw-summary-list { margin: 0; padding: 0.5rem 1rem; }
+.lw-summary-list > div { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.45rem 0; border-bottom: 1px dashed #e2e8f0; font-size: 0.85rem; }
+.lw-summary-list > div:last-child { border-bottom: 0; }
+.lw-summary-list dt { color: #64748b; font-weight: 500; margin: 0; white-space: nowrap; }
+.lw-summary-list dd { margin: 0; font-weight: 600; color: #0f172a; text-align: right; }
+[dir="rtl"] .lw-summary-list dd { text-align: left; }
+.lw-outcome {
+    display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.25rem 1rem 0.75rem;
+    padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.8rem;
+    background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;
+}
+.lw-outcome.is-pending { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.lw-outcome i { margin-top: 0.15rem; }
+.lw-checklist { list-style: none; margin: 0; padding: 0 1rem 0.9rem; font-size: 0.8rem; color: #94a3b8; }
+.lw-checklist li { display: flex; align-items: center; gap: 0.45rem; padding: 0.15rem 0; }
+.lw-checklist li i { font-size: 0.6rem; }
+.lw-checklist li.ok { color: #047857; }
+.lw-checklist li.ok i { font-size: 0.85rem; }
+.fr-btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* ─── Lease lifecycle stepper (Leases/Details) ──────────────────────── */
+.lease-lifecycle {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0;
+    margin-bottom: 1.25rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
+}
+@media (max-width: 800px) { .lease-lifecycle { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ll-step { display: flex; gap: 0.6rem; padding: 0.85rem 1rem; border-right: 1px solid #f1f5f9; }
+[dir="rtl"] .ll-step { border-right: 0; border-left: 1px solid #f1f5f9; }
+.ll-step:last-child { border-right: 0; }
+.ll-dot {
+    flex: 0 0 auto; width: 1.6rem; height: 1.6rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: #f1f5f9; color: #94a3b8; font-size: 0.75rem; font-weight: 700;
+}
+.ll-step.done .ll-dot { background: #dcfce7; color: #16a34a; }
+.ll-step.current .ll-dot { background: #8A6D1F; color: #fff; box-shadow: 0 0 0 4px rgba(138, 109, 31, 0.15); }
+.ll-step.bad .ll-dot { background: #fee2e2; color: #dc2626; }
+.ll-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #94a3b8; }
+.ll-step.current .ll-label { color: #8A6D1F; }
+.ll-step.done .ll-label { color: #16a34a; }
+.ll-step.bad .ll-label { color: #dc2626; }
+.ll-value { font-size: 0.85rem; font-weight: 600; color: #0f172a; }
+.ll-sub { font-size: 0.75rem; color: #64748b; }

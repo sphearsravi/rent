@@ -42,9 +42,9 @@ public class InvoicesPdfController : ControllerBase
     /// </summary>
     [HttpGet("{tenantId}/invoices/{invoiceId}/invoice.pdf")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + CookieAuthenticationDefaults.AuthenticationScheme)]
-    public async Task<IActionResult> Get(int tenantId, int invoiceId)
+    public async Task<IActionResult> Get(int tenantId, int invoiceId, [FromQuery] string? culture = null)
     {
-        if (!CallerOwnsTenant(tenantId))
+        if (!await CallerOwnsTenantAsync(tenantId))
         {
             _logger.LogWarning(
                 "Invoice PDF access denied. Caller tenant claim does not match {TenantId}.",
@@ -63,32 +63,58 @@ public class InvoicesPdfController : ControllerBase
 
         if (invoice == null) return NotFound();
 
-        // Most recent Completed payment date for this invoice — drives the
-        // "Paid on …" row in the totals block. Only queried when the invoice
-        // actually has a paid amount to display.
-        DateTime? paidOn = null;
-        if (invoice.PaidAmount > 0)
-        {
-            paidOn = await _context.Payments
-                .Where(p => p.InvoiceId == invoiceId
-                    && p.Status == RentCollection.Core.Enums.PaymentStatus.Completed)
-                .OrderByDescending(p => p.PaymentDate)
-                .Select(p => (DateTime?)p.PaymentDate)
-                .FirstOrDefaultAsync();
-        }
+        // Completed payments applied to this invoice — rendered as the
+        // "Payments received" table; the latest one drives "Last payment".
+        var completed = await _context.Payments
+            .AsNoTracking()
+            .Where(p => p.InvoiceId == invoiceId
+                && p.Status == RentCollection.Core.Enums.PaymentStatus.Completed)
+            .OrderBy(p => p.PaymentDate)
+            .Select(p => new { p.PaymentDate, p.PaymentType, p.TransactionReference, p.ReceiptNumber, p.AmountPaid })
+            .ToListAsync();
+        DateTime? paidOn = completed.Count > 0 ? completed[^1].PaymentDate : null;
 
         // Invoices don't have a number column yet; use a stable INV-{id:D6} format
         // (mirrors what the receipts controller does for missing receipt numbers).
         var invoiceNumber = $"INV-{invoice.InvoiceId:D6}";
 
+        // Render culture — explicit ?culture= wins, else the request's UI culture
+        // (set by the localization middleware from the cookie / Accept-Language).
+        var lang = !string.IsNullOrWhiteSpace(culture)
+            ? culture!
+            : CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        var isArabic = lang.StartsWith("ar", StringComparison.OrdinalIgnoreCase);
+        var arCulture = CultureInfo.GetCultureInfo("ar-KW");
+
+        // Arabic month name but WESTERN digits for the year (app i18n rule).
+        string PeriodLabel(DateTime d) => isArabic
+            ? $"{d.ToString("MMMM", arCulture)} {d.Year}"
+            : d.ToString("MMMM yyyy", CultureInfo.InvariantCulture);
+
         // Until invoices grow real line items, render a single line that
         // describes the invoice type + period. Keeps the PDF non-empty and
-        // self-explanatory.
-        var lineDescription = string.Format(
-            CultureInfo.InvariantCulture,
-            "{0} — {1:MMMM yyyy}",
-            invoice.InvoiceType,
-            invoice.InvoiceDate);
+        // self-explanatory. Localized when Arabic.
+        var typeLabel = isArabic
+            ? (invoice.InvoiceType switch
+            {
+                "Deposit" => "مبلغ التأمين",
+                "Insurance" => "التأمين",
+                "LateFee" => "غرامة تأخير",
+                "MaintenanceFee" => "الصيانة",
+                "Other" => "أخرى",
+                _ => "الإيجار",
+            })
+            : invoice.InvoiceType;
+        var lineDescription = $"{typeLabel} — {PeriodLabel(invoice.InvoiceDate)}";
+
+        string MethodLabel(RentCollection.Core.Enums.PaymentType t) => t switch
+        {
+            RentCollection.Core.Enums.PaymentType.KNET         => "K-NET",
+            RentCollection.Core.Enums.PaymentType.BankTransfer => isArabic ? "تحويل بنكي" : "Bank transfer",
+            RentCollection.Core.Enums.PaymentType.Cash         => isArabic ? "نقداً" : "Cash",
+            RentCollection.Core.Enums.PaymentType.Cheque       => isArabic ? "شيك" : "Cheque",
+            _ => t.ToString(),
+        };
 
         var model = new InvoicePdfModel
         {
@@ -106,11 +132,12 @@ public class InvoicesPdfController : ControllerBase
             PaidAmount = invoice.PaidAmount,
             BalanceAmount = invoice.TotalAmount - invoice.PaidAmount,
             Currency = "KWD",
+            Culture = lang,
             Notes = invoice.Notes,
             // Drives the PDF title — "DEPOSIT INVOICE" / "INSURANCE INVOICE" / etc.
             InvoiceType = string.IsNullOrEmpty(invoice.InvoiceType) ? "Rent" : invoice.InvoiceType,
             // New (invoice refinements):
-            BillingPeriod = invoice.InvoiceDate.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+            BillingPeriod = PeriodLabel(invoice.InvoiceDate),
             TenantPaciNumber = invoice.Tenant?.PACINumber,
             PropertyPaciNumber = invoice.Lease?.Unit?.Property?.PACINumber,
             PaidDate = paidOn,
@@ -124,6 +151,17 @@ public class InvoicesPdfController : ControllerBase
             PropertyBlock = invoice.Lease?.Unit?.Property?.Block,
             PropertyArea = invoice.Lease?.Unit?.Property?.Area,
             PropertyGovernorate = invoice.Lease?.Unit?.Property?.Governorate,
+            // 2026-10 redesign: contact, lease term, payments received.
+            TenantPhone = invoice.Tenant?.Phone,
+            TenantEmail = invoice.Tenant?.Email,
+            LeaseStartDate = invoice.Lease?.LeaseStartDate,
+            LeaseEndDate = invoice.Lease?.LeaseEndDate,
+            GeneratedAt = DateTime.UtcNow,
+            Payments = completed.Select(p => new InvoicePdfPayment(
+                p.PaymentDate,
+                MethodLabel(p.PaymentType),
+                p.TransactionReference ?? p.ReceiptNumber,
+                p.AmountPaid)).ToList(),
             Lines = new()
             {
                 new InvoicePdfLine
@@ -144,13 +182,20 @@ public class InvoicesPdfController : ControllerBase
     /// the MVC admin portal — company-scope filtering happens via the global
     /// query filter, so admins only see their own company's invoices).
     /// </summary>
-    private bool CallerOwnsTenant(int tenantId)
+    private async Task<bool> CallerOwnsTenantAsync(int tenantId)
     {
         var claim = User.FindFirstValue("tenantId");
         if (int.TryParse(claim, out var claimTenantId) && claimTenantId == tenantId)
             return true;
 
-        return User.Identities.Any(i =>
+        // Cookie admin path. SECURITY (audit C7): the Invoice table has no company
+        // filter, so don't wave through "any admin". The Tenant table DOES have a
+        // company query filter — this AnyAsync therefore returns true only when the
+        // tenant is inside the caller's scoped company (SuperAdmin bypasses and
+        // sees all).
+        var hasCookieAuth = User.Identities.Any(i =>
             i.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme);
+        if (!hasCookieAuth) return false;
+        return await _context.Tenants.AnyAsync(t => t.TenantId == tenantId);
     }
 }

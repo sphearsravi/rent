@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +10,7 @@ import '../../core/utils/status_localizer.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/payment_model.dart' show InvoiceModel;
 import '../viewmodels/auth_viewmodel.dart';
+import '../viewmodels/dashboard_viewmodel.dart';
 import '../viewmodels/invoice_viewmodel.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/language_toggle_button.dart';
@@ -120,12 +123,20 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                     // disabled Pay state in the tile + a lock icon. Server
                     // (Sprint 24) enforces the same rule, so this is
                     // belt-and-braces — keeps the UI honest with the API.
-                    final unpaid = vm.invoices
+                    // Prefer the dashboard's UNFILTERED outstanding list (all
+                    // pages, every status) for the oldest-unpaid lock. The
+                    // visible page is 20 rows and may be filtered (e.g. "Paid"),
+                    // so computing from it could mark the wrong invoice payable
+                    // and send the user into the server's 409.
+                    final allOutstanding =
+                        context.read<DashboardViewModel>().outstandingInvoices;
+                    final source = allOutstanding.isNotEmpty ? allOutstanding : vm.invoices;
+                    final unpaid = source
                         .where((i) => !i.isPaid && i.status.toLowerCase() != 'cancelled')
                         .toList()
                       ..sort((a, b) {
-                        final ad = a.invoiceDate ?? DateTime(2000);
-                        final bd = b.invoiceDate ?? DateTime(2000);
+                        final ad = a.invoiceDate ?? a.dueDate;
+                        final bd = b.invoiceDate ?? b.dueDate;
                         final cmp = ad.compareTo(bd);
                         return cmp != 0 ? cmp : a.invoiceId.compareTo(b.invoiceId);
                       });
@@ -197,7 +208,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         ),
       ),
     );
-    if (mounted) _refresh();
+    if (mounted) unawaited(_refresh());
   }
 }
 
@@ -306,7 +317,7 @@ class _PayOldestFirstBanner extends StatelessWidget {
                   TextSpan(
                     text: AppLocalizations.of(context)!.startWithInvoiceHint(
                         oldestId.toString(),
-                        (outstandingCount - 1).toString()),
+                        (outstandingCount - 1).toString(),),
                   ),
                 ],
               ),
@@ -414,7 +425,7 @@ class _InvoiceTile extends StatelessWidget {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                        horizontal: 10, vertical: 4,),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
@@ -437,7 +448,7 @@ class _InvoiceTile extends StatelessWidget {
                   Row(
                     children: [
                       const Icon(Icons.calendar_today_rounded,
-                          size: 14, color: AppTheme.textMuted),
+                          size: 14, color: AppTheme.textMuted,),
                       const SizedBox(width: 6),
                       Text(
                         AppLocalizations.of(context)!
@@ -545,7 +556,7 @@ class _ErrorState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.error_outline,
-                size: 56, color: AppTheme.errorRed.withOpacity(0.6)),
+                size: 56, color: AppTheme.errorRed.withOpacity(0.6),),
             const SizedBox(height: 12),
             Text(
               AppLocalizations.of(context)!.invoicesErrorTitle,

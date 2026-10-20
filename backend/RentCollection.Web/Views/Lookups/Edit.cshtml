@@ -1,0 +1,67 @@
+@model RentCollection.Core.Entities.LookupItem
+@{
+    ViewData["Title"] = "Edit Value";
+    var ar = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar";
+    var catLabel = RentCollection.Core.Entities.LookupCategories.All.FirstOrDefault(c => c.Key == Model.Category);
+    var catName = ar ? catLabel.LabelAr : catLabel.LabelEn;
+}
+
+<div class="container-fluid" style="padding: 2rem;">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = L["Edit Dropdown Value"].Value,
+        ["Subtitle"] = catName,
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            ("Dropdown Values", Url.Action("Index", new { category = Model.Category })),
+            (catName, null),
+        }
+    })
+
+    <form asp-action="Edit" asp-route-id="@Model.LookupItemId" method="post" class="form-revamp">
+        <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+        <div class="fr-zone fr-zone-essentials">
+            <h3 class="fr-zone-title"><i class="fas fa-tag"></i> <span>@Model.Code</span></h3>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label>@L["Code"]</label>
+                    <input value="@Model.Code" readonly disabled />
+                    <span class="fr-hint">@L["The code can't change — existing records reference it."]</span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="SortOrder">@L["Order"]</label>
+                    <input asp-for="SortOrder" type="number" />
+                    <span class="fr-hint">@L["Lower numbers appear first."]</span>
+                </div>
+            </div>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label asp-for="LabelEn">@L["English label"]</label>
+                    <input asp-for="LabelEn" />
+                    <span class="fr-hint"></span>
+                </div>
+                <div class="fr-field">
+                    <label asp-for="LabelAr">@L["Arabic label"]</label>
+                    <input asp-for="LabelAr" dir="rtl" />
+                    <span class="fr-hint"></span>
+                </div>
+            </div>
+            <div class="fr-row">
+                <div class="fr-field">
+                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                        <input asp-for="IsActive" type="checkbox" style="width:auto;margin:0;" /> @L["Active"]
+                    </label>
+                    <span class="fr-hint">@L["Inactive values are hidden from new selections but keep working on existing records."]</span>
+                </div>
+                <div class="fr-field"></div>
+            </div>
+        </div>
+
+        <div class="fr-actions">
+            <a asp-action="Index" asp-route-category="@Model.Category" class="fr-btn fr-btn-ghost">@L["Cancel"]</a>
+            <div class="fr-spacer"></div>
+            <button type="submit" class="fr-btn fr-btn-primary"><i class="fas fa-save"></i> @L["Save"]</button>
+        </div>
+    </form>
+</div>

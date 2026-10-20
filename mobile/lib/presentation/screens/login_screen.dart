@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -42,6 +44,25 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
     _animationController.forward();
+
+    // "Remember me": prefill the saved Civil ID + password (and tick the box)
+    // so the tenant doesn't have to retype each time. Done after the first
+    // frame because reading secure storage is async.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreRememberedLogin());
+  }
+
+  Future<void> _restoreRememberedLogin() async {
+    final remembered = await context.read<AuthViewModel>().loadRememberedLogin();
+    if (!mounted || !remembered.rememberMe) return;
+    setState(() {
+      _rememberMe = true;
+      if ((remembered.civilId ?? '').isNotEmpty) {
+        _civilIdController.text = remembered.civilId!;
+      }
+      if ((remembered.password ?? '').isNotEmpty) {
+        _passwordController.text = remembered.password!;
+      }
+    });
   }
 
   @override
@@ -52,12 +73,27 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
+  /// Convert Arabic-Indic (٠-٩) and Persian (۰-۹) digits to ASCII so a Civil ID
+  /// typed on an Arabic keyboard validates and logs in.
+  static String _toWesternDigits(String s) {
+    const arabic = '٠١٢٣٤٥٦٧٨٩';
+    const persian = '۰۱۲۳۴۵۶۷۸۹';
+    final sb = StringBuffer();
+    for (final ch in s.runes) {
+      final c = String.fromCharCode(ch);
+      final a = arabic.indexOf(c);
+      final p = persian.indexOf(c);
+      sb.write(a >= 0 ? a.toString() : (p >= 0 ? p.toString() : c));
+    }
+    return sb.toString();
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
     final authViewModel = context.read<AuthViewModel>();
     final success = await authViewModel.login(
-      _civilIdController.text.trim(),
+      _toWesternDigits(_civilIdController.text.trim()),
       _passwordController.text,
       rememberMe: _rememberMe,
     );
@@ -68,10 +104,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       // so a failed registration never blocks the login redirect.
       final tenantId = authViewModel.tenantId;
       if (tenantId != null) {
-        // ignore: discarded_futures
-        context.read<FcmService>().registerWithServer(tenantId);
+        // Fire-and-forget; FcmService catches its own errors.
+        unawaited(context.read<FcmService>().registerWithServer(tenantId));
       }
-      Navigator.of(context).pushReplacementNamed('/home');
+      unawaited(Navigator.of(context).pushReplacementNamed('/home'));
     }
   }
 
@@ -153,26 +189,29 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Widget _buildHeader() {
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
+        const Align(
+          // Directional so the toggle sits at the trailing edge in RTL too.
+          alignment: AlignmentDirectional.centerEnd,
           child: LanguageToggleButton(color: AppTheme.primaryIndigo),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ShaderMask(
-              shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-              child: const Icon(
-                Icons.apartment_rounded,
-                size: 40,
-                color: Colors.white,
+            // The real Alrtam logo (same asset as the app icon + splash).
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'assets/icons/app_icon.png',
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
               ),
             ),
             const SizedBox(width: 12),
             ShaderMask(
               shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
               child: const Text(
-                'VIIJAR',
+                'Alrtam',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -237,7 +276,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       children: [
         Row(
           children: [
-            Icon(Icons.badge_outlined, size: 18, color: AppTheme.textMuted),
+            const Icon(Icons.badge_outlined, size: 18, color: AppTheme.textMuted),
             const SizedBox(width: 8),
             Text(
               AppLocalizations.of(context)!.loginCivilIdLabel,
@@ -259,8 +298,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               return l.loginCivilIdRequired;
             }
             // Kuwait Civil ID format: 12 digits, first digit is the
-            // birth-century indicator (2 = 1900s, 3 = 2000s).
-            final cleaned = value.trim();
+            // birth-century indicator (2 = 1900s, 3 = 2000s). Normalise
+            // Arabic-Indic digits first so an Arabic keyboard passes.
+            final cleaned = _toWesternDigits(value.trim());
             if (!RegExp(r'^[23]\d{11}$').hasMatch(cleaned)) {
               return l.loginCivilIdInvalid;
             }
@@ -277,7 +317,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       children: [
         Row(
           children: [
-            Icon(Icons.lock_outline, size: 18, color: AppTheme.textMuted),
+            const Icon(Icons.lock_outline, size: 18, color: AppTheme.textMuted),
             const SizedBox(width: 8),
             Text(
               AppLocalizations.of(context)!.loginPasswordLabel,
@@ -313,30 +353,36 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Widget _buildRememberMe() {
-    return Row(
-      children: [
-        SizedBox(
-          width: 24,
-          height: 24,
-          child: Checkbox(
-            value: _rememberMe,
-            onChanged: (value) => setState(() => _rememberMe = value ?? false),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            activeColor: AppTheme.primaryIndigo,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Row(
+    // Whole row toggles (not just the 24px box) — a usable tap target.
+    return InkWell(
+      onTap: () => setState(() => _rememberMe = !_rememberMe),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
           children: [
-            Icon(Icons.schedule, size: 16, color: AppTheme.textMuted),
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Checkbox(
+                value: _rememberMe,
+                onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                activeColor: AppTheme.primaryIndigo,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Icon(Icons.schedule, size: 16, color: AppTheme.textMuted),
             const SizedBox(width: 6),
-            Text(
-              AppLocalizations.of(context)!.loginRememberMe,
-              style: Theme.of(context).textTheme.bodyMedium,
+            Expanded(
+              child: Text(
+                AppLocalizations.of(context)!.loginRememberMe,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 
@@ -369,7 +415,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               const SizedBox(width: 8),
               Text(AppLocalizations.of(context)!.loginTitle,
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
+                      fontSize: 16, fontWeight: FontWeight.w600,),),
             ],
           ),
         ),

@@ -51,7 +51,7 @@ class MaintenanceCard extends StatelessWidget {
             // Category
             Row(
               children: [
-                Icon(Icons.label_outline, size: 16, color: AppTheme.textMuted),
+                const Icon(Icons.label_outline, size: 16, color: AppTheme.textMuted),
                 const SizedBox(width: 6),
                 Text(
                   request.category,
@@ -75,7 +75,7 @@ class MaintenanceCard extends StatelessWidget {
             // Date
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 14, color: AppTheme.textMuted),
+                const Icon(Icons.calendar_today, size: 14, color: AppTheme.textMuted),
                 const SizedBox(width: 6),
                 Text(
                   AppLocalizations.of(context)!.requestedOnLabel(AppDateUtils.formatShortDate(request.requestDate)),

@@ -4,7 +4,7 @@
 **Version under test:** Sprint 23 (2026-06)
 **Test environments:**
 - **Local dev:** http://localhost:5032 (against `RAVIWST\SQLEXPRESS\RentCollectionDB`)
-- **SmarterASP demo:** http://<deploy-host> (against `<database>`)
+- **SmarterASP demo:** http://<DEMO_HOST> (against `<DB_NAME>`)
 
 > Companion to [SYSTEM_WORKFLOW.md](SYSTEM_WORKFLOW.md). Run the smoke
 > tests after every deploy. Run the full pack before any milestone release.

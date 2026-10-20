@@ -21,6 +21,8 @@
     <ProjectReference Include="..\RentCollection.Core\RentCollection.Core.csproj" />
     <ProjectReference Include="..\RentCollection.Application\RentCollection.Application.csproj" />
     <ProjectReference Include="..\RentCollection.Infrastructure\RentCollection.Infrastructure.csproj" />
+    <!-- Controller-level tests (PaymentApproval, tenant cash request). -->
+    <ProjectReference Include="..\RentCollection.Web\RentCollection.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

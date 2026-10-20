@@ -312,14 +312,31 @@ public class TenantController : ControllerBase
                 return Ok(CustomResponseDto<string>.ErrorResponse("Tenant not found", 404));
             }
 
-            // Verify old password
-            if (tenant.Password != request.Input.Oldpassword)
+            // SECURITY (audit H4): verify and store with BCrypt, never plaintext.
+            // The old code compared/stored the raw password, which both exposed
+            // credentials on any DB read and overwrote the BCrypt hash the real
+            // login (/api/tenant/login) verifies against. Guard the verify against
+            // any legacy non-hash value.
+            bool oldOk;
+            try
+            {
+                oldOk = !string.IsNullOrEmpty(tenant.Password)
+                    && BCrypt.Net.BCrypt.Verify(request.Input.Oldpassword, tenant.Password);
+            }
+            catch { oldOk = false; }
+
+            if (!oldOk)
             {
                 return Ok(CustomResponseDto<string>.ErrorResponse("Old password is incorrect", 401));
             }
 
-            // Update password
-            tenant.Password = request.Input.Newpassword;
+            if (request.Input.Newpassword.Length < 8)
+            {
+                return Ok(CustomResponseDto<string>.ErrorResponse("New password must be at least 8 characters", 400));
+            }
+
+            // Update password (BCrypt hash)
+            tenant.Password = BCrypt.Net.BCrypt.HashPassword(request.Input.Newpassword);
             tenant.ModifiedDate = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -343,25 +360,16 @@ public class TenantController : ControllerBase
                 return Ok(CustomResponseDto<string>.ErrorResponse("Civil ID is required", 400));
             }
 
-            var tenant = await _context.Tenants
-                .FirstOrDefaultAsync(t => t.PACINumber == request.Input.Civilid);
-
-            if (tenant == null)
-            {
-                return Ok(CustomResponseDto<string>.ErrorResponse("Tenant not found with this Civil ID", 404));
-            }
-
-            // In a real application, you would:
-            // 1. Generate a password reset token
-            // 2. Send an email with the reset link
-            // 3. Store the token with expiry time
-
-            // For now, we'll just return a success message
-            _logger.LogInformation($"Password reset requested for tenant {tenant.TenantId} with email {tenant.Email}");
+            // SECURITY (audit M6): do NOT reveal whether an account exists or leak
+            // its email — that turned this into a Civil-ID/email enumeration oracle.
+            // Always return the same generic message regardless of any match, and
+            // never echo the tenant's email. (This flow is a stub — no reset token
+            // is issued here — so there is nothing to disclose.)
+            _logger.LogInformation("Password reset requested (identifier masked).");
 
             return Ok(CustomResponseDto<string>.SuccessResponse(
-                $"Password reset instructions have been sent to {tenant.Email}",
-                "Password reset request successful"));
+                "If an account matches, password reset instructions will be sent.",
+                "Password reset request received"));
         }
         catch (Exception ex)
         {

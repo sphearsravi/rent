@@ -35,7 +35,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return Scaffold(
+    // Android back on any non-Dashboard tab returns to the Dashboard instead of
+    // exiting the app (standard bottom-nav behaviour).
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _currentIndex = 0);
+      },
+      child: Scaffold(
       body: IndexedStack(
         index: _currentIndex,
         children: List<Widget>.generate(_screens.length, (i) {
@@ -70,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

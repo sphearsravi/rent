@@ -1,0 +1,115 @@
+@model List<RentCollection.Core.Entities.LookupItem>
+@{
+    ViewData["Title"] = "Dropdown Values";
+    var category = (string)ViewBag.Category;
+    var categories = (ValueTuple<string, string, string>[])ViewBag.Categories;
+    var ar = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar";
+    string CatLabel((string Key, string En, string Ar) c) => ar ? c.Ar : c.En;
+    var current = categories.FirstOrDefault(c => c.Item1 == category);
+}
+
+<style>
+    .lk-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.25rem 0; }
+    .lk-chip {
+        text-decoration: none; padding: 0.45rem 0.85rem; border-radius: 999px;
+        font-size: 0.85rem; font-weight: 600; border: 1px solid rgba(138, 109, 31,0.2);
+        color: #475569; background: #fff; transition: all .15s;
+    }
+    .lk-chip:hover { background: rgba(138, 109, 31,0.06); }
+    .lk-chip.is-on { background: linear-gradient(135deg,#8a6d1f,#b8860b); color: #fff; border-color: transparent; }
+    .lk-card { background: #fff; border: 1px solid rgba(138, 109, 31,0.12); border-radius: 14px; overflow: hidden; }
+    .lk-card-head { padding: 1rem 1.25rem; border-bottom: 1px solid rgba(138, 109, 31,0.12); font-weight: 700; color: #0f172a; }
+    .table-container { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table thead { background: rgba(138, 109, 31,0.08); }
+    .data-table th { padding: 0.8rem 1rem; text-align: left; font-weight: 600; color: #334155; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(138, 109, 31,0.2); }
+    .data-table td { padding: 0.7rem 1rem; border-bottom: 1px solid rgba(138, 109, 31,0.1); color: #1e293b; vertical-align: middle; }
+    .data-table tbody tr:hover { background: rgba(138, 109, 31,0.04); }
+    .lk-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .lk-actions form { display: inline; margin: 0; }
+</style>
+
+<div class="container-fluid" style="padding: 2rem;">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = L["Dropdown Values"].Value,
+        ["Subtitle"] = L["Manage the dropdown options used across the system, in English and Arabic."].Value,
+        ["ActionLabel"] = L["Add Value"].Value,
+        ["ActionHref"] = Url.Action("Create", new { category }),
+    })
+
+    @if (TempData["LookupMsg"] != null)
+    {
+        <div class="alert alert-success" style="margin:1rem 0;"><i class="fas fa-check-circle"></i> @TempData["LookupMsg"]</div>
+    }
+
+    <div class="lk-chips">
+        @foreach (var c in categories)
+        {
+            <a class="lk-chip @(c.Item1 == category ? "is-on" : "")"
+               href="@Url.Action("Index", new { category = c.Item1 })">@CatLabel(c)</a>
+        }
+    </div>
+
+    <div class="lk-card">
+        <div class="lk-card-head">@CatLabel(current)</div>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>@L["Code"]</th>
+                        <th>@L["English"]</th>
+                        <th>@L["Arabic"]</th>
+                        <th style="width:70px;">@L["Order"]</th>
+                        <th style="width:100px;">@L["Status"]</th>
+                        <th style="width:240px;">@L["Actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="6" style="color:#94a3b8;">@L["No values yet."]</td></tr>
+                    }
+                    @foreach (var item in Model)
+                    {
+                        <tr style="@(item.IsActive ? "" : "opacity:0.5;")">
+                            <td><code>@item.Code</code> @if (item.IsSystem) { <span class="badge badge-secondary" style="font-size:0.62em;vertical-align:middle;">@L["system"]</span> }</td>
+                            <td>@item.LabelEn</td>
+                            <td dir="rtl">@item.LabelAr</td>
+                            <td>@item.SortOrder</td>
+                            <td>
+                                @if (item.IsActive)
+                                {
+                                    <span class="badge badge-success">@L["Active"]</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-secondary">@L["Inactive"]</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="lk-actions">
+                                    <a asp-action="Edit" asp-route-id="@item.LookupItemId" class="btn btn-sm btn-outline-info"><i class="fas fa-edit"></i> @L["Edit"]</a>
+                                    <form asp-action="ToggleActive" asp-route-id="@item.LookupItemId" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-warning" : "btn-primary")">
+                                            @(item.IsActive ? L["Deactivate"] : L["Activate"])
+                                        </button>
+                                    </form>
+                                    @if (!item.IsSystem)
+                                    {
+                                        <form asp-action="Delete" asp-route-id="@item.LookupItemId" method="post"
+                                              onsubmit="return confirm('@L["Delete this value?"]');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> @L["Delete"]</button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

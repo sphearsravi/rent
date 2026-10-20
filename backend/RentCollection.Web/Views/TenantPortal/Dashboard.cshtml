@@ -1,381 +1,461 @@
+@using System.Globalization
+@using RentCollection.Web.Helpers
 @{
     ViewData["Title"] = "Tenant Dashboard";
     Layout = null;
+    var _ci = CultureInfo.CurrentUICulture;
+    var _rtl = _ci.TextInfo.IsRightToLeft;
+    var _lang = _ci.TwoLetterISOLanguageName;
+    var _return = Context.Request.Path + Context.Request.QueryString;
+
     var tenant = ViewBag.Tenant as RentCollection.Core.Entities.Tenant;
-    var leases = ViewBag.Leases as List<RentCollection.Core.Entities.Lease>;
-    var payments = ViewBag.Payments as List<RentCollection.Core.Entities.Payment>;
-    var maintenanceRequests = ViewBag.MaintenanceRequests as List<RentCollection.Core.Entities.MaintenanceRequest>;
-    var documents = ViewBag.Documents as List<RentCollection.Core.Entities.Document>;
+    var leases = ViewBag.Leases as List<RentCollection.Core.Entities.Lease> ?? new List<RentCollection.Core.Entities.Lease>();
+    var payments = ViewBag.Payments as List<RentCollection.Core.Entities.Payment> ?? new List<RentCollection.Core.Entities.Payment>();
+    var maintenanceRequests = ViewBag.MaintenanceRequests as List<RentCollection.Core.Entities.MaintenanceRequest> ?? new List<RentCollection.Core.Entities.MaintenanceRequest>();
+    var documents = ViewBag.Documents as List<RentCollection.Core.Entities.Document> ?? new List<RentCollection.Core.Entities.Document>();
+
+    // Account summary (computed in the controller, scoped to the session tenant)
+    decimal outstandingTotal = ViewBag.OutstandingTotal ?? 0m;
+    int outstandingCount = ViewBag.OutstandingCount ?? 0;
+    int overdueCount = ViewBag.OverdueCount ?? 0;
+    int? daysUntilNextDue = ViewBag.DaysUntilNextDue as int?;
+    int? oldestUnpaidLeaseId = ViewBag.OldestUnpaidLeaseId as int?;
+    decimal totalMonthlyRent = ViewBag.TotalMonthlyRent ?? 0m;
+    var expiringLease = ViewBag.ExpiringLease as RentCollection.Core.Entities.Lease;
+    int? expiringLeaseDays = ViewBag.ExpiringLeaseDays as int?;
+
+    // Kuwait is UTC+3 with no DST — good enough for a greeting and the date eyebrow.
+    var kwNow = DateTime.UtcNow.AddHours(3);
+    var greetingKey = kwNow.Hour < 12 ? "Good morning" : kwNow.Hour < 17 ? "Good afternoon" : "Good evening";
+    var longDate = kwNow.ToString("dddd, d MMMM yyyy", CultureInfo.CurrentCulture);
+    var firstName = tenant?.FirstName ?? "";
+
+    var payUrl = oldestUnpaidLeaseId.HasValue
+        ? Url.Action("MakePayment", "TenantPortal", new { leaseId = oldestUnpaidLeaseId.Value })
+        : Url.Action("MakePayment", "TenantPortal");
+}
+@functions {
+    // Payment status → (pill class, localizer key). Pending bank transfers and
+    // gateway-pending payments both read as "Pending Verification" to the tenant.
+    private static (string Css, string Key) PaymentPill(string status) => status switch
+    {
+        "Completed" or "Approved" => ("od-pill-green", "Completed"),
+        "Pending" or "PendingVerification" => ("od-pill-amber", "Pending Verification"),
+        "Rejected" or "Failed" or "Cancelled" => ("od-pill-red", status),
+        _ => ("od-pill-grey", status)
+    };
+
+    private static string PaymentIconCss(string status) => status switch
+    {
+        "Completed" or "Approved" => "od-count-green",
+        "Pending" or "PendingVerification" => "od-count-amber",
+        "Rejected" or "Failed" or "Cancelled" => "od-count-red",
+        _ => "od-count-gold"
+    };
+
+    private static string MaintenancePill(string status) => status switch
+    {
+        "Open" => "od-pill-gold",
+        "In Progress" => "od-pill-amber",
+        _ => "od-pill-grey"
+    };
+
+    // PaymentType enum names → the resource keys the rest of the app already uses.
+    private static string PaymentMethodKey(string method) => method switch
+    {
+        "BankTransfer" => "Bank Transfer",
+        _ => method
+    };
+
+    private static string Initial(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? "?" : text.Trim().Substring(0, 1).ToUpperInvariant();
 }
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@_lang" dir="@(_rtl ? "rtl" : "ltr")">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - VIIJAR</title>
+    <title>@ViewData["Title"] - ALRTAM</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner-dashboard.css" asp-append-version="true" />
+    <style>
+        /* Page shell only — every component below comes from owner-dashboard.css (.od-*). */
+        body { margin: 0; background: var(--od-bg); color: var(--od-ink); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-height: 100vh; }
+        .tp-nav { background: linear-gradient(135deg, var(--od-charcoal), var(--od-gold)); color: #fff; }
+        .tp-nav-inner { max-width: 1200px; margin: 0 auto; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+        .tp-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; color: #fff; text-decoration: none; }
+        .tp-nav-menu { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+        .tp-nav-menu a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border-radius: 10px; color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; }
+        .tp-nav-menu a:hover, .tp-nav-menu a.active { background: rgba(255,255,255,0.18); color: #fff; }
+        .tp-lang { display: inline-flex; border: 1px solid rgba(255,255,255,0.45); border-radius: 999px; overflow: hidden; margin-inline-start: 8px; }
+        .tp-lang button { background: transparent; border: 0; color: #fff; font: inherit; font-size: 13px; font-weight: 700; padding: 6px 12px; cursor: pointer; min-height: 36px; }
+        .tp-lang button.active { background: #fff; color: var(--od-gold-ink); }
+        .tp-page { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+        .tp-alert { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--od-radius-sm); font-size: 14px; font-weight: 600; }
+        .tp-alert-success { background: var(--od-green-soft); color: var(--od-green); }
+        .tp-alert-error { background: var(--od-red-soft); color: var(--od-red); }
+        .tp-alert-info { background: var(--od-gold-soft); color: var(--od-gold-ink); }
+        .tp-alert button { margin-inline-start: auto; background: transparent; border: 0; color: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
+        .tp-ico { width: 20px; height: 20px; flex: none; }
+        .tp-ico-sm { width: 16px; height: 16px; flex: none; vertical-align: -3px; }
+        .tp-btn-white { background: #fff; color: var(--od-gold-ink); border-color: #fff; }
+        .tp-btn-white:hover { background: var(--od-gold-soft); color: var(--od-gold-ink); }
+        .od-kpi-hero .od-pill-red { background: var(--od-red); color: #fff; }
+        .tp-paid { border-color: var(--od-green-soft); background: linear-gradient(145deg, #fff, var(--od-green-soft)); flex-direction: row; align-items: center; gap: 16px; }
+        .tp-paid .od-card-title { color: var(--od-green); font-size: 18px; }
+        .tp-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .tp-action { flex-direction: column; justify-content: center; text-align: center; gap: 8px; min-height: 96px; text-decoration: none; color: var(--od-ink); border: 1px solid var(--od-line); background: var(--od-surface); cursor: pointer; font: inherit; }
+        .tp-action:hover { background: var(--od-gold-soft); color: var(--od-ink); }
+        .tp-action .od-tile-icon { width: 44px; height: 44px; border-radius: 12px; }
+        .tp-action strong { font-size: 13px; }
+        .od-count-grey { background: var(--od-line-soft); color: var(--od-muted); }
+        .tp-note-amber { display: flex; align-items: center; gap: 12px; background: var(--od-amber-soft); color: var(--od-amber); border: 1px solid #E7D7A8; text-decoration: none; }
+        .tp-note-amber strong { color: var(--od-ink); }
+        .tp-note-amber:hover { color: var(--od-amber); }
+        .tp-note-text { display: flex; flex-direction: column; min-width: 0; }
+        .tp-docs { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 4px; font-size: 12px; }
+        .tp-docs a { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-weight: 600; }
+        .od-row-text .tp-desc { font-size: 13px; color: var(--od-ink); white-space: normal; }
+        @@media (max-width: 640px) {
+            .tp-nav-menu a span { display: none; }
+            .tp-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .od-title { font-size: 26px; }
+            .od-row { flex-wrap: wrap; }
+            .od-row .od-amount { order: 3; }
+        }
+
+        /* Maintenance request modal (existing flow — posts to CreateMaintenanceRequest) */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(30,26,17,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 16px; }
+        .modal-overlay.is-open { display: flex; }
+        .modal-container { background: #fff; border-radius: var(--od-radius); max-width: 560px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: var(--od-shadow); }
+        .modal-header { padding: 18px 20px; border-bottom: 1px solid var(--od-line); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .modal-close { background: none; border: none; font-size: 26px; color: var(--od-muted); cursor: pointer; line-height: 1; width: 36px; height: 36px; border-radius: 8px; }
+        .modal-close:hover { background: var(--od-surface-2); color: var(--od-ink); }
+        .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; color: var(--od-ink); }
+        .form-control { width: 100%; padding: 10px 12px; border: 1px solid var(--od-line); border-radius: 10px; font: inherit; font-size: 14px; color: var(--od-ink); background: #fff; min-height: 44px; }
+        .form-control:focus { outline: none; border-color: var(--od-gold); box-shadow: 0 0 0 3px rgba(138,109,31,0.15); }
+        textarea.form-control { resize: vertical; }
+        .modal-footer { padding: 16px 20px; border-top: 1px solid var(--od-line); display: flex; justify-content: flex-end; gap: 10px; }
+        @@media (max-width: 640px) { .modal-footer { flex-direction: column-reverse; } .modal-footer .od-btn { width: 100%; } }
+    </style>
 </head>
 <body>
-    <nav class="tenant-navbar">
-        <div class="navbar-container">
-            <div class="navbar-brand">
-                <i class="fas fa-building"></i>
-                <span>@L["VIIJAR Tenant Portal"]</span>
-            </div>
-            <div class="navbar-menu">
-                <a href="/TenantPortal/Dashboard" class="nav-link active">
-                    <i class="fas fa-home"></i> @L["Dashboard"]
+    <nav class="tp-nav" aria-label="@(L["ALRTAM Tenant Portal"].Value)">
+        <div class="tp-nav-inner">
+            <a href="@Url.Action("Dashboard", "TenantPortal")" class="tp-brand">
+                <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/><path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01"/></svg>
+                <span>@L["ALRTAM Tenant Portal"]</span>
+            </a>
+            <div class="tp-nav-menu">
+                <a href="@Url.Action("Dashboard", "TenantPortal")" class="active" aria-current="page">
+                    <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+                    <span>@L["Dashboard"]</span>
                 </a>
-                <a href="/TenantPortal/MyDetails" class="nav-link">
-                    <i class="fas fa-user"></i> @L["My Details"]
+                <a href="@Url.Action("MyDetails", "TenantPortal")">
+                    <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                    <span>@L["My Details"]</span>
                 </a>
-                <a href="/TenantPortal/MakePayment" class="nav-link">
-                    <i class="fas fa-credit-card"></i> @L["Make Payment"]
+                <a href="@Url.Action("MakePayment", "TenantPortal")">
+                    <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                    <span>@L["Make Payment"]</span>
                 </a>
-                <a href="/TenantPortal/PaymentHistory" class="nav-link">
-                    <i class="fas fa-history"></i> @L["Payment History"]
+                <a href="@Url.Action("PaymentHistory", "TenantPortal")">
+                    <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <span>@L["Payment History"]</span>
                 </a>
-                <a href="/TenantPortal/Logout" class="nav-link logout">
-                    <i class="fas fa-sign-out-alt"></i> @L["Logout"]
+                <a href="@Url.Action("Logout", "TenantPortal")">
+                    <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                    <span>@L["Logout"]</span>
                 </a>
+                @* Language switcher (EN | ع) — same CultureController.Set endpoint as the back office. *@
+                <form class="tp-lang" method="post" action="/Culture/Set" aria-label="@(L["Language"].Value)">
+                    <input type="hidden" name="returnUrl" value="@_return" />
+                    <button type="submit" name="culture" value="en-US" class="@(_lang == "en" ? "active" : "")" lang="en">EN</button>
+                    <button type="submit" name="culture" value="ar-KW" class="@(_lang == "ar" ? "active" : "")" lang="ar">ع</button>
+                </form>
             </div>
         </div>
     </nav>
 
-    <div class="dashboard-container">
-        @if (TempData["SuccessMessage"] != null)
-        {
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle me-2"></i>
-                @TempData["SuccessMessage"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        }
+    <main class="tp-page">
+        <div class="od">
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="tp-alert tp-alert-success" role="status">
+                    <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>
+                    <span>@TempData["SuccessMessage"]</span>
+                    <button type="button" onclick="this.parentElement.remove()" aria-label="@(L["Close"].Value)">&times;</button>
+                </div>
+            }
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="tp-alert tp-alert-error" role="alert">
+                    <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+                    <span>@TempData["ErrorMessage"]</span>
+                    <button type="button" onclick="this.parentElement.remove()" aria-label="@(L["Close"].Value)">&times;</button>
+                </div>
+            }
 
-        <div class="welcome-section">
-            <h1>@L["Welcome,"] @tenant.FirstName @tenant.LastName!</h1>
-            <p class="text-muted">@L["Here's your rental dashboard"]</p>
-        </div>
+            @* 1. Header *@
+            <header class="od-header">
+                <div>
+                    <div class="od-eyebrow">@longDate</div>
+                    <h1 class="od-title">@L[greetingKey], @firstName</h1>
+                    <div class="od-sub">@L["Here's your rental dashboard"]</div>
+                </div>
+            </header>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon blue">
-                    <i class="fas fa-home"></i>
-                </div>
-                <div class="stat-content">
-                    <h3>@(leases?.Count ?? 0)</h3>
-                    <p>@L["Active Leases"]</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon green">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-                <div class="stat-content">
-                    <h3>@(payments?.Count ?? 0)</h3>
-                    <p>@L["Total Payments"]</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon orange">
-                    <i class="fas fa-tools"></i>
-                </div>
-                <div class="stat-content">
-                    <h3>@(maintenanceRequests?.Count ?? 0)</h3>
-                    <p>@L["Pending Requests"]</p>
-                </div>
-            </div>
-        </div>
+            @* 2. Account summary hero — how much do I owe, when is it due, how do I pay *@
+            @if (outstandingCount > 0)
+            {
+                <section class="od-card od-kpi-hero" aria-labelledby="amount-due-label">
+                    <div class="od-kpi-row">
+                        <span class="od-kpi-label" id="amount-due-label">@L["Amount due"]</span>
+                        @if (overdueCount > 0)
+                        {
+                            <span class="od-pill od-pill-red">@L["{0} overdue", overdueCount]</span>
+                        }
+                    </div>
+                    <div class="od-kpi-value">@CurrencyHelper.FormatKWD(outstandingTotal)</div>
+                    <div class="od-kpi-sub">
+                        <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                        @if (outstandingCount == 1)
+                        {
+                            @L["1 invoice to pay"]
+                        }
+                        else
+                        {
+                            @L["{0} invoices to pay", outstandingCount]
+                        }
+                        @if (daysUntilNextDue.HasValue)
+                        {
+                            var d = daysUntilNextDue.Value;
+                            <text> · </text>
+                            if (d < -1) { @L["Overdue by {0} days", -d] }
+                            else if (d == -1) { @L["Overdue by 1 day"] }
+                            else if (d == 0) { @L["Due today"] }
+                            else if (d == 1) { @L["Due tomorrow"] }
+                            else { @L["Due in {0} days", d] }
+                        }
+                    </div>
+                    <div>
+                        <a href="@payUrl" class="od-btn tp-btn-white">
+                            <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                            @L["Pay Now"]
+                        </a>
+                    </div>
+                </section>
+            }
+            else
+            {
+                <section class="od-card tp-paid" role="status">
+                    <div class="od-count od-count-green" aria-hidden="true">
+                        <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="od-card-title">@L["You're all paid up"]</h2>
+                        <div class="od-sub">@L["No outstanding invoices — nothing to pay right now."]</div>
+                    </div>
+                </section>
+            }
 
-        <div class="content-grid">
-            <div class="section-card">
-                <div class="section-header">
-                    <h2><i class="fas fa-building"></i> @L["My Properties"]</h2>
-                    <a href="/TenantPortal/MakePayment" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus"></i> @L["Make Payment"]
+            @* 3. Quick actions *@
+            <section aria-label="@(L["Quick Actions"].Value)">
+                <div class="tp-actions">
+                    <a href="@payUrl" class="od-tile tp-action">
+                        <span class="od-tile-icon od-count-gold" aria-hidden="true">
+                            <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                        </span>
+                        <strong>@L["Pay"]</strong>
+                    </a>
+                    <button type="button" class="od-tile tp-action" onclick="showMaintenanceModal()">
+                        <span class="od-tile-icon od-count-amber" aria-hidden="true">
+                            <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0 5 5l-9.4 9.4a2 2 0 0 1-2.8-2.8l9.4-9.4z"/><path d="M4 20l1-1"/></svg>
+                        </span>
+                        <strong>@L["New Request"]</strong>
+                    </button>
+                    <a href="#leases" class="od-tile tp-action">
+                        <span class="od-tile-icon od-count-green" aria-hidden="true">
+                            <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+                        </span>
+                        <strong>@L["My leases"]</strong>
+                    </a>
+                    <a href="@Url.Action("MyDetails", "TenantPortal")" class="od-tile tp-action">
+                        <span class="od-tile-icon od-count-grey" aria-hidden="true">
+                            <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                        </span>
+                        <strong>@L["My Details"]</strong>
                     </a>
                 </div>
-                <div class="section-content">
-                    @if (leases != null && leases.Any())
-                    {
-                        foreach (var lease in leases)
+            </section>
+
+            @* 4. Lease-expiry nudge *@
+            @if (expiringLease != null && expiringLeaseDays.HasValue)
+            {
+                <a href="#leases" class="od-note tp-note-amber">
+                    <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <span class="tp-note-text">
+                        <strong>@L["Lease expires in {0} days", expiringLeaseDays.Value]</strong>
+                        <span>@expiringLease.Unit?.Property?.PropertyName @L["Unit"] @expiringLease.Unit?.UnitNumber · @L["Contact office to renew"]</span>
+                    </span>
+                </a>
+            }
+
+            @* 5. Stats *@
+            <section class="od-grid-kpi" aria-label="@(L["Dashboard"].Value)">
+                <div class="od-card">
+                    <span class="od-kpi-label">@L["Active Leases"]</span>
+                    <span class="od-kpi-value">@leases.Count</span>
+                </div>
+                <div class="od-card">
+                    <span class="od-kpi-label">@L["Monthly Rent"]</span>
+                    <span class="od-kpi-value">@CurrencyHelper.FormatKWD(totalMonthlyRent)</span>
+                </div>
+                <div class="od-card">
+                    <span class="od-kpi-label">@L["Open requests"]</span>
+                    <span class="od-kpi-value @(maintenanceRequests.Count > 0 ? "" : "is-green")">@maintenanceRequests.Count</span>
+                </div>
+            </section>
+
+            @* 6. My properties *@
+            <section class="od-card" id="leases" aria-labelledby="leases-title">
+                <div class="od-card-head">
+                    <h2 class="od-card-title" id="leases-title">@L["My Properties"]</h2>
+                    <a href="@payUrl" class="od-btn od-btn-ghost od-btn-sm">@L["Make Payment"]</a>
+                </div>
+                @if (leases.Any())
+                {
+                    <div class="od-rows">
+                        @foreach (var lease in leases)
                         {
-                            var leaseDocuments = documents?.Where(d => d.RelatedEntityId == lease.LeaseId).ToList();
-                            var daysRemaining = (lease.LeaseEndDate - DateTime.UtcNow).Days;
-
-                            <div class="property-card">
-                                <div class="property-header">
-                                    <div>
-                                        <h3>@lease.Unit?.Property?.PropertyName</h3>
-                                        <p class="property-address">
-                                            <i class="fas fa-map-marker-alt"></i>
-                                            @lease.Unit?.Property?.Address, @lease.Unit?.Property?.Area
-                                        </p>
-                                    </div>
-                                    <span class="badge badge-success">@lease.Status</span>
-                                </div>
-
-                                <div class="lease-info-section">
-                                    <h4><i class="fas fa-file-contract"></i> @L["Lease Details"]</h4>
-                                    <div class="property-details">
-                                        <div class="detail-item">
-                                            <span class="label">@L["Unit Number:"]</span>
-                                            <span class="value">@lease.Unit?.UnitNumber</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <span class="label">@L["Monthly Rent:"]</span>
-                                            <span class="value">@lease.MonthlyRent.ToString("N3") KWD</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <span class="label">@L["Security Deposit:"]</span>
-                                            <span class="value">@lease.SecurityDeposit.ToString("N3") KWD</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <span class="label">@L["Lease Type:"]</span>
-                                            <span class="value">@lease.LeaseType</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <span class="label">@L["Start Date:"]</span>
-                                            <span class="value">@lease.LeaseStartDate.ToString("dd MMM yyyy")</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <span class="label">@L["End Date:"]</span>
-                                            <span class="value">@lease.LeaseEndDate.ToString("dd MMM yyyy")</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <span class="label">@L["Days Remaining:"]</span>
-                                            <span class="value @(daysRemaining < 30 ? "text-danger" : "")">@daysRemaining @L["days"]</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <span class="label">@L["Payment Due Day:"]</span>
-                                            <span class="value">@L["Day"] @lease.PaymentDueDay @L["of each month"]</span>
-                                        </div>
-                                        @if (lease.LateFeeAmount.HasValue)
-                                        {
-                                            <div class="detail-item">
-                                                <span class="label">@L["Late Fee:"]</span>
-                                                <span class="value">@lease.LateFeeAmount.Value.ToString("N3") KWD</span>
-                                            </div>
-                                        }
-                                        @if (lease.LateFeeGracePeriod.HasValue)
-                                        {
-                                            <div class="detail-item">
-                                                <span class="label">@L["Grace Period:"]</span>
-                                                <span class="value">@lease.LateFeeGracePeriod @L["days"]</span>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-
-                                @if (leaseDocuments != null && leaseDocuments.Any())
-                                {
-                                    <div class="documents-section">
-                                        <h4><i class="fas fa-folder-open"></i> @L["Lease Documents"]</h4>
-                                        <div class="documents-grid">
+                            var leaseDocuments = documents.Where(d => d.RelatedEntityId == lease.LeaseId).ToList();
+                            <div class="od-row">
+                                <div class="od-avatar" aria-hidden="true">@Initial(lease.Unit?.Property?.PropertyName)</div>
+                                <div class="od-row-text">
+                                    <strong>@lease.Unit?.Property?.PropertyName · @L["Unit"] @lease.Unit?.UnitNumber</strong>
+                                    <span>@L["Ends {0}", lease.LeaseEndDate.ToString("d MMM yyyy", CultureInfo.CurrentCulture)] · @L["Day"] @lease.PaymentDueDay @L["of each month"]</span>
+                                    @if (leaseDocuments.Any())
+                                    {
+                                        <span class="tp-docs">
                                             @foreach (var doc in leaseDocuments)
                                             {
-                                                <div class="document-card">
-                                                    <div class="document-icon">
-                                                        @if (doc.DocumentType.ToLower().Contains("pdf"))
-                                                        {
-                                                            <i class="fas fa-file-pdf text-danger"></i>
-                                                        }
-                                                        else if (doc.DocumentType.ToLower().Contains("image") || doc.DocumentType.ToLower().Contains("jpg") || doc.DocumentType.ToLower().Contains("png"))
-                                                        {
-                                                            <i class="fas fa-file-image text-primary"></i>
-                                                        }
-                                                        else if (doc.DocumentType.ToLower().Contains("word") || doc.DocumentType.ToLower().Contains("doc"))
-                                                        {
-                                                            <i class="fas fa-file-word text-info"></i>
-                                                        }
-                                                        else
-                                                        {
-                                                            <i class="fas fa-file-alt"></i>
-                                                        }
-                                                    </div>
-                                                    <div class="document-info">
-                                                        <div class="document-name">@doc.DocumentName</div>
-                                                        <div class="document-meta">
-                                                            <span class="document-size">@((doc.FileSize / 1024.0).ToString("N1")) KB</span>
-                                                            <span class="document-date">@doc.UploadedDate.ToString("dd MMM yyyy")</span>
-                                                        </div>
-                                                        @if (!string.IsNullOrEmpty(doc.Description))
-                                                        {
-                                                            <div class="document-description">@doc.Description</div>
-                                                        }
-                                                    </div>
-                                                    <a href="@Url.Action("Download", "Documents", new { id = doc.DocumentId })" class="document-download" title="@(L["Download"].Value)">
-                                                        <i class="fas fa-download"></i>
-                                                    </a>
-                                                </div>
+                                                <a href="@Url.Action("Download", "Documents", new { id = doc.DocumentId })" title="@(L["Download"].Value)">
+                                                    <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
+                                                    @doc.DocumentName
+                                                </a>
                                             }
-                                        </div>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="documents-section">
-                                        <h4><i class="fas fa-folder-open"></i> @L["Lease Documents"]</h4>
-                                        <div class="empty-state-small">
-                                            <i class="fas fa-folder-open"></i>
-                                            <p>@L["No documents available"]</p>
-                                        </div>
-                                    </div>
-                                }
+                                        </span>
+                                    }
+                                </div>
+                                <div class="od-amount">@CurrencyHelper.FormatKWD(lease.MonthlyRent)</div>
+                                <span class="od-pill od-pill-green">@L[lease.Status]</span>
                             </div>
                         }
-                    }
-                    else
-                    {
-                        <div class="empty-state">
-                            <i class="fas fa-home"></i>
-                            <p>@L["No active leases found"]</p>
-                        </div>
-                    }
-                </div>
-            </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="od-empty">@L["No active leases found"]</div>
+                }
+            </section>
 
-            <div class="section-card">
-                <div class="section-header">
-                    <h2><i class="fas fa-receipt"></i> @L["Recent Payments"]</h2>
-                    <a href="/TenantPortal/PaymentHistory" class="btn btn-secondary btn-sm">
-                        @L["View All"]
-                    </a>
-                </div>
-                <div class="section-content">
-                    @if (payments != null && payments.Any())
-                    {
-                        <div class="table-responsive">
-                            <table class="payment-table">
-                                <thead>
-                                    <tr>
-                                        <th>@L["Date"]</th>
-                                        <th>@L["Property"]</th>
-                                        <th>@L["Amount"]</th>
-                                        <th>@L["Method"]</th>
-                                        <th>@L["Status"]</th>
-                                        <th>@L["Action"]</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var payment in payments)
-                                    {
-                                        <tr>
-                                            <td>@payment.PaymentDate.ToString("dd MMM yyyy")</td>
-                                            <td>@payment.Lease?.Unit?.Property?.PropertyName</td>
-                                            <td>@payment.AmountPaid.ToString("N3") KWD</td>
-                                            <td>@payment.PaymentMethod</td>
-                                            <td>
-                                                @if (payment.PaymentStatus == "Completed")
-                                                {
-                                                    <span class="badge badge-success">@payment.PaymentStatus</span>
-                                                }
-                                                else if (payment.PaymentStatus == "Pending")
-                                                {
-                                                    <span class="badge badge-warning">@payment.PaymentStatus</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge badge-secondary">@payment.PaymentStatus</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                <a href="@Url.Action("ViewReceipt", "TenantPortal", new { paymentId = payment.PaymentId })" class="btn-receipt" title="@(L["View Receipt"].Value)">
-                                                    <i class="fas fa-file-invoice"></i>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="empty-state">
-                            <i class="fas fa-receipt"></i>
-                            <p>@L["No payments found"]</p>
-                        </div>
-                    }
-                </div>
-            </div>
-
-            <div class="section-card">
-                <div class="section-header">
-                    <h2><i class="fas fa-tools"></i> @L["Maintenance Requests"]</h2>
-                    <button class="btn btn-primary btn-sm" onclick="showMaintenanceModal()">
-                        <i class="fas fa-plus"></i> @L["New Request"]
+            @* 7. Maintenance requests *@
+            <section class="od-card" aria-labelledby="maintenance-title">
+                <div class="od-card-head">
+                    <h2 class="od-card-title" id="maintenance-title">@L["Maintenance Requests"]</h2>
+                    <button type="button" class="od-btn od-btn-primary od-btn-sm" onclick="showMaintenanceModal()">
+                        <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                        @L["New Request"]
                     </button>
                 </div>
-                <div class="section-content">
-                    @if (maintenanceRequests != null && maintenanceRequests.Any())
-                    {
-                        foreach (var request in maintenanceRequests)
+                @if (maintenanceRequests.Any())
+                {
+                    <div class="od-rows">
+                        @foreach (var request in maintenanceRequests)
                         {
-                            <div class="maintenance-card">
-                                <div class="maintenance-header">
-                                    <span class="request-id">#@request.RequestId</span>
-                                    @if (request.Status == "Open")
-                                    {
-                                        <span class="badge badge-info">@request.Status</span>
-                                    }
-                                    else if (request.Status == "In Progress")
-                                    {
-                                        <span class="badge badge-warning">@request.Status</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge badge-success">@request.Status</span>
-                                    }
+                            <div class="od-row">
+                                <div class="od-count od-count-amber" aria-hidden="true">
+                                    <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0 5 5l-9.4 9.4a2 2 0 0 1-2.8-2.8l9.4-9.4z"/><path d="M4 20l1-1"/></svg>
                                 </div>
-                                <div class="maintenance-body">
-                                    <p class="category"><i class="fas fa-tag"></i> @request.Category</p>
-                                    <p class="description">@request.Description</p>
-                                    <p class="request-date">
-                                        <i class="fas fa-calendar"></i>
-                                        @L["Requested on"] @request.RequestDate.ToString("dd MMM yyyy")
-                                    </p>
+                                <div class="od-row-text">
+                                    <strong>#@request.RequestId · @L[request.Category]</strong>
+                                    <span class="tp-desc">@request.Description</span>
+                                    <span>@L["Requested on"] @request.RequestDate.ToString("d MMM yyyy", CultureInfo.CurrentCulture) · @L["Priority"]: @L[request.Priority]</span>
                                 </div>
+                                <span class="od-pill @MaintenancePill(request.Status)">@L[request.Status]</span>
                             </div>
                         }
-                    }
-                    else
-                    {
-                        <div class="empty-state">
-                            <i class="fas fa-tools"></i>
-                            <p>@L["No pending maintenance requests"]</p>
-                        </div>
-                    }
+                    </div>
+                }
+                else
+                {
+                    <div class="od-empty">@L["No pending maintenance requests"]</div>
+                }
+            </section>
+
+            @* 8. Recent payments *@
+            <section class="od-card" aria-labelledby="payments-title">
+                <div class="od-card-head">
+                    <h2 class="od-card-title" id="payments-title">@L["Recent Payments"]</h2>
+                    <a href="@Url.Action("PaymentHistory", "TenantPortal")" class="od-btn od-btn-ghost od-btn-sm">@L["View All"]</a>
                 </div>
-            </div>
+                @if (payments.Any())
+                {
+                    <div class="od-tiles">
+                        @foreach (var payment in payments)
+                        {
+                            var pill = PaymentPill(payment.PaymentStatus);
+                            var isCompleted = payment.Status == RentCollection.Core.Enums.PaymentStatus.Completed
+                                           || payment.Status == RentCollection.Core.Enums.PaymentStatus.Approved;
+                            <div class="od-tile">
+                                <div class="od-tile-icon @PaymentIconCss(payment.PaymentStatus)" aria-hidden="true">
+                                    <svg class="tp-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+                                </div>
+                                <div class="od-tile-text">
+                                    <strong>@CurrencyHelper.FormatKWD(payment.AmountPaid)</strong>
+                                    <span>@payment.PaymentDate.ToString("d MMM yyyy", CultureInfo.CurrentCulture) · @payment.Lease?.Unit?.Property?.PropertyName · @L[PaymentMethodKey(payment.PaymentMethod)]</span>
+                                    @if (isCompleted)
+                                    {
+                                        <a class="od-card-link" href="@Url.Action("ViewReceipt", "TenantPortal", new { paymentId = payment.PaymentId })">@L["View Receipt"]</a>
+                                    }
+                                </div>
+                                <span class="od-pill @pill.Css">@L[pill.Key]</span>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="od-empty">@L["No payments found"]</div>
+                }
+            </section>
         </div>
-    </div>
+    </main>
 
     <!-- Maintenance Request Modal -->
-    <div id="maintenanceModal" class="modal-overlay" style="display: none;">
+    <div id="maintenanceModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="maintenanceModalTitle">
         <div class="modal-container">
             <div class="modal-header">
-                <h3><i class="fas fa-tools"></i> @L["New Maintenance Request"]</h3>
-                <button class="modal-close" onclick="closeMaintenanceModal()">&times;</button>
+                <h3 id="maintenanceModalTitle">
+                    <svg class="tp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5 5l-9.4 9.4a2 2 0 0 1-2.8-2.8l9.4-9.4z"/><path d="M4 20l1-1"/></svg>
+                    @L["New Maintenance Request"]
+                </h3>
+                <button type="button" class="modal-close" onclick="closeMaintenanceModal()" aria-label="@(L["Close"].Value)">&times;</button>
             </div>
-            <form id="maintenanceForm" method="post" action="/TenantPortal/CreateMaintenanceRequest">
+            <form id="maintenanceForm" method="post" action="@Url.Action("CreateMaintenanceRequest", "TenantPortal")">
                 @Html.AntiForgeryToken()
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="propertySelect">@L["Property/Unit"]</label>
                         <select id="propertySelect" name="LeaseId" class="form-control" required>
                             <option value="">@L["Select a property..."]</option>
-                            @if (leases != null && leases.Any())
+                            @foreach (var lease in leases)
                             {
-                                foreach (var lease in leases)
-                                {
-                                    <option value="@lease.LeaseId">
-                                        @lease.Unit?.Property?.PropertyName - Unit @lease.Unit?.UnitNumber
-                                    </option>
-                                }
+                                <option value="@lease.LeaseId">@lease.Unit?.Property?.PropertyName - @L["Unit"] @lease.Unit?.UnitNumber</option>
                             }
                         </select>
                     </div>
@@ -407,753 +487,35 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeMaintenanceModal()">@L["Cancel"]</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-paper-plane"></i> @L["Submit Request"]
-                    </button>
+                    <button type="button" class="od-btn od-btn-ghost" onclick="closeMaintenanceModal()">@L["Cancel"]</button>
+                    <button type="submit" class="od-btn od-btn-primary">@L["Submit Request"]</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function showMaintenanceModal() {
-            document.getElementById('maintenanceModal').style.display = 'flex';
+            document.getElementById('maintenanceModal').classList.add('is-open');
+            document.getElementById('propertySelect').focus();
         }
 
         function closeMaintenanceModal() {
-            document.getElementById('maintenanceModal').style.display = 'none';
+            document.getElementById('maintenanceModal').classList.remove('is-open');
             document.getElementById('maintenanceForm').reset();
         }
 
-        // Close modal when clicking outside
-        document.getElementById('maintenanceModal').addEventListener('click', function(e) {
+        // Close modal when clicking outside or pressing Escape
+        document.getElementById('maintenanceModal').addEventListener('click', function (e) {
             if (e.target === this) {
+                closeMaintenanceModal();
+            }
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
                 closeMaintenanceModal();
             }
         });
     </script>
 </body>
 </html>
-
-<style>
-    body {
-        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        margin: 0;
-        padding: 0;
-        min-height: 100vh;
-    }
-
-    .tenant-navbar {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        color: white;
-        padding: 1rem 0;
-        box-shadow: 0 2px 20px rgba(99, 102, 241, 0.3);
-    }
-
-    .navbar-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 0 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .navbar-brand {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-
-    .navbar-brand i {
-        font-size: 1.75rem;
-    }
-
-    .navbar-menu {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .nav-link {
-        color: white;
-        text-decoration: none;
-        padding: 0.75rem 1.25rem;
-        border-radius: 8px;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-weight: 500;
-    }
-
-    .nav-link:hover {
-        background: rgba(255,255,255,0.2);
-    }
-
-    .nav-link.active {
-        background: rgba(255,255,255,0.3);
-    }
-
-    .nav-link.logout:hover {
-        background: rgba(220,38,38,0.8);
-    }
-
-    .dashboard-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .welcome-section {
-        margin-bottom: 2rem;
-    }
-
-    .welcome-section h1 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #111827;
-        margin: 0;
-    }
-
-    .welcome-section .text-muted {
-        color: #6b7280;
-        font-size: 1.1rem;
-        margin-top: 0.5rem;
-    }
-
-    .alert {
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        margin-bottom: 2rem;
-        border: none;
-    }
-
-    .alert-success {
-        background-color: #d1fae5;
-        color: #065f46;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.3s;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-4px);
-    }
-
-    .stat-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.75rem;
-        color: white;
-    }
-
-    .stat-icon.blue {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    }
-
-    .stat-icon.green {
-        background: linear-gradient(135deg, #10b981, #059669);
-    }
-
-    .stat-icon.orange {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-    }
-
-    .stat-content h3 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin: 0;
-        color: #111827;
-    }
-
-    .stat-content p {
-        margin: 0;
-        color: #6b7280;
-        font-size: 0.95rem;
-    }
-
-    .content-grid {
-        display: grid;
-        gap: 2rem;
-    }
-
-    .section-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        overflow: hidden;
-    }
-
-    .section-header {
-        padding: 1.5rem 2rem;
-        border-bottom: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .section-header h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #111827;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .section-content {
-        padding: 2rem;
-    }
-
-    .property-card {
-        background: #f9fafb;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        border: 1px solid #e5e7eb;
-    }
-
-    .property-card:last-child {
-        margin-bottom: 0;
-    }
-
-    .property-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: start;
-        margin-bottom: 1rem;
-    }
-
-    .property-header h3 {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #111827;
-        margin: 0 0 0.5rem 0;
-    }
-
-    .property-address {
-        color: #6b7280;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .property-details {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-    }
-
-    .detail-item {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-
-    .detail-item .label {
-        color: #6b7280;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    .detail-item .value {
-        color: #111827;
-        font-weight: 600;
-        font-size: 1rem;
-    }
-
-    .badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        display: inline-block;
-    }
-
-    .badge-success {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .badge-warning {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .badge-info {
-        background: #dbeafe;
-        color: #1e40af;
-    }
-
-    .badge-secondary {
-        background: #e5e7eb;
-        color: #374151;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-    }
-
-    .payment-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .payment-table thead {
-        background: #f9fafb;
-    }
-
-    .payment-table th {
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
-        color: #374151;
-        border-bottom: 2px solid #e5e7eb;
-    }
-
-    .payment-table td {
-        padding: 1rem;
-        border-bottom: 1px solid #e5e7eb;
-        color: #1f2937;
-    }
-
-    .payment-table tbody tr:hover {
-        background: #f9fafb;
-    }
-
-    .maintenance-card {
-        background: #f9fafb;
-        border-radius: 12px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        border: 1px solid #e5e7eb;
-    }
-
-    .maintenance-card:last-child {
-        margin-bottom: 0;
-    }
-
-    .maintenance-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-
-    .request-id {
-        font-weight: 700;
-        color: #6366f1;
-        font-size: 1.1rem;
-    }
-
-    .maintenance-body .category {
-        color: #6b7280;
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .maintenance-body .description {
-        color: #111827;
-        margin-bottom: 0.75rem;
-    }
-
-    .maintenance-body .request-date {
-        color: #6b7280;
-        font-size: 0.875rem;
-        margin: 0;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem 1rem;
-        color: #9ca3af;
-    }
-
-    .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        display: block;
-    }
-
-    .empty-state p {
-        margin: 0;
-        font-size: 1.1rem;
-    }
-
-    .btn {
-        padding: 0.625rem 1.25rem;
-        border-radius: 8px;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-
-    .btn-sm {
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-    }
-
-    .btn-secondary {
-        background: #6b7280;
-        color: white;
-    }
-
-    .btn-secondary:hover {
-        background: #4b5563;
-    }
-
-    .modal-overlay {
-        display: flex;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 9999;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-    }
-
-    .modal-container {
-        background: white;
-        border-radius: 12px;
-        max-width: 600px;
-        width: 100%;
-        max-height: 90vh;
-        overflow-y: auto;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    }
-
-    .modal-header {
-        padding: 1.5rem 2rem;
-        border-bottom: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .modal-header h3 {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #111827;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .modal-close {
-        background: none;
-        border: none;
-        font-size: 2rem;
-        color: #6b7280;
-        cursor: pointer;
-        line-height: 1;
-        padding: 0;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        transition: all 0.2s;
-    }
-
-    .modal-close:hover {
-        background: #f3f4f6;
-        color: #111827;
-    }
-
-    .modal-body {
-        padding: 2rem;
-    }
-
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    .form-group:last-child {
-        margin-bottom: 0;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-        color: #374151;
-        font-size: 0.95rem;
-    }
-
-    .form-control {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 1rem;
-        color: #111827;
-        background: white;
-        transition: all 0.2s;
-    }
-
-    .form-control:focus {
-        outline: none;
-        border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    }
-
-    textarea.form-control {
-        resize: vertical;
-        font-family: inherit;
-    }
-
-    .modal-footer {
-        padding: 1.5rem 2rem;
-        border-top: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: flex-end;
-        gap: 1rem;
-    }
-
-    @@media (max-width: 768px) {
-        .navbar-container {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .navbar-menu {
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .welcome-section h1 {
-            font-size: 2rem;
-        }
-
-        .stats-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .property-details {
-            grid-template-columns: 1fr;
-        }
-
-        .dashboard-container {
-            padding: 1rem;
-        }
-
-        .section-content {
-            padding: 1rem;
-        }
-
-        .modal-container {
-            max-height: 95vh;
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-        }
-
-        .modal-footer {
-            padding: 1rem 1.5rem;
-            flex-direction: column-reverse;
-        }
-
-        .modal-footer .btn {
-            width: 100%;
-        }
-    }
-
-    /* Lease info and documents sections */
-    .lease-info-section,
-    .documents-section {
-        margin-top: 1.5rem;
-        padding-top: 1.5rem;
-        border-top: 2px solid #e5e7eb;
-    }
-
-    .lease-info-section h4,
-    .documents-section h4 {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #374151;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .documents-grid {
-        display: grid;
-        gap: 1rem;
-    }
-
-    .document-card {
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        transition: all 0.2s;
-    }
-
-    .document-card:hover {
-        border-color: #6366f1;
-        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
-    }
-
-    .document-icon {
-        font-size: 2rem;
-        flex-shrink: 0;
-        width: 48px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f9fafb;
-        border-radius: 8px;
-    }
-
-    .document-icon .text-danger {
-        color: #ef4444;
-    }
-
-    .document-icon .text-primary {
-        color: #6366f1;
-    }
-
-    .document-icon .text-info {
-        color: #0ea5e9;
-    }
-
-    .document-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .document-name {
-        font-weight: 600;
-        color: #111827;
-        margin-bottom: 0.25rem;
-        word-break: break-word;
-    }
-
-    .document-meta {
-        display: flex;
-        gap: 1rem;
-        font-size: 0.875rem;
-        color: #6b7280;
-        margin-bottom: 0.25rem;
-    }
-
-    .document-description {
-        font-size: 0.875rem;
-        color: #6b7280;
-        margin-top: 0.5rem;
-    }
-
-    .document-download {
-        flex-shrink: 0;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        border-radius: 8px;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-
-    .document-download:hover {
-        background: linear-gradient(135deg, #4f46e5, #7c3aed);
-        transform: scale(1.05);
-    }
-
-    .empty-state-small {
-        text-align: center;
-        padding: 2rem 1rem;
-        color: #9ca3af;
-    }
-
-    .empty-state-small i {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .empty-state-small p {
-        margin: 0;
-        font-size: 0.95rem;
-    }
-
-    .text-danger {
-        color: #ef4444;
-        font-weight: 700;
-    }
-
-    .btn-receipt {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        border-radius: 8px;
-        text-decoration: none;
-        transition: all 0.3s;
-        font-size: 1rem;
-    }
-
-    .btn-receipt:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-    }
-</style>

@@ -36,7 +36,7 @@
                 {
                     @if (!string.IsNullOrEmpty(c.href) && !isLast)
                     {
-                        <a href="@c.href" class="hover:text-indigo-600">@L[c.label]</a>
+                        <a href="@c.href" class="crumb-link">@L[c.label]</a>
                     }
                     else
                     {

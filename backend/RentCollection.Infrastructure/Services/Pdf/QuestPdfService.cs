@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Options;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -11,498 +12,770 @@ namespace RentCollection.Infrastructure.Services.Pdf;
 /// QuestPDF-based invoice/receipt/statement/dashboard renderer. Licensed
 /// Community in Program.cs (free under $1M USD revenue).
 ///
-/// Invoice and receipt headers + footers are branded from
-/// <see cref="BrandingSettings"/> (logo, colours, contact info, bank, terms).
-/// Layouts respond to <c>InvoicePdfModel.Status</c> with status-aware
-/// overlays (PAID stamp, OVERDUE bar, PENDING tag).
+/// Invoice and receipt share one visual system (2026-10 redesign):
+///   • dark brand band header with the logo, company block, document title,
+///     number and a status pill — the square gold-on-black logo sits in it
+///     natively instead of floating as a black square on white;
+///   • a four-tile meta strip (issued / due / period / amount due) so the
+///     numbers a tenant or accountant looks for are readable at a glance;
+///   • BILL TO and PROPERTY &amp; UNIT cards, a numbered line-item table,
+///     totals with a due-status callout, a "payments received" table when
+///     anything has been applied, and a "how to pay" strip (app / bank / cash);
+///   • status-aware overlays: PAID watermark, OVERDUE top bar;
+///   • full Arabic (RTL, Cairo font, Western digits) when <c>Culture</c> = ar.
+///
+/// <see cref="RenderInvoicePreviewPng"/> / <see cref="RenderReceiptPreviewPng"/>
+/// rasterise the same document so designs can be reviewed as images.
 /// </summary>
 public class QuestPdfService : IPdfService
 {
     private readonly BrandingSettings _brand;
+
+    // Register the embedded Cairo font (Google Fonts, OFL — full Latin + Arabic)
+    // with QuestPDF exactly once, even under concurrent RenderInvoice calls.
+    // FontManager.RegisterFont(Stream) is the confirmed API in QuestPDF 2024.10.3.
+    private const string DocFont = "Cairo";
+    private const string MonoFont = "Courier New";
+    private static readonly object _fontLock = new();
+    private static bool _fontRegistered;
+
+    // Neutral palette shared by every document. Brand colours come from settings.
+    private const string Muted = "#64748b";
+    private const string Faint = "#94a3b8";
+    private const string Line = "#e2e8f0";
+    private const string Soft = "#f8fafc";
+    private const string OnDarkMuted = "#cbd5e1";
+    private const string Green = "#10b981";
+    private const string Red = "#dc2626";
+    private const string Amber = "#d97706";
+    private const string Blue = "#2563eb";
+    private const string Grey = "#64748b";
+
+    private static void EnsureDocFontRegistered()
+    {
+        if (_fontRegistered) return;
+        lock (_fontLock)
+        {
+            if (_fontRegistered) return;
+            using var s = typeof(QuestPdfService).Assembly.GetManifestResourceStream(
+                "RentCollection.Infrastructure.Services.Pdf.Fonts.Cairo.ttf");
+            if (s != null)
+                QuestPDF.Drawing.FontManager.RegisterFont(s);
+            _fontRegistered = true;
+        }
+    }
 
     public QuestPdfService(IOptions<BrandingSettings> brand)
     {
         _brand = brand.Value;
     }
 
+    // Preferred DI path: the cache layers the DB-stored Company Settings
+    // (bank account, contact lines, footer) over appsettings.json.
+    public QuestPdfService(BrandingCache cache)
+    {
+        _brand = cache.Current;
+    }
+
     // Parameterless ctor for the legacy DI registration path. Falls back to
     // a default brand so PDF generation never breaks if branding is unset.
     public QuestPdfService() : this(Options.Create(new BrandingSettings())) { }
 
-    public byte[] RenderInvoice(InvoicePdfModel m) => Document.Create(container =>
+    // Money is ALWAYS formatted with InvariantCulture so the decimal point is a
+    // period and the 3 fils digits are consistent. Without this, rendering under
+    // an Arabic culture used a comma as the decimal separator, so "13.750" (13 KWD
+    // 750 fils) printed as "13,750" and read like thirteen thousand.
+    private static string Amt(decimal d) =>
+        d.ToString("#,##0.000", CultureInfo.InvariantCulture);
+
+    private static readonly CultureInfo ArKw = CultureInfo.GetCultureInfo("ar-KW");
+
+    // QuestPDF parses 8-digit hex as #AARRGGBB (alpha FIRST). "#dc262614" is
+    // therefore an almost-opaque dark olive, not a 8% red tint.
+    private static string Alpha(string hex, string aa) => "#" + aa + hex.TrimStart('#');
+
+    // Document-wide line height for Cairo. It was 0.85, which made each line
+    // shorter than its own glyphs: titles hit the number below, labels hit
+    // their values, Arabic marks ran into the next line. 1.2 clears them and
+    // a normal invoice still fits on one page.
+    private const float LineHeight = 1.2f;
+
+    // In an RTL document a Latin run that ends in punctuation ("W.L.L.",
+    // "ravi@example.com") gets its trailing mark pulled to the visual start by
+    // the bidi algorithm. A left-to-right mark after the run pins it.
+    private static string Ltr(string? s, bool ar) =>
+        string.IsNullOrEmpty(s) ? s ?? string.Empty : ar ? s + "‎" : s;
+
+    /// <summary>
+    /// "Pending" past its due date is overdue for the reader even if the nightly
+    /// job hasn't flipped the row yet — pill, top bar and callout must agree.
+    /// </summary>
+    private static string EffectiveStatus(InvoicePdfModel m) =>
+        Is(m.Status, "Pending") && m.DueDate.Date < m.GeneratedAt.Date ? "Overdue" : m.Status;
+
+    // Dates: English "05 Jun 2026"; Arabic month name with WESTERN digits
+    // (app i18n rule — never Arabic-Indic digits in numbers).
+    private static string D(DateTime d, bool ar) =>
+        ar ? $"{d.Day:00} {d.ToString("MMMM", ArKw)} {d.Year}"
+           : d.ToString("dd MMM yyyy", CultureInfo.InvariantCulture);
+
+    private static string Dt(DateTime d, bool ar) =>
+        $"{D(d, ar)} {d:HH:mm}";
+
+    private bool HasLogo =>
+        !string.IsNullOrWhiteSpace(_brand.LogoPath) && File.Exists(_brand.LogoPath);
+
+    // ═══════════════════════════════════════════════════════════ INVOICE ═══
+
+    public byte[] RenderInvoice(InvoicePdfModel m)
     {
+        EnsureDocFontRegistered();
+        return BuildInvoice(m).GeneratePdf();
+    }
+
+    /// <summary>PNG per page of the exact invoice document (design review / previews).</summary>
+    public IReadOnlyList<byte[]> RenderInvoicePreviewPng(InvoicePdfModel m, int dpi = 110)
+    {
+        EnsureDocFontRegistered();
+        return BuildInvoice(m)
+            .GenerateImages(new ImageGenerationSettings { ImageFormat = ImageFormat.Png, RasterDpi = dpi })
+            .ToList();
+    }
+
+    private IDocument BuildInvoice(InvoicePdfModel m) => Document.Create(container =>
+    {
+        var ar = m.IsArabic;
+        string L(string en, string arText) => ar ? arText : en;
+        var status = EffectiveStatus(m);
+
         container.Page(page =>
         {
             page.Size(PageSizes.A4);
-            page.Margin(36);
-            page.DefaultTextStyle(s => s.FontSize(10).FontColor(_brand.SecondaryHex));
+            page.MarginHorizontal(34);
+            page.MarginTop(26);
+            page.MarginBottom(24);
+            page.DefaultTextStyle(s =>
+            {
+                var st = s.FontSize(9.5f).FontColor(_brand.SecondaryHex).FontFamily(DocFont).LineHeight(LineHeight);
+                return ar ? st.DirectionFromRightToLeft() : st;
+            });
 
-            // OVERDUE red bar across the very top — only on this status so
-            // the visual signal is unmistakable from across a desk.
-            if (string.Equals(m.Status, "Overdue", StringComparison.OrdinalIgnoreCase))
+            // OVERDUE: a red bar across the very top of every page so the
+            // signal is unmistakable from across a desk.
+            if (Is(status, "Overdue"))
             {
                 page.Background().Column(c =>
                 {
-                    c.Item().Height(6).Background("#dc2626");
+                    c.Item().Height(6).Background(Red);
                     c.Item().Element(_ => { });
                 });
             }
 
-            // Title reflects InvoiceType so a Deposit invoice reads
-            // "SECURITY DEPOSIT INVOICE" instead of just "INVOICE".
-            var headerTitle = m.InvoiceType switch
-            {
-                "Deposit"        => "SECURITY DEPOSIT INVOICE",
-                "Insurance"      => "INSURANCE INVOICE",
-                "LateFee"        => "LATE FEE INVOICE",
-                "MaintenanceFee" => "MAINTENANCE INVOICE",
-                _                => "INVOICE",
-            };
-            page.Header().Element(c => BrandedHeader(c, headerTitle, m.InvoiceNumber,
-                m.InvoiceDate, m.DueDate, m.Status, m.BillingPeriod));
-
-            page.Content().Element(content =>
-            {
-                content.Layers(layers =>
+            var title = ar
+                ? m.InvoiceType switch
                 {
-                    // Diagonal PAID watermark when the invoice is settled.
-                    if (string.Equals(m.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                    "Deposit"        => "فاتورة مبلغ التأمين",
+                    "Insurance"      => "فاتورة التأمين",
+                    "LateFee"        => "فاتورة غرامة تأخير",
+                    "MaintenanceFee" => "فاتورة صيانة",
+                    "Other"          => "فاتورة",
+                    _                => "فاتورة إيجار",
+                }
+                : m.InvoiceType switch
+                {
+                    "Deposit"        => "SECURITY DEPOSIT INVOICE",
+                    "Insurance"      => "INSURANCE INVOICE",
+                    "LateFee"        => "LATE FEE INVOICE",
+                    "MaintenanceFee" => "MAINTENANCE INVOICE",
+                    "Other"          => "INVOICE",
+                    _                => "RENT INVOICE",
+                };
+
+            var header = page.Header();
+            if (ar) header = header.ContentFromRightToLeft();
+            header.Element(h => BrandBand(h, title, m.InvoiceNumber, status, ar));
+
+            var content = page.Content();
+            if (ar) content = content.ContentFromRightToLeft();
+            content.Element(c => c.Layers(layers =>
+            {
+                if (Is(status, "Paid"))
+                {
+                    layers.Layer().AlignCenter().AlignMiddle().Element(w =>
+                        w.Rotate(-22).Text(L("PAID", "مدفوعة")).FontSize(150)
+                         .Bold().FontColor(Alpha(Green, "22")));
+                }
+                layers.PrimaryLayer().Element(body => InvoiceBody(body, m));
+            }));
+
+            var footer = page.Footer();
+            if (ar) footer = footer.ContentFromRightToLeft();
+            footer.Element(f => DocFooter(f, ar, m.GeneratedAt));
+        });
+    });
+
+    private void InvoiceBody(IContainer container, InvoicePdfModel m)
+    {
+        var ar = m.IsArabic;
+        string L(string en, string arText) => ar ? arText : en;
+        var today = m.GeneratedAt.Date;
+        var status = EffectiveStatus(m);
+
+        container.PaddingTop(12).Column(col =>
+        {
+            col.Spacing(11);
+
+            // ── Meta strip: issued · due · period · amount due ──
+            col.Item().Row(row =>
+            {
+                row.Spacing(8);
+                row.RelativeItem().Element(c => MetaTile(c, L("ISSUED", "تاريخ الإصدار"), D(m.InvoiceDate, ar)));
+                var dueColor = Is(status, "Overdue") ? Red : Is(status, "Paid") ? _brand.SecondaryHex : Amber;
+                row.RelativeItem().Element(c => MetaTile(c, L("DUE DATE", "تاريخ الاستحقاق"), D(m.DueDate, ar), dueColor));
+                row.RelativeItem().Element(c => MetaTile(c, L("BILLING PERIOD", "فترة الفوترة"),
+                    string.IsNullOrWhiteSpace(m.BillingPeriod) ? "—" : m.BillingPeriod!));
+                row.RelativeItem(1.25f).Background(_brand.SecondaryHex).Padding(9).Column(c =>
+                {
+                    c.Item().Text(L("AMOUNT DUE", "المبلغ المستحق")).FontColor(_brand.PrimaryHex)
+                        .FontSize(7.5f).Bold().LetterSpacing(0.08f);
+                    c.Item().PaddingTop(1).Text($"{Amt(m.BalanceAmount)} {m.Currency}")
+                        .FontColor("#ffffff").Bold().FontSize(14);
+                });
+            });
+
+            // ── Due-status callout ──
+            var (calloutText, calloutColor) = DueCallout(m, status, today);
+            if (calloutText != null)
+            {
+                col.Item().Background(Alpha(calloutColor, "14")).BorderLeft(3).BorderColor(calloutColor)
+                    .PaddingVertical(5).PaddingHorizontal(10)
+                    .Text(calloutText).FontColor(calloutColor).SemiBold().FontSize(9.5f);
+            }
+
+            // ── Parties: BILL TO · PROPERTY & UNIT ──
+            col.Item().Row(row =>
+            {
+                row.Spacing(10);
+                row.RelativeItem().Element(c => Card(c, L("BILL TO", "فاتورة إلى"), card =>
+                {
+                    card.Item().Text(Ltr(m.TenantName, ar)).Bold().FontSize(12);
+                    if (!string.IsNullOrEmpty(m.CompanyName))
+                        card.Item().Text(Ltr(m.CompanyName, ar)).FontColor(Muted);
+                    if (!string.IsNullOrEmpty(m.TenantPaciNumber))
+                        card.Item().PaddingTop(2).Text(t =>
+                        {
+                            t.Span(L("Civil / PACI ID: ", "الرقم المدني: ")).FontColor(Faint).FontSize(8.5f);
+                            t.Span(Ltr(m.TenantPaciNumber, ar)).FontFamily(MonoFont).FontSize(9);
+                        });
+                    if (!string.IsNullOrEmpty(m.TenantPhone))
+                        card.Item().Text(t =>
+                        {
+                            t.Span(L("Phone: ", "الهاتف: ")).FontColor(Faint).FontSize(8.5f);
+                            t.Span(Ltr(m.TenantPhone, ar)).FontSize(9);
+                        });
+                    if (!string.IsNullOrEmpty(m.TenantEmail))
+                        card.Item().Text(t =>
+                        {
+                            t.Span(L("Email: ", "البريد: ")).FontColor(Faint).FontSize(8.5f);
+                            t.Span(Ltr(m.TenantEmail, ar)).FontSize(9);
+                        });
+                }));
+
+                row.RelativeItem().Element(c => Card(c, L("PROPERTY & UNIT", "العقار والوحدة"), card =>
+                {
+                    card.Item().Text(string.IsNullOrEmpty(m.PropertyName) ? "—" : Ltr(m.PropertyName, ar)).Bold().FontSize(12);
+
+                    var unitBits = new List<string>();
+                    if (!string.IsNullOrEmpty(m.UnitNumber)) unitBits.Add(L($"Flat {m.UnitNumber}", $"شقة {m.UnitNumber}"));
+                    if (!string.IsNullOrEmpty(m.UnitFloor)) unitBits.Add(L($"Floor {m.UnitFloor}", $"الطابق {m.UnitFloor}"));
+                    if (unitBits.Count > 0)
+                        card.Item().Text(string.Join("  ·  ", unitBits)).SemiBold().FontSize(10);
+
+                    var addr1 = JoinPresent(", ",
+                        !string.IsNullOrEmpty(m.PropertyBuildingNumber) ? L($"Building {m.PropertyBuildingNumber}", $"مبنى {m.PropertyBuildingNumber}") : null,
+                        !string.IsNullOrEmpty(m.PropertyStreet) ? L($"Street {m.PropertyStreet}", $"شارع {m.PropertyStreet}") : null,
+                        !string.IsNullOrEmpty(m.PropertyBlock) ? L($"Block {m.PropertyBlock}", $"قطعة {m.PropertyBlock}") : null);
+                    var addr2 = JoinPresent(", ", m.PropertyArea, m.PropertyGovernorate);
+                    if (addr1 != null) card.Item().Text(addr1).FontColor(Muted).FontSize(9);
+                    if (addr2 != null) card.Item().Text(addr2).FontColor(Muted).FontSize(9);
+
+                    if (!string.IsNullOrEmpty(m.PropertyPaciNumber))
+                        card.Item().PaddingTop(2).Text(t =>
+                        {
+                            t.Span(L("Property PACI: ", "رقم العقار: ")).FontColor(Faint).FontSize(8.5f);
+                            t.Span(m.PropertyPaciNumber!).FontFamily(MonoFont).FontSize(9);
+                        });
+                    if (m.LeaseStartDate.HasValue && m.LeaseEndDate.HasValue)
+                        card.Item().Text(t =>
+                        {
+                            t.Span(L("Lease term: ", "مدة العقد: ")).FontColor(Faint).FontSize(8.5f);
+                            t.Span($"{D(m.LeaseStartDate.Value, ar)} – {D(m.LeaseEndDate.Value, ar)}").FontSize(9);
+                        });
+                }));
+            });
+
+            // ── Line items ──
+            var rows = m.Lines.Count == 0
+                ? new List<InvoicePdfLine> { new() { Description = L("Monthly rent", "الإيجار الشهري"), Amount = m.TotalAmount } }
+                : m.Lines;
+
+            col.Item().Table(table =>
+            {
+                table.ColumnsDefinition(c =>
+                {
+                    c.ConstantColumn(34);  // # (fits 3 digits)
+                    c.RelativeColumn(6);   // description
+                    c.RelativeColumn(2);   // amount
+                });
+                table.Header(h =>
+                {
+                    IContainer HCell(IContainer c) => c.Background(Soft).BorderBottom(1.5f).BorderColor(_brand.PrimaryHex)
+                        .PaddingVertical(6).PaddingHorizontal(8);
+                    HCell(h.Cell()).Text("#").FontColor(Muted).FontSize(8).Bold();
+                    HCell(h.Cell()).Text(L("DESCRIPTION", "الوصف")).FontColor(Muted).FontSize(8).Bold().LetterSpacing(0.06f);
+                    HCell(h.Cell()).AlignRight().Text(L($"AMOUNT ({m.Currency})", $"المبلغ ({m.Currency})")).FontColor(Muted).FontSize(8).Bold().LetterSpacing(0.06f);
+                });
+                var i = 0;
+                foreach (var line in rows)
+                {
+                    i++;
+                    IContainer Cell(IContainer c) => c.BorderBottom(1).BorderColor(Line).PaddingVertical(5).PaddingHorizontal(8);
+                    Cell(table.Cell()).Text(i.ToString()).FontColor(Faint).FontSize(9);
+                    Cell(table.Cell()).Text(line.Description);
+                    Cell(table.Cell()).AlignRight().Text(Amt(line.Amount)).SemiBold();
+                }
+            });
+
+            // ── Totals (right) ──
+            col.Item().Row(row =>
+            {
+                row.RelativeItem();
+                row.ConstantItem(250).Column(c =>
+                {
+                    void TotalRow(string label, string value, string? color = null, bool bold = false)
                     {
-                        layers.Layer().AlignCenter().AlignMiddle().Element(c =>
-                            c.Rotate(-22).Text("PAID").FontSize(140)
-                             .Bold().FontColor("#10b98122"));  // ~13% alpha green
+                        c.Item().PaddingVertical(2).Row(r =>
+                        {
+                            r.RelativeItem().Text(label).FontColor(Muted);
+                            var v = r.RelativeItem().AlignRight().Text(value);
+                            if (color != null) v.FontColor(color);
+                            if (bold) v.SemiBold();
+                        });
                     }
+                    TotalRow(L("Subtotal", "المجموع"), $"{Amt(m.TotalAmount)} {m.Currency}");
+                    TotalRow(L("Paid", "المدفوع"), $"− {Amt(m.PaidAmount)} {m.Currency}", m.PaidAmount > 0 ? Green : Muted);
+                    if (m.PaidAmount > 0 && m.PaidDate.HasValue)
+                        TotalRow(L("Last payment", "آخر دفعة"), D(m.PaidDate.Value, ar), Green);
 
-                    layers.PrimaryLayer().PaddingTop(8).Column(col =>
+                    c.Item().PaddingTop(4).Background(_brand.SecondaryHex).PaddingVertical(8).PaddingHorizontal(10).Row(r =>
                     {
-                        col.Spacing(14);
-
-                        // ── Bill To / Property / Unit — three-column block ──
-                        col.Item().Row(row =>
-                        {
-                            row.RelativeItem().Column(c =>
-                            {
-                                c.Item().Text("BILL TO").FontColor(_brand.PrimaryHex)
-                                    .FontSize(9).Bold().LetterSpacing(0.06f);
-                                c.Item().PaddingTop(3).Text(m.TenantName).SemiBold().FontSize(11);
-                                if (!string.IsNullOrEmpty(m.CompanyName))
-                                    c.Item().Text(m.CompanyName).FontColor("#64748b").FontSize(9);
-                                if (!string.IsNullOrEmpty(m.TenantPaciNumber))
-                                    c.Item().Text(t =>
-                                    {
-                                        t.Span("PACI: ").FontColor("#94a3b8").FontSize(8);
-                                        t.Span(m.TenantPaciNumber).FontFamily("Courier New").FontSize(9);
-                                    });
-                            });
-                            row.ConstantItem(16);
-                            row.RelativeItem().Column(c =>
-                            {
-                                c.Item().Text("PROPERTY").FontColor(_brand.PrimaryHex)
-                                    .FontSize(9).Bold().LetterSpacing(0.06f);
-                                c.Item().PaddingTop(3).Text(m.PropertyName ?? "—").SemiBold().FontSize(11);
-                                if (!string.IsNullOrEmpty(m.PropertyPaciNumber))
-                                    c.Item().Text(t =>
-                                    {
-                                        t.Span("PACI: ").FontColor("#94a3b8").FontSize(8);
-                                        t.Span(m.PropertyPaciNumber).FontFamily("Courier New").FontSize(9);
-                                    });
-                            });
-                            row.ConstantItem(16);
-                            row.RelativeItem().Column(c =>
-                            {
-                                c.Item().Text("UNIT").FontColor(_brand.PrimaryHex)
-                                    .FontSize(9).Bold().LetterSpacing(0.06f);
-                                // Flat number — bolded, top line under the heading.
-                                var flatLabel = string.IsNullOrEmpty(m.UnitNumber)
-                                    ? "—"
-                                    : $"Flat {m.UnitNumber}";
-                                c.Item().PaddingTop(3).Text(flatLabel).SemiBold().FontSize(11);
-
-                                // Optional floor — small grey, only when supplied.
-                                if (!string.IsNullOrEmpty(m.UnitFloor))
-                                    c.Item().Text($"Floor {m.UnitFloor}").FontSize(9).FontColor("#64748b");
-
-                                // Compose address lines from the Property fields,
-                                // skipping any that are empty. Two lines max so
-                                // the UNIT column doesn't tower over BILL TO.
-                                static string? JoinPresent(string sep, params string?[] parts)
-                                {
-                                    var present = parts.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
-                                    return present.Count == 0 ? null : string.Join(sep, present);
-                                }
-
-                                var line1 = JoinPresent(", ",
-                                    !string.IsNullOrEmpty(m.PropertyBuildingNumber) ? $"Building {m.PropertyBuildingNumber}" : null,
-                                    !string.IsNullOrEmpty(m.PropertyStreet)         ? $"Street {m.PropertyStreet}"           : null);
-                                if (!string.IsNullOrEmpty(line1))
-                                    c.Item().Text(line1).FontSize(9).FontColor("#64748b");
-
-                                var line2 = JoinPresent(", ",
-                                    !string.IsNullOrEmpty(m.PropertyBlock) ? $"Block {m.PropertyBlock}" : null,
-                                    m.PropertyArea);
-                                if (!string.IsNullOrEmpty(line2))
-                                    c.Item().Text(line2).FontSize(9).FontColor("#64748b");
-
-                                if (!string.IsNullOrEmpty(m.PropertyGovernorate))
-                                    c.Item().Text(m.PropertyGovernorate).FontSize(9).FontColor("#64748b");
-                            });
-                        });
-
-                        // ── Line items table ──
-                        col.Item().PaddingTop(4).Table(table =>
-                        {
-                            table.ColumnsDefinition(c =>
-                            {
-                                c.RelativeColumn(5);  // Description
-                                c.RelativeColumn(2);  // Amount
-                            });
-                            table.Header(h =>
-                            {
-                                h.Cell().Background(_brand.SecondaryHex).Padding(8)
-                                    .Text("DESCRIPTION").FontColor("#ffffff")
-                                    .FontSize(9).Bold().LetterSpacing(0.06f);
-                                h.Cell().Background(_brand.SecondaryHex).Padding(8).AlignRight()
-                                    .Text($"AMOUNT ({m.Currency})").FontColor("#ffffff")
-                                    .FontSize(9).Bold().LetterSpacing(0.06f);
-                            });
-
-                            var rows = m.Lines.Count == 0
-                                ? new List<InvoicePdfLine>
-                                {
-                                    new() { Description = "Monthly rent", Amount = m.TotalAmount }
-                                }
-                                : m.Lines;
-                            int idx = 0;
-                            foreach (var line in rows)
-                            {
-                                var bg = idx++ % 2 == 0 ? "#ffffff" : "#fbfbfd";
-                                table.Cell().Background(bg).PaddingVertical(8).PaddingHorizontal(8)
-                                    .Text(line.Description);
-                                table.Cell().Background(bg).PaddingVertical(8).PaddingHorizontal(8)
-                                    .AlignRight().Text($"{line.Amount:0.000}");
-                            }
-                        });
-
-                        // ── Totals block — right-aligned, brand pill on Balance ──
-                        col.Item().Row(row =>
-                        {
-                            row.RelativeItem();  // spacer
-                            row.ConstantItem(240).Column(c =>
-                            {
-                                c.Item().Row(r =>
-                                {
-                                    r.RelativeItem().Text("Subtotal").FontColor("#64748b");
-                                    r.RelativeItem().AlignRight().Text($"{m.TotalAmount:0.000} {m.Currency}");
-                                });
-                                c.Item().Row(r =>
-                                {
-                                    r.RelativeItem().Text("Paid").FontColor("#64748b");
-                                    r.RelativeItem().AlignRight().Text($"({m.PaidAmount:0.000})").FontColor("#10b981");
-                                });
-                                if (m.PaidAmount > 0 && m.PaidDate.HasValue)
-                                {
-                                    c.Item().Row(r =>
-                                    {
-                                        r.RelativeItem().Text("Paid on").FontColor("#64748b").FontSize(9);
-                                        r.RelativeItem().AlignRight()
-                                            .Text(m.PaidDate.Value.ToString("dd MMM yyyy"))
-                                            .FontColor("#10b981").FontSize(9);
-                                    });
-                                }
-                                c.Item().PaddingTop(6).BorderTop(1).BorderColor("#e2e8f0");
-                                c.Item().PaddingTop(8).Background(_brand.PrimaryHex)
-                                    .Padding(10).Row(r =>
-                                    {
-                                        r.RelativeItem().Text("BALANCE DUE")
-                                            .FontColor("#ffffff").Bold().FontSize(11)
-                                            .LetterSpacing(0.06f);
-                                        r.RelativeItem().AlignRight()
-                                            .Text($"{m.BalanceAmount:0.000} {m.Currency}")
-                                            .FontColor("#ffffff").Bold().FontSize(13);
-                                    });
-                            });
-                        });
-
-                        // ── Payment instructions ──
-                        if (!IsBankEmpty())
-                        {
-                            col.Item().PaddingTop(6).BorderTop(1).BorderColor("#e2e8f0")
-                                .PaddingTop(10).Column(c =>
-                                {
-                                    c.Item().Text("PAYMENT INSTRUCTIONS")
-                                        .FontColor(_brand.PrimaryHex).Bold().FontSize(9)
-                                        .LetterSpacing(0.06f);
-                                    if (!string.IsNullOrEmpty(_brand.Bank.Name))
-                                        c.Item().PaddingTop(3).Text(t =>
-                                        {
-                                            t.Span("Bank: ").FontColor("#64748b");
-                                            t.Span(_brand.Bank.Name);
-                                            if (!string.IsNullOrEmpty(_brand.Bank.AccountHolder))
-                                            {
-                                                t.Span("  ·  Account: ").FontColor("#64748b");
-                                                t.Span(_brand.Bank.AccountHolder!);
-                                            }
-                                        });
-                                    if (!string.IsNullOrEmpty(_brand.Bank.Iban))
-                                        c.Item().Text(t =>
-                                        {
-                                            t.Span("IBAN: ").FontColor("#64748b");
-                                            t.Span(_brand.Bank.Iban).FontFamily("Courier New").SemiBold();
-                                        });
-                                    if (!string.IsNullOrEmpty(_brand.Bank.SwiftBic))
-                                        c.Item().Text(t =>
-                                        {
-                                            t.Span("SWIFT: ").FontColor("#64748b");
-                                            t.Span(_brand.Bank.SwiftBic).FontFamily("Courier New");
-                                        });
-                                    if (!string.IsNullOrEmpty(_brand.Bank.KnetReceiver))
-                                        c.Item().Text(t =>
-                                        {
-                                            t.Span("K-NET payable to: ").FontColor("#64748b");
-                                            t.Span(_brand.Bank.KnetReceiver);
-                                        });
-                                    c.Item().PaddingTop(3).Text(t =>
-                                    {
-                                        t.Span("Reference: ").FontColor("#64748b");
-                                        t.Span(m.InvoiceNumber).SemiBold();
-                                        t.Span("  (include on every transfer)").FontColor("#94a3b8").FontSize(8);
-                                    });
-                                });
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(m.Notes))
-                        {
-                            col.Item().PaddingTop(8).Text(m.Notes).Italic().FontColor("#64748b").FontSize(9);
-                        }
+                        r.RelativeItem().AlignMiddle().Text(L("BALANCE DUE", "الرصيد المستحق"))
+                            .FontColor(_brand.PrimaryHex).Bold().FontSize(9.5f).LetterSpacing(0.08f);
+                        r.RelativeItem().AlignRight().Text($"{Amt(m.BalanceAmount)} {m.Currency}")
+                            .FontColor("#ffffff").Bold().FontSize(14);
                     });
                 });
             });
 
-            page.Footer().Element(BrandedFooter);
-        });
-    }).GeneratePdf();
+            // ── Payments received ──
+            if (m.Payments.Count > 0)
+            {
+                col.Item().PaddingTop(2).Column(c =>
+                {
+                    c.Item().Element(x => SectionTitle(x, L("PAYMENTS RECEIVED", "الدفعات المستلمة")));
+                    c.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(cd =>
+                        {
+                            cd.RelativeColumn(2); cd.RelativeColumn(2); cd.RelativeColumn(3); cd.RelativeColumn(2);
+                        });
+                        table.Header(h =>
+                        {
+                            IContainer HCell(IContainer x) => x.Background(Soft).BorderBottom(1).BorderColor(Line).PaddingVertical(5).PaddingHorizontal(8);
+                            HCell(h.Cell()).Text(L("DATE", "التاريخ")).FontColor(Muted).FontSize(8).Bold();
+                            HCell(h.Cell()).Text(L("METHOD", "الطريقة")).FontColor(Muted).FontSize(8).Bold();
+                            HCell(h.Cell()).Text(L("REFERENCE", "المرجع")).FontColor(Muted).FontSize(8).Bold();
+                            HCell(h.Cell()).AlignRight().Text(L($"AMOUNT ({m.Currency})", $"المبلغ ({m.Currency})")).FontColor(Muted).FontSize(8).Bold();
+                        });
+                        foreach (var p in m.Payments.OrderBy(p => p.PaymentDate))
+                        {
+                            IContainer Cell(IContainer x) => x.BorderBottom(1).BorderColor(Line).PaddingVertical(5).PaddingHorizontal(8);
+                            Cell(table.Cell()).Text(D(p.PaymentDate, ar)).FontSize(9);
+                            Cell(table.Cell()).Text(p.Method).FontSize(9);
+                            Cell(table.Cell()).Text(string.IsNullOrEmpty(p.Reference) ? "—" : Ltr(p.Reference, ar)).FontFamily(MonoFont).FontSize(8.5f).FontColor(Muted);
+                            Cell(table.Cell()).AlignRight().Text(Amt(p.Amount)).FontColor(Green).SemiBold().FontSize(9);
+                        }
+                    });
+                });
+            }
 
-    public byte[] RenderReceipt(ReceiptPdfModel m) => Document.Create(container =>
+            // ── How to pay (only while something is owed) ──
+            if (m.BalanceAmount > 0 && !Is(status, "Cancelled"))
+            {
+                col.Item().Column(c =>
+                {
+                    c.Item().Element(x => SectionTitle(x, L("HOW TO PAY", "طرق الدفع")));
+                    c.Item().Row(row =>
+                    {
+                        row.Spacing(8);
+                        row.RelativeItem().Element(x => PayCard(x,
+                            L("K-NET — Alrtam app", "كي-نت — تطبيق الرتم"),
+                            L("Open the invoice in the Alrtam tenant app and tap Pay now. Instant confirmation.",
+                              "افتح الفاتورة في تطبيق الرتم واضغط «ادفع الآن». تأكيد فوري.")));
+
+                        var bankLines = new List<(string, string)>();
+                        if (!string.IsNullOrEmpty(_brand.Bank.Name)) bankLines.Add((L("Bank", "البنك"), Ltr(_brand.Bank.Name, ar)));
+                        if (!string.IsNullOrEmpty(_brand.Bank.AccountHolder)) bankLines.Add((L("Account", "الحساب"), Ltr(_brand.Bank.AccountHolder, ar)));
+                        if (!string.IsNullOrEmpty(_brand.Bank.Iban)) bankLines.Add((L("IBAN", "الآيبان"), Ltr(_brand.Bank.Iban, ar)));
+                        if (!string.IsNullOrEmpty(_brand.Bank.SwiftBic)) bankLines.Add((L("SWIFT", "سويفت"), Ltr(_brand.Bank.SwiftBic, ar)));
+                        row.RelativeItem().Element(x => PayCard(x,
+                            L("Bank transfer", "تحويل بنكي"),
+                            bankLines.Count == 0
+                                ? L("Transfer to the company account (details from the office), then upload the proof in the app.",
+                                    "حوّل إلى حساب الشركة (التفاصيل من المكتب) ثم ارفع إثبات التحويل في التطبيق.")
+                                : L("Then upload the transfer proof in the app.", "ثم ارفع إثبات التحويل في التطبيق."),
+                            bankLines));
+
+                        row.RelativeItem().Element(x => PayCard(x,
+                            L("Cash at the office", "نقداً في المكتب"),
+                            L("Request it in the app, pay at the counter; the receipt is issued once staff confirm.",
+                              "اطلب الدفع النقدي من التطبيق وادفع لدى الكاونتر؛ يصدر الإيصال بعد تأكيد الموظفين.")));
+                    });
+                    c.Item().PaddingTop(5).Text(t =>
+                    {
+                        t.Span(L("Reference for every payment: ", "المرجع لكل دفعة: ")).FontColor(Muted).FontSize(8.5f);
+                        t.Span(m.InvoiceNumber).SemiBold().FontSize(9);
+                    });
+                });
+            }
+
+            // ── Notes ──
+            if (!string.IsNullOrWhiteSpace(m.Notes))
+            {
+                col.Item().Background(Soft).Border(1).BorderColor(Line).Padding(9).Column(c =>
+                {
+                    c.Item().Text(L("NOTES", "ملاحظات")).FontColor(Muted).FontSize(7.5f).Bold().LetterSpacing(0.08f);
+                    c.Item().PaddingTop(2).Text(Ltr(m.Notes, ar)).FontSize(9).FontColor(Muted);
+                });
+            }
+        });
+    }
+
+    /// <summary>One-line verdict under the meta strip, coloured by urgency.</summary>
+    private static (string? text, string color) DueCallout(InvoicePdfModel m, string status, DateTime today)
     {
+        var ar = m.IsArabic;
+        string L(string en, string arText) => ar ? arText : en;
+        var days = (m.DueDate.Date - today).Days;
+
+        if (Is(status, "Paid"))
+            return (m.PaidDate.HasValue
+                ? L($"Paid in full on {D(m.PaidDate.Value, ar)}. Thank you.", $"مدفوعة بالكامل بتاريخ {D(m.PaidDate.Value, ar)}. شكراً لك.")
+                : L("Paid in full. Thank you.", "مدفوعة بالكامل. شكراً لك."), Green);
+        if (Is(status, "Cancelled"))
+            return (L("This invoice has been cancelled and is not payable.", "هذه الفاتورة ملغاة وغير مستحقة الدفع."), Grey);
+        if (Is(status, "Pending Verification"))
+            return (L("A payment has been submitted and is awaiting office confirmation.", "تم إرسال دفعة وهي بانتظار تأكيد المكتب."), Blue);
+        if (Is(status, "Overdue"))
+        {
+            var late = Math.Max(0, -days);
+            return (late == 0
+                ? L($"Overdue — please settle {Amt(m.BalanceAmount)} {m.Currency} now.", $"متأخرة — يرجى سداد {Amt(m.BalanceAmount)} {m.Currency} الآن.")
+                : L($"Overdue by {late} day{(late == 1 ? "" : "s")} — please settle {Amt(m.BalanceAmount)} {m.Currency} now.",
+                    $"متأخرة {late} يوم — يرجى سداد {Amt(m.BalanceAmount)} {m.Currency} الآن."), Red);
+        }
+        if (Is(status, "Partially Paid"))
+            return (L($"Partially paid — {Amt(m.BalanceAmount)} {m.Currency} remains due by {D(m.DueDate, ar)}.",
+                      $"مدفوعة جزئياً — المتبقي {Amt(m.BalanceAmount)} {m.Currency} يستحق بتاريخ {D(m.DueDate, ar)}."), Amber);
+        if (days == 0)
+            return (L("Due today.", "تستحق اليوم."), Amber);
+        return (L($"Due in {days} day{(days == 1 ? "" : "s")} — {D(m.DueDate, ar)}.", $"تستحق خلال {days} يوم — {D(m.DueDate, ar)}."), Amber);
+    }
+
+    // ═══════════════════════════════════════════════════════════ RECEIPT ═══
+
+    public byte[] RenderReceipt(ReceiptPdfModel m)
+    {
+        EnsureDocFontRegistered();
+        return BuildReceipt(m).GeneratePdf();
+    }
+
+    public IReadOnlyList<byte[]> RenderReceiptPreviewPng(ReceiptPdfModel m, int dpi = 110)
+    {
+        EnsureDocFontRegistered();
+        return BuildReceipt(m)
+            .GenerateImages(new ImageGenerationSettings { ImageFormat = ImageFormat.Png, RasterDpi = dpi })
+            .ToList();
+    }
+
+    private IDocument BuildReceipt(ReceiptPdfModel m) => Document.Create(container =>
+    {
+        var ar = m.IsArabic;
+        string L(string en, string arText) => ar ? arText : en;
+
         container.Page(page =>
         {
             page.Size(PageSizes.A5);
-            page.Margin(28);
-            page.DefaultTextStyle(s => s.FontSize(10).FontColor(_brand.SecondaryHex));
-
-            page.Header().Element(c => BrandedHeader(c, "RECEIPT", m.ReceiptNumber,
-                m.PaymentDate, dueDate: null, status: "PAID"));
-
-            page.Content().Element(content =>
+            page.MarginHorizontal(26);
+            page.MarginTop(22);
+            page.MarginBottom(20);
+            page.DefaultTextStyle(s =>
             {
-                content.Layers(layers =>
-                {
-                    // Receipts are always paid by definition — diagonal stamp on every one.
-                    layers.Layer().AlignCenter().AlignMiddle().Element(c =>
-                        c.Rotate(-22).Text("PAID").FontSize(120)
-                         .Bold().FontColor("#10b98122"));
-
-                    layers.PrimaryLayer().PaddingTop(8).Column(col =>
-                    {
-                        col.Spacing(12);
-                        col.Item().Text(t =>
-                        {
-                            t.Span("Received from ").FontColor("#64748b");
-                            t.Span(m.TenantName).SemiBold();
-                        });
-                        col.Item().Text(t =>
-                        {
-                            t.Span($"For {m.PropertyName} · Unit {m.UnitNumber}").FontColor("#64748b");
-                        });
-
-                        col.Item().PaddingVertical(6).Background(_brand.PrimaryHex)
-                            .Padding(14).Column(c =>
-                            {
-                                c.Item().Text("AMOUNT RECEIVED").FontColor("#ffffff")
-                                    .FontSize(9).Bold().LetterSpacing(0.06f);
-                                c.Item().PaddingTop(2)
-                                    .Text($"{m.AmountPaid:0.000} {m.Currency}")
-                                    .FontColor("#ffffff").Bold().FontSize(20);
-                            });
-
-                        col.Item().Column(c =>
-                        {
-                            c.Item().Text(t =>
-                            {
-                                t.Span("Payment method: ").FontColor("#64748b");
-                                t.Span(m.PaymentMethod).SemiBold();
-                            });
-                            c.Item().Text(t =>
-                            {
-                                t.Span("Date: ").FontColor("#64748b");
-                                t.Span(m.PaymentDate.ToString("dd MMM yyyy HH:mm")).SemiBold();
-                            });
-                            if (!string.IsNullOrEmpty(m.TransactionReference))
-                                c.Item().Text(t =>
-                                {
-                                    t.Span("Reference: ").FontColor("#64748b");
-                                    t.Span(m.TransactionReference).FontFamily("Courier New").SemiBold();
-                                });
-                            if (!string.IsNullOrEmpty(m.InvoiceNumber))
-                                c.Item().Text(t =>
-                                {
-                                    t.Span("Invoice: ").FontColor("#64748b");
-                                    t.Span(m.InvoiceNumber).SemiBold();
-                                });
-                        });
-
-                        if (!string.IsNullOrWhiteSpace(m.Notes))
-                            col.Item().PaddingTop(6).Text(m.Notes).Italic().FontColor("#64748b").FontSize(9);
-                    });
-                });
+                var st = s.FontSize(9.5f).FontColor(_brand.SecondaryHex).FontFamily(DocFont).LineHeight(LineHeight);
+                return ar ? st.DirectionFromRightToLeft() : st;
             });
 
-            page.Footer().Element(BrandedFooter);
+            var header = page.Header();
+            if (ar) header = header.ContentFromRightToLeft();
+            header.Element(h => BrandBand(h, L("RECEIPT", "إيصال استلام"), m.ReceiptNumber, "Paid", ar, compact: true));
+
+            var content = page.Content();
+            if (ar) content = content.ContentFromRightToLeft();
+            content.Element(c => c.Layers(layers =>
+            {
+                // Receipts are always paid by definition — diagonal stamp on every one.
+                layers.Layer().AlignCenter().AlignMiddle().Element(w =>
+                    w.Rotate(-22).Text(L("PAID", "مدفوعة")).FontSize(110).Bold().FontColor(Alpha(Green, "22")));
+
+                layers.PrimaryLayer().PaddingTop(12).Column(col =>
+                {
+                    col.Spacing(10);
+
+                    col.Item().Element(c => Card(c, L("RECEIVED FROM", "استلمنا من"), card =>
+                    {
+                        card.Item().Text(Ltr(m.TenantName, ar)).Bold().FontSize(12);
+                        card.Item().Text(L($"{m.PropertyName}  ·  Flat {m.UnitNumber}", $"{Ltr(m.PropertyName, ar)}  ·  شقة {m.UnitNumber}")).FontColor(Muted);
+                    }));
+
+                    col.Item().Background(_brand.SecondaryHex).Padding(14).Row(r =>
+                    {
+                        r.RelativeItem().AlignMiddle().Column(c =>
+                        {
+                            c.Item().Text(L("AMOUNT RECEIVED", "المبلغ المستلم")).FontColor(_brand.PrimaryHex)
+                                .FontSize(8).Bold().LetterSpacing(0.08f);
+                            c.Item().Text(L("with thanks", "مع الشكر")).FontColor(OnDarkMuted).FontSize(8);
+                        });
+                        r.RelativeItem().AlignRight().AlignMiddle()
+                            .Text($"{Amt(m.AmountPaid)} {m.Currency}").FontColor("#ffffff").Bold().FontSize(22);
+                    });
+
+                    col.Item().Table(t =>
+                    {
+                        t.ColumnsDefinition(cd => { cd.RelativeColumn(2); cd.RelativeColumn(3); });
+                        void Row(string label, string value, bool mono = false, string? color = null)
+                        {
+                            t.Cell().BorderBottom(1).BorderColor(Line).PaddingVertical(5).Text(label).FontColor(Muted).FontSize(9);
+                            var v = t.Cell().BorderBottom(1).BorderColor(Line).PaddingVertical(5).Text(value).SemiBold().FontSize(9.5f);
+                            if (mono) v.FontFamily(MonoFont);
+                            if (color != null) v.FontColor(color);
+                        }
+                        Row(L("Payment date", "تاريخ الدفع"), Dt(m.PaymentDate, ar));
+                        Row(L("Method", "طريقة الدفع"), MethodLabel(m.PaymentMethod, ar));
+                        if (!string.IsNullOrEmpty(m.TransactionReference))
+                            Row(L("Transaction ref.", "مرجع العملية"), Ltr(m.TransactionReference, ar), mono: true);
+                        if (!string.IsNullOrEmpty(m.ManualReceiptNumber))
+                            Row(L("Manual receipt no.", "رقم الإيصال اليدوي"), Ltr(m.ManualReceiptNumber, ar), mono: true);
+                        if (!string.IsNullOrEmpty(m.InvoiceNumber))
+                            Row(L("Applied to invoice", "مقابل الفاتورة"), Ltr(m.InvoiceNumber, ar));
+                        if (m.InvoiceBalanceAfter.HasValue)
+                        {
+                            var settled = m.InvoiceBalanceAfter.Value <= 0;
+                            Row(L("Invoice balance after", "رصيد الفاتورة بعد الدفع"),
+                                settled ? L("Settled — nothing outstanding", "مسددة — لا يوجد مستحقات")
+                                        : $"{Amt(m.InvoiceBalanceAfter.Value)} {m.Currency}",
+                                color: settled ? Green : Amber);
+                        }
+                    });
+
+                    if (!string.IsNullOrWhiteSpace(m.Notes))
+                        col.Item().Text(Ltr(m.Notes, ar)).Italic().FontColor(Muted).FontSize(8.5f);
+
+                    col.Item().PaddingTop(4).Text(L(
+                        "This receipt confirms the payment above. Keep it for your records.",
+                        "يؤكد هذا الإيصال استلام الدفعة أعلاه. يرجى الاحتفاظ به."))
+                        .FontColor(Faint).FontSize(8);
+                });
+            }));
+
+            var footer = page.Footer();
+            if (ar) footer = footer.ContentFromRightToLeft();
+            // Receipts: no invoice payment terms, compact one-line footer.
+            footer.Element(f => DocFooter(f, ar, m.GeneratedAt, showTerms: false, compact: true));
         });
-    }).GeneratePdf();
+    });
+
+    private static string MethodLabel(string method, bool ar) => method switch
+    {
+        "KNET" or "K-NET" or "Knet" => "K-NET",
+        "BankTransfer" => ar ? "تحويل بنكي" : "Bank transfer",
+        "Cash"         => ar ? "نقداً" : "Cash",
+        "Cheque"       => ar ? "شيك" : "Cheque",
+        _              => method,
+    };
+
+    // ═════════════════════════════════════════════════ SHARED COMPONENTS ═══
 
     /// <summary>
-    /// Branded header used by Invoice + Receipt. Logo (when present on disk)
-    /// left + company info middle + document meta right, separated by a thin
-    /// brand-coloured rule.
+    /// Dark brand band: logo · company block · title / number / status pill,
+    /// finished with a gold rule. Shared by invoice and receipt.
     /// </summary>
-    private void BrandedHeader(IContainer container, string title, string number,
-        DateTime dateA, DateTime? dueDate, string? status, string? billingPeriod = null)
+    private void BrandBand(IContainer container, string title, string number, string? status, bool ar, bool compact = false)
     {
-        container.PaddingBottom(10).Column(col =>
+        string L(string en, string arText) => ar ? arText : en;
+        var logoSize = compact ? 46f : 58f;
+
+        container.Column(col =>
         {
-            col.Item().Row(row =>
+            col.Item().Background(_brand.SecondaryHex).Padding(compact ? 12 : 16).Row(row =>
             {
-                // Logo column — fixed width so the layout doesn't shift if
-                // the file is missing. Renderer falls back to a blank cell
-                // and the company-name column expands naturally.
-                row.ConstantItem(90).Column(c =>
+                row.ConstantItem(logoSize).Height(logoSize).Element(c =>
                 {
-                    if (!string.IsNullOrWhiteSpace(_brand.LogoPath) && File.Exists(_brand.LogoPath))
-                    {
-                        c.Item().Height(70).Image(_brand.LogoPath).FitArea();
-                    }
+                    if (HasLogo) c.Image(_brand.LogoPath!).FitArea();
                 });
-                row.ConstantItem(12);  // spacer
-                row.RelativeItem().Column(c =>
+                row.ConstantItem(12);
+                row.RelativeItem().AlignMiddle().Column(c =>
                 {
-                    c.Item().Text(_brand.CompanyName).SemiBold().FontSize(15)
-                        .FontColor(_brand.SecondaryHex);
+                    c.Item().Text(_brand.CompanyName).FontColor(_brand.PrimaryHex).Bold().FontSize(compact ? 13 : 15);
                     if (!string.IsNullOrEmpty(_brand.TagLine))
-                        c.Item().Text(_brand.TagLine!).FontSize(9).FontColor(_brand.PrimaryHex)
-                            .LetterSpacing(0.06f);
-                    if (!string.IsNullOrEmpty(_brand.ContactAddress))
-                        c.Item().PaddingTop(3).Text(_brand.ContactAddress!).FontSize(8).FontColor("#64748b");
-                    var contactBits = new List<string>();
-                    if (!string.IsNullOrEmpty(_brand.ContactPhone)) contactBits.Add(_brand.ContactPhone!);
-                    if (!string.IsNullOrEmpty(_brand.ContactEmail)) contactBits.Add(_brand.ContactEmail!);
-                    if (!string.IsNullOrEmpty(_brand.Website))      contactBits.Add(_brand.Website!);
-                    if (contactBits.Count > 0)
-                        c.Item().Text(string.Join("  ·  ", contactBits)).FontSize(8).FontColor("#64748b");
+                        c.Item().Text(_brand.TagLine!.ToUpperInvariant()).FontColor(_brand.PrimaryHex)
+                            .FontSize(7).LetterSpacing(0.14f);
+                    var bits = new List<string>();
+                    if (!string.IsNullOrEmpty(_brand.ContactAddress)) bits.Add(_brand.ContactAddress!);
+                    if (!string.IsNullOrEmpty(_brand.ContactPhone)) bits.Add(_brand.ContactPhone!);
+                    if (!string.IsNullOrEmpty(_brand.ContactEmail)) bits.Add(_brand.ContactEmail!);
+                    if (!string.IsNullOrEmpty(_brand.Website)) bits.Add(_brand.Website!);
+                    if (bits.Count > 0)
+                        c.Item().PaddingTop(3).Text(string.Join("  ·  ", bits)).FontColor(OnDarkMuted).FontSize(7.5f);
                 });
-                row.ConstantItem(180).Column(c =>
+                row.ConstantItem(compact ? 150 : 190).AlignMiddle().Column(c =>
                 {
-                    c.Item().AlignRight().Text(title).Bold().FontSize(22).FontColor(_brand.PrimaryHex);
-                    c.Item().AlignRight().Text(t =>
-                    {
-                        t.Span("# ").FontColor("#94a3b8");
-                        t.Span(number).SemiBold();
-                    });
-                    c.Item().PaddingTop(4).AlignRight().Text(t =>
-                    {
-                        t.DefaultTextStyle(s => s.FontSize(9));
-                        t.Span("Issued: ").FontColor("#64748b");
-                        t.Span(dateA.ToString("dd MMM yyyy"));
-                    });
-                    if (dueDate.HasValue)
-                    {
-                        // Highlight the due date for non-Paid statuses so the
-                        // recipient can't miss it.
-                        var isOverdue = string.Equals(status, "Overdue", StringComparison.OrdinalIgnoreCase);
-                        var isPending = string.Equals(status, "Pending", StringComparison.OrdinalIgnoreCase);
-                        c.Item().AlignRight().Text(t =>
-                        {
-                            t.DefaultTextStyle(s => s.FontSize(9));
-                            t.Span("Due: ").FontColor("#64748b");
-                            var due = t.Span(dueDate.Value.ToString("dd MMM yyyy")).SemiBold();
-                            if (isOverdue) due.FontColor("#dc2626");
-                            else if (isPending) due.FontColor("#d97706");
-                        });
-                    }
-                    if (!string.IsNullOrEmpty(billingPeriod))
-                    {
-                        c.Item().AlignRight().Text(t =>
-                        {
-                            t.DefaultTextStyle(s => s.FontSize(9));
-                            t.Span("Period: ").FontColor("#64748b");
-                            t.Span(billingPeriod).SemiBold();
-                        });
-                    }
+                    c.Item().AlignRight().Text(title).FontColor("#ffffff").Bold().FontSize(compact ? 15 : 19);
+                    c.Item().AlignRight().Text(number).FontColor(_brand.PrimaryHex).SemiBold().FontSize(10.5f).LetterSpacing(0.04f);
                     if (!string.IsNullOrEmpty(status))
                     {
-                        var (bg, fg) = status.ToLowerInvariant() switch
-                        {
-                            "paid"    => ("#10b981", "#ffffff"),
-                            "overdue" => ("#dc2626", "#ffffff"),
-                            "pending" => ("#f59e0b", "#ffffff"),
-                            _         => ("#e2e8f0", "#475569"),
-                        };
-                        c.Item().PaddingTop(4).AlignRight().Background(bg)
-                            .PaddingVertical(2).PaddingHorizontal(8)
-                            .Text(status.ToUpperInvariant()).FontColor(fg).Bold().FontSize(8)
-                            .LetterSpacing(0.08f);
+                        var (bg, fg, label) = StatusPill(status!, ar);
+                        c.Item().PaddingTop(5).AlignRight().Background(bg).PaddingVertical(2).PaddingHorizontal(9)
+                            .Text(label).FontColor(fg).Bold().FontSize(7.5f).LetterSpacing(0.1f);
                     }
                 });
             });
-            // Thin brand-coloured rule
-            col.Item().PaddingTop(8).Height(2).Background(_brand.PrimaryHex);
+            col.Item().Height(3).Background(_brand.PrimaryHex);
         });
     }
 
-    /// <summary>
-    /// Branded footer with terms + page numbers. Compact so it doesn't
-    /// elbow the content area on multi-page documents.
-    /// </summary>
-    private void BrandedFooter(IContainer container)
+    private static (string bg, string fg, string label) StatusPill(string status, bool ar)
     {
-        container.PaddingTop(8).BorderTop(1).BorderColor("#e2e8f0").Column(col =>
+        var key = status.Trim().ToLowerInvariant();
+        return key switch
         {
-            if (!string.IsNullOrWhiteSpace(_brand.FooterTerms))
+            "paid"                 => (Green, "#ffffff", ar ? "مدفوعة" : "PAID"),
+            "overdue"              => (Red,   "#ffffff", ar ? "متأخرة" : "OVERDUE"),
+            "pending"              => (Amber, "#ffffff", ar ? "مستحقة" : "DUE"),
+            "partially paid"       => ("#f59e0b", "#ffffff", ar ? "مدفوعة جزئياً" : "PARTIALLY PAID"),
+            "pending verification" => (Blue,  "#ffffff", ar ? "قيد التحقق" : "AWAITING CONFIRMATION"),
+            "cancelled"            => ("#e2e8f0", "#475569", ar ? "ملغاة" : "CANCELLED"),
+            _                      => ("#e2e8f0", "#475569", status.ToUpperInvariant()),
+        };
+    }
+
+    private void MetaTile(IContainer container, string label, string value, string? valueColor = null)
+    {
+        container.Border(1).BorderColor(Line).Padding(9).Column(c =>
+        {
+            c.Item().Text(label).FontColor(Faint).FontSize(7.5f).Bold().LetterSpacing(0.08f);
+            var v = c.Item().PaddingTop(1).Text(value).SemiBold().FontSize(10.5f);
+            if (valueColor != null) v.FontColor(valueColor);
+        });
+    }
+
+    private void Card(IContainer container, string title, Action<ColumnDescriptor> body)
+    {
+        container.Border(1).BorderColor(Line).Padding(10).Column(c =>
+        {
+            c.Spacing(1);
+            c.Item().PaddingBottom(3).Text(title).FontColor(_brand.PrimaryHex).FontSize(7.5f).Bold().LetterSpacing(0.1f);
+            body(c);
+        });
+    }
+
+    private void SectionTitle(IContainer container, string title)
+    {
+        container.PaddingBottom(4).Row(r =>
+        {
+            r.AutoItem().Text(title).FontColor(_brand.PrimaryHex).FontSize(7.5f).Bold().LetterSpacing(0.1f);
+            r.ConstantItem(8);
+            r.RelativeItem().AlignMiddle().Height(1).Background(Line);
+        });
+    }
+
+    private void PayCard(IContainer container, string title, string text, List<(string label, string value)>? lines = null)
+    {
+        container.Background(Soft).Border(1).BorderColor(Line).Padding(9).Column(c =>
+        {
+            c.Item().Text(title).SemiBold().FontSize(9.5f);
+            if (lines != null)
+                foreach (var (label, value) in lines)
+                    c.Item().PaddingTop(1).Text(t =>
+                    {
+                        t.Span(label + ": ").FontColor(Faint).FontSize(8);
+                        t.Span(value).FontSize(8.5f).SemiBold();
+                    });
+            // Small multi-line copy needs a little more leading than the
+            // document default or the lines touch.
+            c.Item().PaddingTop(2).Text(text).FontColor(Muted).FontSize(8).LineHeight(1.3f);
+        });
+    }
+
+    private void DocFooter(IContainer container, bool ar, DateTime generatedAt, bool showTerms = true, bool compact = false)
+    {
+        string L(string en, string arText) => ar ? arText : en;
+        container.PaddingTop(6).BorderTop(1).BorderColor(Line).Column(col =>
+        {
+            var terms = ar && !string.IsNullOrWhiteSpace(_brand.FooterTermsAr) ? _brand.FooterTermsAr : _brand.FooterTerms;
+            if (showTerms && !string.IsNullOrWhiteSpace(terms))
+                col.Item().PaddingTop(4).Text(terms!).FontSize(7).FontColor(Faint);
+            col.Item().PaddingTop(3).Row(r =>
             {
-                col.Item().PaddingTop(4).Text(_brand.FooterTerms!)
-                    .FontSize(7).FontColor("#94a3b8");
-            }
-            col.Item().PaddingTop(4).Row(r =>
-            {
-                r.RelativeItem().Text(_brand.CompanyName).FontSize(7).FontColor("#94a3b8");
-                r.RelativeItem().AlignRight().Text(t =>
+                r.RelativeItem().Text(t =>
                 {
-                    t.Span("Page ").FontSize(7).FontColor("#94a3b8");
-                    t.CurrentPageNumber().FontSize(7).FontColor("#94a3b8");
-                    t.Span(" of ").FontSize(7).FontColor("#94a3b8");
-                    t.TotalPages().FontSize(7).FontColor("#94a3b8");
+                    t.DefaultTextStyle(s => s.FontSize(7).FontColor(Faint));
+                    t.Span(_brand.CompanyName);
+                    t.Span("  ·  ");
+                    if (!compact)
+                    {
+                        t.Span(L("Computer-generated document — no signature required", "مستند صادر إلكترونياً — لا يحتاج إلى توقيع"));
+                        t.Span("  ·  ");
+                    }
+                    t.Span(L("Generated ", "صدر في ") + Dt(generatedAt, ar));
+                });
+                r.ConstantItem(70).AlignRight().Text(t =>
+                {
+                    t.DefaultTextStyle(s => s.FontSize(7).FontColor(Faint));
+                    t.Span(L("Page ", "صفحة "));
+                    t.CurrentPageNumber();
+                    t.Span(L(" of ", " من "));
+                    t.TotalPages();
                 });
             });
         });
     }
 
-    /// <summary>True when no bank/K-NET fields are populated, so we can skip
-    /// the whole Payment Instructions section gracefully.</summary>
-    private bool IsBankEmpty() =>
-        string.IsNullOrEmpty(_brand.Bank.Name)
-        && string.IsNullOrEmpty(_brand.Bank.Iban)
-        && string.IsNullOrEmpty(_brand.Bank.SwiftBic)
-        && string.IsNullOrEmpty(_brand.Bank.KnetReceiver);
+    private static bool Is(string? status, string expected) =>
+        string.Equals(status?.Trim(), expected, StringComparison.OrdinalIgnoreCase);
+
+    private static string? JoinPresent(string sep, params string?[] parts)
+    {
+        var present = parts.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        return present.Count == 0 ? null : string.Join(sep, present);
+    }
 
     /// <summary>
-    /// Back-compat shim for the executive dashboard and tenant statement
-    /// renderers which still call the old <c>Header(title, number, name)</c>
-    /// shape. Delegates to <see cref="BrandedHeader"/> so all four documents
-    /// share the brand (logo, colours, contact info).
+    /// Legacy header used by the executive dashboard and tenant statement
+    /// renderers below. Routed through the same brand band so all four
+    /// documents share the logo, colours and company block.
     /// </summary>
     private void Header(IContainer container, string title, string number, string? _legacyCompanyName)
-        => BrandedHeader(container, title, number,
-            dateA: DateTime.Today, dueDate: null, status: null);
+        => BrandBand(container, title, number, status: null, ar: false);
 
     // ─── Sprint 3 — executive dashboard PDF ─────────────────────────────
     public byte[] RenderExecutiveDashboard(ExecutiveDashboardPdfModel m) => Document.Create(container =>

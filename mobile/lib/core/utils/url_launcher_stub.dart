@@ -1,5 +1,6 @@
 /// Stub implementation for non-web platforms
 /// Uses url_launcher package to open URLs
+library;
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 

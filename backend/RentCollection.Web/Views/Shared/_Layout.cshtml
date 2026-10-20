@@ -11,7 +11,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - VIIJAR</title>
+    <title>@ViewData["Title"] - ALRTAM</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <!-- Select2 — searchable dropdown library used by Lease Create/Edit
          (Sprint 11). jQuery is loaded below; Select2 attaches to .select2-enable
@@ -22,6 +22,8 @@
          (was an inline <style> block here). Tailwind utilities load after so
          individual views can override with utility classes. -->
     <link rel="stylesheet" href="~/css/layout-shell.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/list-pages.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tailwind.css" asp-append-version="true" />
     @* Sprint 23 — shared form styles + helper JS for the revamped
        Tenant / Lease / Property create forms. Opt-in via .form-revamp on
@@ -43,13 +45,13 @@
 
     <!-- Left Sidebar -->
     <aside class="sidebar" id="sidebar">
-        <!-- Brand (VIIJAR — product brand) -->
+        <!-- Brand (ALRTAM — product brand) -->
         <div class="sidebar-brand">
             <a href="/Dashboard" class="brand">
-                <img src="~/images/logo.jpg" alt="VIIJAR" class="brand-logo" />
+                <img src="~/img/branding/logo.png" alt="ALRTAM" class="brand-logo" />
                 <div class="brand-text">
-                    <span class="brand-name">VIIJAR</span>
-                    <span class="brand-tagline">@L["Pay - Rent - Easy"]</span>
+                    <span class="brand-name">ALRTAM</span>
+                    <span class="brand-tagline">@L["Real Estate Developer"]</span>
                 </div>
             </a>
         </div>
@@ -142,10 +144,18 @@
                     <i class="fas fa-clock-rotate-left"></i>
                     <span>@L["Audit Log"]</span>
                 </a>
+                <a href="/Lookups" class="nav-item">
+                    <i class="fas fa-list-ul"></i>
+                    <span>@L["Dropdown Values"]</span>
+                </a>
                 @* Sprint 25 — SMTP config for the email outbox. *@
                 <a href="/EmailSettings" class="nav-item">
                     <i class="fas fa-envelope-open-text"></i>
                     <span>@L["Email Settings"]</span>
+                </a>
+                <a href="/CompanySettings" class="nav-item">
+                    <i class="fas fa-university"></i>
+                    <span>@L["Company & bank"]</span>
                 </a>
             }
         </nav>
@@ -154,13 +164,10 @@
     <!-- Top Header -->
     <header class="top-header">
         <div class="header-left">
-            <button class="mobile-menu-toggle" onclick="toggleSidebar()">
-                <i class="fas fa-bars"></i>
+            <button type="button" class="mobile-menu-toggle" onclick="toggleSidebar()" aria-label="Menu" aria-controls="sidebar">
+                <i class="fas fa-bars" aria-hidden="true"></i>
             </button>
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="@(L["Search properties, tenants..."].Value)">
-            </div>
+            @* Global search box removed: it was never wired to anything. *@
         </div>
         <div class="header-right">
             @* Language switcher (EN | ع) — posts to CultureController.Set. *@
@@ -174,10 +181,7 @@
             <a href="/Dashboard" class="company-logo-right" title="ALRATM Company">
                 <img src="~/img/branding/logo.png" alt="ALRATM" />
             </a>
-            <div class="notification-icon">
-                <i class="fas fa-bell"></i>
-                <span class="notification-badge">3</span>
-            </div>
+            @await Component.InvokeAsync("NotificationBell")
             <div class="user-profile-wrapper">
                 <div class="user-profile" id="userProfileToggle">
                     @{
@@ -196,6 +200,10 @@
                     <a href="/Account/Profile" class="user-dropdown-item">
                         <i class="fas fa-user"></i>
                         <span>@L["My Profile"]</span>
+                    </a>
+                    <a href="/Account/Security" class="user-dropdown-item">
+                        <i class="fas fa-shield-halved"></i>
+                        <span>@L["Security (2FA)"]</span>
                     </a>
                     <form method="post" action="/Account/Logout">
                         @Html.AntiForgeryToken()
@@ -217,7 +225,7 @@
 
         <!-- Footer -->
         <footer>
-            &copy; 2025 VIIJAR - PAY RENT EASY. All rights reserved.
+            &copy; @DateTime.Now.Year ALRTAM - PAY RENT EASY. All rights reserved.
         </footer>
     </div>
 
@@ -239,6 +247,24 @@
                 dropdown.classList.remove('show');
             }
         });
+
+        // Notification bell dropdown toggle
+        (function () {
+            var toggle = document.getElementById('notifToggle');
+            var dropdown = document.getElementById('notifDropdown');
+            if (!toggle || !dropdown) return;
+            toggle.addEventListener('click', function (e) {
+                e.stopPropagation();
+                dropdown.classList.toggle('show');
+                toggle.setAttribute('aria-expanded', dropdown.classList.contains('show'));
+            });
+            document.addEventListener('click', function (e) {
+                if (!dropdown.contains(e.target) && !toggle.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                    toggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        })();
 
         // Set active nav link based on current path
         document.addEventListener('DOMContentLoaded', function() {
@@ -272,6 +298,7 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="~/js/form-helpers.js" asp-append-version="true"></script>
+    <script src="~/js/list-pages.js" asp-append-version="true"></script>
     <script>
         // Sprint 25 — show the top progress bar on any link click or form
         // submit that triggers a full-page navigation. Skips: same-page anchors,
@@ -286,6 +313,8 @@
             function hide() { loader.classList.remove('is-loading'); }
 
             document.addEventListener('click', function (e) {
+                // A handler already cancelled the navigation (e.g. a confirm() that returned false).
+                if (e.defaultPrevented) return;
                 var a = e.target.closest('a');
                 if (!a) return;
                 if (a.target === '_blank') return;
@@ -297,6 +326,8 @@
             });
 
             document.addEventListener('submit', function (e) {
+                // Submit was cancelled by an onsubmit confirm() / validation - nothing is navigating.
+                if (e.defaultPrevented) return;
                 // Don't fire on AJAX-style forms (Sprint 23 form-revamp covers its own loading state).
                 if (e.target.classList.contains('form-revamp')) return;
                 show();

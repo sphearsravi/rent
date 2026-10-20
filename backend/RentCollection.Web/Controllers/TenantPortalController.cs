@@ -1,15 +1,24 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using RentCollection.Infrastructure.Data;
 using RentCollection.Core.Entities;
-using RentCollection.Web.Filters;
 
 namespace RentCollection.Web.Controllers;
 
+// SECURITY: the class-level [AllowAnonymous] is required — the global
+// AuthorizeFilter in Program.cs demands the back-office cookie identity, which
+// tenants never have (they authenticate via session). But that same marker
+// disabled TenantAuthorizationFilter for EVERY action (it treats any
+// IAllowAnonymous in the endpoint metadata as an opt-out), so actions that
+// forgot their own session check were reachable by anyone. [RequireTenantSession]
+// below closes that gap: it enforces the tenant session for every action and
+// honours only a METHOD-level [AllowAnonymous] as the explicit opt-out.
 [AllowAnonymous]
-[ServiceFilter(typeof(TenantAuthorizationFilter))]
+[RequireTenantSession]
 public class TenantPortalController : Controller
 {
     private const string RememberMeCookieName = "TenantRememberMe";
@@ -161,15 +170,38 @@ public class TenantPortalController : Controller
             .OrderByDescending(l => l.LeaseStartDate)
             .ToListAsync();
 
-        // Get recent payments
+        // Get recent payments (the dashboard shows the last four; PaymentHistory has the rest)
         var payments = await _context.Payments
             .Include(p => p.Lease)
                 .ThenInclude(l => l.Unit)
                     .ThenInclude(u => u.Property)
             .Where(p => p.Lease.TenantId == tenantId.Value)
             .OrderByDescending(p => p.PaymentDate)
-            .Take(10)
+            .Take(4)
             .ToListAsync();
+
+        // Account summary — what the tenant owes, when it's due, and which
+        // invoice "Pay now" should open. Same status set and oldest-first order
+        // as MakePayment / PaymentEligibilityService (pay-oldest-first rule).
+        var today = DateTime.UtcNow.Date;
+        var outstandingInvoices = await _context.Invoices
+            .AsNoTracking()
+            .Where(i => i.TenantId == tenantId.Value &&
+                   (i.Status == "Pending" || i.Status == "Overdue" || i.Status == "Partially Paid"))
+            .OrderBy(i => i.InvoiceDate)
+            .ThenBy(i => i.InvoiceId)
+            .ToListAsync();
+
+        var outstandingTotal = outstandingInvoices.Sum(i => Math.Max(0m, i.TotalAmount - i.PaidAmount));
+        var overdueCount = outstandingInvoices.Count(i => i.Status == "Overdue" || i.DueDate.Date < today);
+        var nextDueDate = outstandingInvoices.Count > 0 ? outstandingInvoices.Min(i => i.DueDate).Date : (DateTime?)null;
+        var oldestUnpaidInvoice = outstandingInvoices.FirstOrDefault();
+
+        // Lease-expiry nudge: soonest active lease ending within the next 30 days.
+        var expiringLease = leases
+            .Where(l => l.LeaseEndDate.Date >= today && (l.LeaseEndDate.Date - today).TotalDays <= 30)
+            .OrderBy(l => l.LeaseEndDate)
+            .FirstOrDefault();
 
         // Get pending maintenance requests
         var maintenanceRequests = await _context.MaintenanceRequests
@@ -191,6 +223,16 @@ public class TenantPortalController : Controller
         ViewBag.Payments = payments;
         ViewBag.MaintenanceRequests = maintenanceRequests;
         ViewBag.Documents = documents;
+
+        // Account summary + nudge (see above)
+        ViewBag.OutstandingTotal = outstandingTotal;
+        ViewBag.OutstandingCount = outstandingInvoices.Count;
+        ViewBag.OverdueCount = overdueCount;
+        ViewBag.DaysUntilNextDue = nextDueDate.HasValue ? (int?)(nextDueDate.Value - today).TotalDays : null;
+        ViewBag.OldestUnpaidLeaseId = oldestUnpaidInvoice?.LeaseId;
+        ViewBag.TotalMonthlyRent = leases.Sum(l => l.MonthlyRent);
+        ViewBag.ExpiringLease = expiringLease;
+        ViewBag.ExpiringLeaseDays = expiringLease != null ? (int?)(expiringLease.LeaseEndDate.Date - today).TotalDays : null;
 
         return View();
     }
@@ -390,31 +432,29 @@ public class TenantPortalController : Controller
         return View();
     }
 
-    // GET: TenantPortal/TestPayment (Test mode payment simulation page)
-    [AllowAnonymous]
-    public IActionResult TestPayment(int paymentId, string knetPaymentId, decimal amount, int invoiceId)
-    {
-        ViewBag.PaymentId = paymentId;
-        ViewBag.KnetPaymentId = knetPaymentId;
-        ViewBag.Amount = amount;
-        ViewBag.InvoiceId = invoiceId;
-        return View();
-    }
+    // SECURITY: removed the anonymous TestPayment card-simulation page. It
+    // rendered gateway-supplied query values with no session and existed only
+    // for KNET test mode.
 
     // GET: TenantPortal/PaymentSuccess
+    // Anonymous because the KNET gateway redirects the payer's browser here,
+    // which may not carry a tenant session (mobile app webview). Payment
+    // details are shown ONLY when the session tenant owns the payment —
+    // previously any paymentId was loaded with its Property (KNET credentials).
     [AllowAnonymous]
     public async Task<IActionResult> PaymentSuccess(string? paymentId, string? reference)
     {
         ViewBag.PaymentId = paymentId;
         ViewBag.Reference = reference;
 
-        // Get payment details if available
-        if (!string.IsNullOrEmpty(paymentId) && int.TryParse(paymentId, out int pId))
+        var tenantId = HttpContext.Session.GetInt32("TenantId");
+        if (tenantId.HasValue && !string.IsNullOrEmpty(paymentId) && int.TryParse(paymentId, out int pId))
         {
+            // No Includes — the view only needs AmountPaid/PaymentDate, and the
+            // Property graph carries gateway credentials.
             var payment = await _context.Payments
-                .Include(p => p.Invoice)
-                .Include(p => p.Property)
-                .FirstOrDefaultAsync(p => p.PaymentId == pId);
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PaymentId == pId && p.TenantId == tenantId.Value);
 
             if (payment != null)
             {
@@ -435,6 +475,8 @@ public class TenantPortalController : Controller
     }
 
     // GET: TenantPortal/Logout
+    // Anonymous so an expired session can still clear its remember-me cookie.
+    [AllowAnonymous]
     public IActionResult Logout()
     {
         HttpContext.Session.Clear();
@@ -518,100 +560,32 @@ public class TenantPortalController : Controller
         return words.Trim();
     }
 
-    // TEMPORARY: Generate BCrypt hash for password - REMOVE IN PRODUCTION
-    [HttpGet]
-    public IActionResult GenerateHash(string password = "Welcome@123")
+    // SECURITY: the anonymous GenerateHash (reflected XSS, default-password
+    // advertisement) and DebugTenants (listed Civil IDs) debug endpoints were
+    // removed. Tenant credentials are issued via ITenantCredentialService.
+}
+
+/// <summary>
+/// Requires a tenant session (<c>Session["TenantId"]</c>) for every action on the
+/// controller it decorates, except actions that carry their own method-level
+/// <see cref="AllowAnonymousAttribute"/>. Unlike <c>TenantAuthorizationFilter</c>,
+/// a class-level [AllowAnonymous] does NOT opt the whole controller out — that
+/// marker is only there to bypass the back-office cookie policy.
+/// </summary>
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class RequireTenantSessionAttribute : Attribute, IAuthorizationFilter
+{
+    public void OnAuthorization(AuthorizationFilterContext context)
     {
-        var hash = BCrypt.Net.BCrypt.HashPassword(password);
-        var verify = BCrypt.Net.BCrypt.Verify(password, hash);
-
-        return Content($@"
-            <html>
-            <body style='font-family: monospace; padding: 20px;'>
-                <h2>BCrypt Hash Generator</h2>
-                <p><strong>Password:</strong> {password}</p>
-                <p><strong>Hash:</strong> {hash}</p>
-                <p><strong>Verification:</strong> {verify}</p>
-                <hr>
-                <p>SQL to update all tenants:</p>
-                <textarea style='width: 100%; height: 150px; font-family: monospace;'>
-UPDATE Tenants SET Password = '{hash}' WHERE Password IS NULL OR Password = '$2a$11$vWZQV5Y5rGxK5J5K5J5K5.J5K5J5K5J5K5J5K5J5K5J5K5J5K5Jm';
-                </textarea>
-                <hr>
-                <p><a href='/TenantPortal/Login'>Back to Login</a></p>
-            </body>
-            </html>
-        ", "text/html");
-    }
-
-    // TEMPORARY: Debug endpoint to see tenant data - REMOVE IN PRODUCTION
-    [HttpGet]
-    public async Task<IActionResult> DebugTenants()
-    {
-        var tenants = await _context.Tenants
-            .Where(t => t.Status == "Active")
-            .Select(t => new
-            {
-                t.TenantId,
-                t.FirstName,
-                t.LastName,
-                t.PACINumber,
-                t.GovernmentId,
-                HasPassword = t.Password != null ? "Yes" : "No",
-                t.Status
-            })
-            .Take(10)
-            .ToListAsync();
-
-        var html = @"
-            <html>
-            <head>
-                <style>
-                    body { font-family: monospace; padding: 20px; }
-                    table { border-collapse: collapse; width: 100%; }
-                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                    th { background-color: #4CAF50; color: white; }
-                    tr:nth-child(even) { background-color: #f2f2f2; }
-                </style>
-            </head>
-            <body>
-                <h2>Active Tenants Debug Info</h2>
-                <table>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>PACI Number</th>
-                        <th>Government ID</th>
-                        <th>Has Password</th>
-                        <th>Status</th>
-                    </tr>";
-
-        foreach (var tenant in tenants)
+        if (context.ActionDescriptor is ControllerActionDescriptor action
+            && action.MethodInfo.IsDefined(typeof(AllowAnonymousAttribute), inherit: true))
         {
-            html += $@"
-                    <tr>
-                        <td>{tenant.TenantId}</td>
-                        <td>{tenant.FirstName} {tenant.LastName}</td>
-                        <td>{tenant.PACINumber ?? "<em>NULL</em>"}</td>
-                        <td>{tenant.GovernmentId ?? "<em>NULL</em>"}</td>
-                        <td>{tenant.HasPassword}</td>
-                        <td>{tenant.Status}</td>
-                    </tr>";
+            return; // Explicitly public action (login, logout, gateway return pages)
         }
 
-        html += @"
-                </table>
-                <hr>
-                <p><strong>Instructions:</strong></p>
-                <ol>
-                    <li>Use the value from either 'PACI Number' or 'Government ID' column (whichever has data) as your Civil ID</li>
-                    <li>Visit <a href='/TenantPortal/GenerateHash'>Generate Hash</a> to get the SQL to set passwords</li>
-                    <li>After setting passwords, try logging in with the Civil ID and password 'Welcome@123'</li>
-                </ol>
-                <p><a href='/TenantPortal/Login'>Back to Login</a></p>
-            </body>
-            </html>";
-
-        return Content(html, "text/html");
+        if (!context.HttpContext.Session.GetInt32("TenantId").HasValue)
+        {
+            context.Result = new RedirectToActionResult("Login", "TenantPortal", null);
+        }
     }
 }

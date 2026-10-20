@@ -1,16 +1,25 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <!-- Maintenance photo upload: camera capture + gallery pick on Android 13+. -->
+    <!-- Maintenance photo capture. Gallery selection uses the Android Photo
+         Picker (image_picker on Android 13+), which needs NO media permission,
+         so READ_MEDIA_* are removed below to satisfy Google Play's photo/video
+         permissions policy (the app only attaches photos occasionally). -->
     <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- Strip broad media-gallery reads (policy) and the Advertising ID
+         permission (app has no ads/analytics) even if a plugin merges them in. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
     <!-- Sprint 26 — FCM push notifications. Android 13+ requires runtime
          consent for notifications; the app asks via firebase_messaging on
          first launch and the system surfaces the OS prompt. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
-        android:label="VIIJAR Tenant"
+        android:label="Alrtam"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false"

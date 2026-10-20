@@ -1,0 +1,151 @@
+@model RentCollection.Web.Models.ViewModels.UnitSetupViewModel
+@using RentCollection.Core.Enums
+@{
+    ViewData["Title"] = "Set up units";
+    var unitTypes = UnitTypes.All;
+}
+<div class="page-container" style="padding:2rem; max-width:1100px; margin:0 auto;">
+    @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
+    {
+        ["Title"] = L["Set up units"].Value,
+        ["Subtitle"] = L["Fill in every unit for this property, then save them all at once"].Value,
+        ["Crumbs"] = new (string label, string? href)[]
+        {
+            (L["Admin"].Value, "/Dashboard"),
+            (L["Units"].Value, "/Units"),
+            (L["Set up units"].Value, null),
+        }
+    })
+
+    @await Html.PartialAsync("_AlertMessages")
+
+    <form asp-action="Setup" method="post" class="form-card" id="unitSetupForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="PropertyId" />
+        <input type="hidden" asp-for="StartNumber" id="startNumber" />
+        <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+        <p style="margin:0 0 1rem; color:var(--text-muted,#6b7280);">
+            @L["Property"]: <strong>@Model.PropertyName</strong>
+        </p>
+
+        <!-- Auto-numbering helper: prefix + Regenerate renumbers every row's number. -->
+        <div class="form-grid" style="align-items:end; margin-bottom:1rem;">
+            <div class="form-field">
+                <label for="prefixInput">@L["Unit number prefix"]</label>
+                <input id="prefixInput" value="@Model.Prefix" maxlength="20"
+                       placeholder="@(L["e.g. A- or Flat "].Value)" />
+            </div>
+            <div class="form-field">
+                <button type="button" class="btn btn-secondary" id="regenBtn">
+                    @L["Regenerate numbers"]
+                </button>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="table" id="unitsTable" style="min-width:820px;">
+                <thead>
+                    <tr>
+                        <th style="width:2.5rem;">#</th>
+                        <th>@L["Unit number"]</th>
+                        <th>@L["Floor"]</th>
+                        <th>@L["Type"]</th>
+                        <th>@L["Bedrooms"]</th>
+                        <th>@L["Bathrooms"]</th>
+                        <th>@L["Sq ft"]</th>
+                        <th>@L["Monthly rent"]</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Units.Count; i++)
+                    {
+                        <tr class="unit-row">
+                            <td class="row-index">@(i + 1)</td>
+                            <td>
+                                <input asp-for="Units[i].UnitNumber" class="unit-number" required maxlength="50" />
+                            </td>
+                            <td><input asp-for="Units[i].FloorNumber" type="text" maxlength="50" style="width:7rem;" placeholder="@(L["e.g. Ground"].Value)" /></td>
+                            <td>
+                                <select asp-for="Units[i].UnitType">
+                                    <option value="">@L["-- Type --"]</option>
+                                    @foreach (var opt in unitTypes)
+                                    {
+                                        <option value="@opt" selected="@(Model.Units[i].UnitType == opt)">@opt</option>
+                                    }
+                                </select>
+                            </td>
+                            <td><input asp-for="Units[i].Bedrooms" type="number" min="0" style="width:5rem;" /></td>
+                            <td><input asp-for="Units[i].Bathrooms" type="number" min="0" style="width:5rem;" /></td>
+                            <td><input asp-for="Units[i].SquareFeet" type="number" min="0" style="width:6rem;" /></td>
+                            <td><input asp-for="Units[i].MonthlyRent" type="number" min="0" step="0.001" style="width:7rem;" /></td>
+                            <td><button type="button" class="btn btn-link remove-row" title="@L["Remove"]">✕</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display:flex; gap:.75rem; margin-top:1rem; flex-wrap:wrap;">
+            <button type="button" class="btn btn-secondary" id="addRowBtn">+ @L["Add unit"]</button>
+            <button type="submit" class="btn btn-primary">@L["Save all units"]</button>
+            <a asp-controller="Units" asp-action="Index" asp-route-propertyId="@Model.PropertyId" class="btn btn-link">@L["Skip for now"]</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var table = document.getElementById('unitsTable');
+    var tbody = table.querySelector('tbody');
+
+    // Renumber the visible row index column + the model-binding indexes so a
+    // removed/added row keeps Units[0..n] contiguous for MVC list binding.
+    function reindex() {
+        var rows = tbody.querySelectorAll('tr.unit-row');
+        rows.forEach(function (row, i) {
+            row.querySelector('.row-index').textContent = (i + 1);
+            row.querySelectorAll('input, select').forEach(function (el) {
+                if (el.name) el.name = el.name.replace(/Units\[\d+\]/, 'Units[' + i + ']');
+                if (el.id) el.id = el.id.replace(/Units_\d+__/, 'Units_' + i + '__');
+            });
+        });
+    }
+
+    // Regenerate every unit number from the prefix + StartNumber.
+    document.getElementById('regenBtn').addEventListener('click', function () {
+        var prefix = document.getElementById('prefixInput').value || '';
+        var start = parseInt(document.getElementById('startNumber').value || '1', 10);
+        tbody.querySelectorAll('tr.unit-row .unit-number').forEach(function (input, i) {
+            input.value = prefix + (start + i);
+        });
+    });
+
+    // Add a blank row cloned from the last one.
+    document.getElementById('addRowBtn').addEventListener('click', function () {
+        var rows = tbody.querySelectorAll('tr.unit-row');
+        var clone = rows[rows.length - 1].cloneNode(true);
+        clone.querySelectorAll('input').forEach(function (el) {
+            if (!el.classList.contains('unit-number')) el.value = '';
+        });
+        // Auto-number the new row from prefix + start + position.
+        var prefix = document.getElementById('prefixInput').value || '';
+        var start = parseInt(document.getElementById('startNumber').value || '1', 10);
+        var num = clone.querySelector('.unit-number');
+        if (num) num.value = prefix + (start + rows.length);
+        tbody.appendChild(clone);
+        reindex();
+    });
+
+    // Remove a row (keep at least one).
+    tbody.addEventListener('click', function (e) {
+        if (!e.target.classList.contains('remove-row')) return;
+        if (tbody.querySelectorAll('tr.unit-row').length <= 1) return;
+        e.target.closest('tr.unit-row').remove();
+        reindex();
+    });
+})();
+</script>
+}

@@ -145,25 +145,25 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
-                  ?.copyWith(color: AppTheme.textMuted)),
+                  ?.copyWith(color: AppTheme.textMuted),),
           const Divider(height: 24),
           _kv(
               l.invoiceTypeLabel,
               (inv.invoiceType == null ||
                       inv.invoiceType!.toLowerCase() == 'rent')
                   ? l.invoiceTypeRent
-                  : inv.invoiceType!),
+                  : inv.invoiceType!,),
           _kv(l.invoiceDateLabel,
-              AppDateUtils.formatShortDate(inv.invoiceDate)),
+              AppDateUtils.formatShortDate(inv.invoiceDate),),
           _kv(l.invoiceDueDateLabel,
-              AppDateUtils.formatShortDate(inv.dueDate)),
+              AppDateUtils.formatShortDate(inv.dueDate),),
           if ((inv.notes ?? '').isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(inv.notes!,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
-                    ?.copyWith(color: AppTheme.textMuted)),
+                    ?.copyWith(color: AppTheme.textMuted),),
           ],
         ],
       ),
@@ -177,18 +177,18 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
         children: [
           _amountRow(l.invoiceTotalLabel,
               CurrencyUtils.formatAmount(inv.totalAmount),
-              bold: true),
+              bold: true,),
           const SizedBox(height: 8),
           _amountRow(l.invoicePaidLabel,
               CurrencyUtils.formatAmount(inv.paidAmount),
-              color: AppTheme.successGreen),
+              color: AppTheme.successGreen,),
           const SizedBox(height: 8),
           _amountRow(l.invoiceBalanceLabel,
               CurrencyUtils.formatAmount(inv.balanceAmount),
               color: inv.balanceAmount > 0
                   ? AppTheme.errorRed
                   : AppTheme.successGreen,
-              bold: true),
+              bold: true,),
         ],
       ),
     );
@@ -204,14 +204,14 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+                  ?.copyWith(fontWeight: FontWeight.w700),),
           const SizedBox(height: 12),
           if (inv.payments.isEmpty)
             Text(l.invoiceNoPayments,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
-                    ?.copyWith(color: AppTheme.textMuted))
+                    ?.copyWith(color: AppTheme.textMuted),)
           else
             ...inv.payments.map(_paymentRow),
         ],
@@ -220,8 +220,15 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   }
 
   Widget _paymentRow(InvoicePaymentSummary p) {
-    final statusColor =
-        p.isCompleted ? AppTheme.successGreen : AppTheme.warningAmber;
+    // Failed / rejected payments are red (matches the payment-result screen),
+    // not amber "pending".
+    final st = p.status.toLowerCase();
+    final isFailed = st == 'failed' || st == 'rejected' || st == 'cancelled';
+    final statusColor = p.isCompleted
+        ? AppTheme.successGreen
+        : isFailed
+            ? AppTheme.errorRed
+            : AppTheme.warningAmber;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -233,7 +240,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(Icons.payments_rounded,
-                size: 18, color: statusColor),
+                size: 18, color: statusColor,),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -241,8 +248,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                    '${CurrencyUtils.formatAmount(p.amountPaid)} • ${p.paymentType}',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                    '${CurrencyUtils.formatAmount(p.amountPaid)} • ${localizePaymentType(context, p.paymentType)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),),
                 Text(
                   '${AppDateUtils.formatShortDate(p.paymentDate)} • ${localizeStatus(context, p.status)}',
                   style: Theme.of(context)
@@ -257,7 +264,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
             IconButton(
               tooltip: AppLocalizations.of(context)!.invoiceReceipt,
               icon: const Icon(Icons.receipt_long_rounded,
-                  color: AppTheme.primaryIndigo),
+                  color: AppTheme.primaryIndigo,),
               onPressed: () => ReceiptLauncher.open(context, p.paymentId),
             ),
         ],
@@ -356,7 +363,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
             description: inv.notes,
           );
           Navigator.pushNamed(context, '/payments/make',
-              arguments: invoiceForPayment);
+              arguments: invoiceForPayment,);
         },
         icon: const Icon(Icons.payment_rounded),
         label: Text(AppLocalizations.of(context)!.invoicePayNow),
@@ -398,19 +405,19 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
       );
 
   Widget _amountRow(String k, String v,
-      {Color? color, bool bold = false}) {
+      {Color? color, bool bold = false,}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(k,
             style: TextStyle(
                 color: AppTheme.textMuted,
-                fontWeight: bold ? FontWeight.w600 : FontWeight.w400)),
+                fontWeight: bold ? FontWeight.w600 : FontWeight.w400,),),
         Text(v,
             style: TextStyle(
                 color: color ?? AppTheme.textPrimary,
                 fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-                fontSize: bold ? 16 : 14)),
+                fontSize: bold ? 16 : 14,),),
       ],
     );
   }
@@ -422,11 +429,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.error_outline,
-                  size: 56, color: AppTheme.errorRed.withOpacity(0.6)),
+                  size: 56, color: AppTheme.errorRed.withOpacity(0.6),),
               const SizedBox(height: 12),
               Text(message,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium),
+                  style: Theme.of(context).textTheme.bodyMedium,),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _load,

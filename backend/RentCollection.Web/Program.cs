@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc.Localization;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,7 +13,9 @@ using RentCollection.Web.Filters;
 using RentCollection.Web.Services;
 using FluentValidation;
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.SqlServer;
+using Microsoft.Extensions.Caching.Memory;
 using Serilog;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -135,6 +139,9 @@ builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptio
     // Cookie first (explicit user choice), then Accept-Language header.
     o.RequestCultureProviders = new List<Microsoft.AspNetCore.Localization.IRequestCultureProvider>
     {
+        // Query string first so the KNET success/failure redirect can force the
+        // payer's app language (e.g. /TenantPortal/PaymentSuccess?culture=ar).
+        new Microsoft.AspNetCore.Localization.QueryStringRequestCultureProvider(),
         new Microsoft.AspNetCore.Localization.CookieRequestCultureProvider(),
         new Microsoft.AspNetCore.Localization.AcceptLanguageHeaderRequestCultureProvider(),
     };
@@ -160,6 +167,12 @@ builder.Services.AddControllersWithViews(options =>
 })
     .AddViewLocalization()
     .AddDataAnnotationsLocalization();
+
+// SharedResource.ar.resx carries ~70 key pairs that differ only by case
+// ("Active"/"active"); the compiled store keeps one, so the other fell back
+// to English. This wrapper retries a miss with the other casings. Registered
+// AFTER AddViewLocalization so it wins the IHtmlLocalizer<T> resolution.
+builder.Services.AddTransient(typeof(IHtmlLocalizer<>), typeof(RentCollection.Web.Services.CaseInsensitiveHtmlLocalizer<>));
 
 // Add Database Configuration
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -194,6 +207,11 @@ builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
         sp.GetRequiredService<RentCollection.Infrastructure.Services.Audit.EntityAuditInterceptor>());
 });
 
+// Demo deployments without TLS (e.g. SmarterASP ktempurl URLs) need cookies
+// sent over plain HTTP. Demo:LoginEnabled=true relaxes Secure from Always to
+// SameAsRequest for BOTH the auth cookie and the tenant session cookie.
+var demoLoginEnabled = builder.Configuration.GetValue<bool>("Demo:LoginEnabled");
+
 // Add Session support for Tenant Portal
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -202,6 +220,13 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.Name = "TenantSession";
+    // SECURITY: the session IS the tenant's identity. Secure unless the HTTP
+    // demo is on; Lax (not Strict) so the KNET gateway's top-level redirect
+    // back to /TenantPortal/PaymentSuccess still carries the session.
+    options.Cookie.SecurePolicy = demoLoginEnabled
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
 // Register authorization filters
@@ -285,8 +310,13 @@ builder.Services.PostConfigure<RentCollection.Application.Branding.BrandingSetti
     }
 });
 
-builder.Services.AddScoped<RentCollection.Application.Interfaces.IPdfService,
-    RentCollection.Infrastructure.Services.Pdf.QuestPdfService>();
+// Effective branding = appsettings baseline + the BrandingProfiles row saved
+// on /CompanySettings. Loaded once at startup (bootstrap below) and refreshed
+// on save. Factory registration avoids ctor ambiguity in QuestPdfService.
+builder.Services.AddSingleton<RentCollection.Application.Branding.BrandingCache>();
+builder.Services.AddScoped<RentCollection.Application.Interfaces.IPdfService>(sp =>
+    new RentCollection.Infrastructure.Services.Pdf.QuestPdfService(
+        sp.GetRequiredService<RentCollection.Application.Branding.BrandingCache>()));
 
 // Audit log writer (LEASE_AUDIT Flaw #16). Scoped so it shares the
 // DbContext + transaction with the action it's recording.
@@ -320,6 +350,12 @@ builder.Services.AddScoped<RentCollection.Application.Interfaces.IMonthEndCloseS
 builder.Services.Configure<RentCollection.Infrastructure.Services.Gemini.GeminiSettings>(
     builder.Configuration.GetSection("Gemini"));
 builder.Services.AddMemoryCache();
+// SECURITY (audit H2): per-account brute-force lockout for the login endpoints.
+builder.Services.AddSingleton<RentCollection.Web.Services.ILoginThrottle,
+    RentCollection.Web.Services.LoginThrottle>();
+// Admin-managed dropdown values (bilingual), consumed by dropdowns across the app.
+builder.Services.AddScoped<RentCollection.Web.Services.ILookupService,
+    RentCollection.Web.Services.LookupService>();
 builder.Services.AddHttpClient<
     RentCollection.Application.Interfaces.ICivilIdEnrichmentService,
     RentCollection.Infrastructure.Services.Gemini.GeminiCivilIdService>();
@@ -391,10 +427,54 @@ builder.Services.AddAuthentication(options =>
     // Demo deployments without TLS (e.g. SmarterASP ktempurl URLs) need the
     // cookie sent over plain HTTP. Setting Demo:LoginEnabled=true relaxes
     // this from Always to SameAsRequest so the auth cookie survives.
-    options.Cookie.SecurePolicy = builder.Configuration.GetValue<bool>("Demo:LoginEnabled")
+    options.Cookie.SecurePolicy = demoLoginEnabled
         ? CookieSecurePolicy.SameAsRequest
         : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
+
+    // SECURITY: server-side revocation for the 12-hour sliding cookie. A
+    // deactivated/deleted/demoted user otherwise keeps working until the cookie
+    // expires. Re-check the principal against Users at most once per 5 minutes
+    // per user (IMemoryCache marker keyed by id+role) so this costs one cheap
+    // query per user per window, not one per request. Fails OPEN on
+    // infrastructure errors, same as the JWT OnTokenValidated hook above.
+    options.Events.OnValidatePrincipal = async ctx =>
+    {
+        var idRaw = ctx.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var role = ctx.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
+        if (!int.TryParse(idRaw, out var userId)) return;
+
+        var cache = ctx.HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+        var cacheKey = $"auth-principal-ok:{userId}:{role}";
+        if (cache.TryGetValue(cacheKey, out _)) return;
+
+        bool stillValid;
+        try
+        {
+            var db = ctx.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+            // IgnoreQueryFilters: HttpContext.User isn't populated yet at this
+            // point, so the company filter can't be relied on either way.
+            var u = await db.Users.IgnoreQueryFilters().AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .Select(x => new { x.IsActive, x.Role })
+                .FirstOrDefaultAsync();
+
+            stillValid = u != null && u.IsActive && string.Equals(u.Role, role, StringComparison.Ordinal);
+        }
+        catch
+        {
+            return; // Infrastructure error — do NOT fail closed (would log everyone out).
+        }
+
+        if (stillValid)
+        {
+            cache.Set(cacheKey, true, TimeSpan.FromMinutes(5));
+            return;
+        }
+
+        ctx.RejectPrincipal();
+        await ctx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    };
 })
 .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
 {
@@ -414,7 +494,55 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        // SECURITY (audit L1): pin the algorithm so a token can't be presented
+        // under a different (or "none") algorithm.
+        ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
+        ClockSkew = TimeSpan.FromMinutes(1)
+    };
+
+    // SECURITY (audit M2): server-side revocation. On every validated token,
+    // confirm the tenant still exists, is Active and not soft-deleted, and that
+    // the token's security stamp still matches the current password hash — so a
+    // deactivated/deleted tenant or a password change immediately invalidates
+    // outstanding access tokens (previously valid for the full 60-min TTL).
+    // Fails OPEN on infrastructure errors (DB blip) so a transient fault can't
+    // lock every tenant out of the app.
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async ctx =>
+        {
+            try
+            {
+                var tid = ctx.Principal?.FindFirst("tenantId")?.Value;
+                if (!int.TryParse(tid, out var tenantId)) { ctx.Fail("Invalid token subject"); return; }
+
+                var db = ctx.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+                var t = await db.Tenants.IgnoreQueryFilters().AsNoTracking()
+                    .Where(x => x.TenantId == tenantId)
+                    .Select(x => new { x.Status, x.IsDeleted, x.Password })
+                    .FirstOrDefaultAsync();
+
+                if (t == null || t.IsDeleted || t.Status != "Active")
+                {
+                    ctx.Fail("Tenant is no longer active");
+                    return;
+                }
+
+                var stmp = ctx.Principal?.FindFirst("stmp")?.Value;
+                if (!string.IsNullOrEmpty(stmp) &&
+                    !string.Equals(stmp,
+                        RentCollection.Web.Services.JwtTokenService.ComputeSecurityStamp(t.Password),
+                        StringComparison.Ordinal))
+                {
+                    ctx.Fail("Token has been revoked");
+                }
+            }
+            catch
+            {
+                // Infrastructure error — do NOT fail closed (would log everyone out).
+            }
+        }
     };
 });
 
@@ -478,30 +606,63 @@ builder.Services.AddRateLimiter(options =>
         o.Window = TimeSpan.FromMinutes(1);
         o.QueueLimit = 0;
     });
+
+    // SECURITY: per-IP caps on the two anonymous/high-value tenant endpoints —
+    // credential stuffing on /api/tenant/login and payment-record spam on
+    // /api/payments/knet/initiate. Applied via the GlobalLimiter, partitioned
+    // by path+IP, so no [EnableRateLimiting] attribute is needed on the
+    // controllers; every other path gets a no-op partition. The global limiter
+    // runs alongside the named policies above, not instead of them.
+    // RemoteIpAddress is null only on the in-memory TestServer transport
+    // (WebApplicationFactory), where we skip limiting so the integration suite
+    // isn't throttled by a shared "unknown" bucket; IIS/Kestrel always set it.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var path = httpContext.Request.Path;
+        var ip = httpContext.Connection.RemoteIpAddress;
+        if (ip != null &&
+            (path.StartsWithSegments("/api/tenant/login", StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWithSegments("/api/payments/knet/initiate", StringComparison.OrdinalIgnoreCase)))
+        {
+            return RateLimitPartition.GetFixedWindowLimiter(
+                $"{path.Value!.ToLowerInvariant()}|{ip}",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                });
+        }
+        return RateLimitPartition.GetNoLimiter("unlimited");
+    });
 });
 
-// Add CORS for Flutter web app. Origins are read from config (Cors:AllowedOrigins),
-// falling back to the local dev origins so `flutter run -d chrome` works out of the box.
+// Add CORS. SECURITY (audit H10): this policy sets AllowCredentials(), so the
+// origin allow-list must be tight. The native mobile app does NOT use browser
+// CORS, so production only needs the web domain(s). Origins come from config
+// (Cors:AllowedOrigins); in production we fall back to the live host, and the
+// any-localhost allowance is enabled ONLY in Development (previously any
+// localhost:port on the shared host was a trusted, credentialed origin).
+var isDev = builder.Environment.IsDevelopment();
 builder.Services.AddCors(options =>
 {
     var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
         ?? new[]
         {
-            "http://localhost",
-            "https://localhost"
+            "https://www.alrtam.co",
+            "https://alrtam.co"
         };
 
     options.AddPolicy("FlutterApp", policy =>
     {
         policy.SetIsOriginAllowed(origin =>
             {
-                // Allow any localhost port (Flutter dev assigns dynamically) and any
-                // explicitly whitelisted origin from configuration.
-                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                {
-                    if (uri.Host == "localhost" || uri.Host == "127.0.0.1")
-                        return true;
-                }
+                // Localhost (any port) is trusted ONLY in Development so
+                // `flutter run -d chrome` works; never in production.
+                if (isDev && Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+                    && (uri.Host == "localhost" || uri.Host == "127.0.0.1"))
+                    return true;
                 return allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase);
             })
             .AllowAnyMethod()
@@ -621,6 +782,38 @@ try
                 ON [TenantDeviceTokens] ([TenantId], [IsActive]);
         END
     ");
+
+    // 2026-10-14 — Company & bank details for PDFs (/CompanySettings) and the
+    // hand-written receipt-book number on cash payments.
+    await db.Database.ExecuteSqlRawAsync(@"
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'BrandingProfiles')
+        BEGIN
+            CREATE TABLE [BrandingProfiles] (
+                [BrandingProfileId] INT IDENTITY(1,1) PRIMARY KEY,
+                [CompanyName] NVARCHAR(200) NULL,
+                [TagLine] NVARCHAR(200) NULL,
+                [ContactAddress] NVARCHAR(300) NULL,
+                [ContactPhone] NVARCHAR(50) NULL,
+                [ContactEmail] NVARCHAR(200) NULL,
+                [Website] NVARCHAR(200) NULL,
+                [BankName] NVARCHAR(200) NULL,
+                [BankAccountHolder] NVARCHAR(200) NULL,
+                [BankIban] NVARCHAR(50) NULL,
+                [BankSwiftBic] NVARCHAR(20) NULL,
+                [FooterTerms] NVARCHAR(1000) NULL,
+                [FooterTermsAr] NVARCHAR(1000) NULL,
+                [CreatedAt] DATETIME2 NOT NULL CONSTRAINT [DF_BrandingProfiles_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+                [ModifiedAt] DATETIME2 NULL,
+                [ModifiedBy] NVARCHAR(100) NULL
+            );
+        END
+        IF COL_LENGTH('CashPayments', 'ManualReceiptNumber') IS NULL
+            ALTER TABLE [CashPayments] ADD [ManualReceiptNumber] NVARCHAR(50) NULL;
+    ");
+
+    var brandingRow = await db.BrandingProfiles.AsNoTracking()
+        .OrderByDescending(b => b.BrandingProfileId).FirstOrDefaultAsync();
+    app.Services.GetRequiredService<RentCollection.Application.Branding.BrandingCache>().Apply(brandingRow);
 }
 catch (Exception ex)
 {
@@ -645,19 +838,91 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler();   // Routes API requests through GlobalExceptionHandler
+    // Audit L4: give the handler a fallback path so unhandled MVC (browser)
+    // errors render the friendly /Home/Error page instead of a bare 500. The
+    // GlobalExceptionHandler still intercepts /api requests first (returns JSON).
+    app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 
-// Enable Swagger in all environments
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// SECURITY (audit H9): Swagger exposed the full API surface (auth, KNET payment,
+// tenant portal) on the live host. Serve it only in Development, or when the
+// explicit Swagger:Enabled flag is set (off by default in production).
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Rent Collection API V1");
-    c.RoutePrefix = "swagger";
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Rent Collection API V1");
+        c.RoutePrefix = "swagger";
+    });
+}
+
+// SECURITY (audit H8): baseline security response headers (no WAF on shared
+// hosting to add these at the edge). CSP is intentionally deferred — it needs
+// per-view testing against the admin UI's inline scripts/styles before enforcing.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "SAMEORIGIN";              // clickjacking (allow same-origin framing)
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=()";
+    // SECURITY (audit H8): Content-Security-Policy. This is the "safe" phase-1
+    // policy from the view analysis — it allows the inline scripts/handlers/styles
+    // the admin UI currently depends on (254 inline handlers + ~80 style blocks
+    // make a nonce-only policy a multi-sprint refactor) plus the exact CDN origins
+    // in use, while hardening framing, base-uri, form-action and object-src. It
+    // still blocks injected external script/frame origins. Hardening script-src to
+    // nonces is tracked as follow-up work.
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
+        "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com data:; " +
+        "img-src 'self' data: https://upload.wikimedia.org; " +
+        "connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'";
+    await next();
 });
 
 app.UseHttpsRedirection();
+
+// SECURITY (audit C3/C4): the /uploads tree holds PRIVATE tenant files —
+// bank-transfer receipts, national-ID scans, maintenance photos. It sits under
+// wwwroot, so UseStaticFiles would otherwise serve it ANONYMOUSLY (unauth IDOR),
+// and a malicious .svg/.html upload served from our own origin becomes stored
+// XSS. This guard runs BEFORE UseStaticFiles and, for /uploads only:
+//   1. 404s script-capable file types so they can never execute from our origin;
+//   2. requires an authenticated session (cookie or JWT) — the mobile app never
+//      fetches these URLs (it only uploads), so the sole consumers are the
+//      authenticated admin web views;
+//   3. stamps nosniff so a mislabeled file can't be MIME-sniffed into script.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/uploads", StringComparison.OrdinalIgnoreCase))
+    {
+        var ext = System.IO.Path.GetExtension(context.Request.Path.Value ?? string.Empty).ToLowerInvariant();
+        string[] blockedExts = { ".svg", ".svgz", ".html", ".htm", ".xhtml", ".xml", ".js", ".mjs", ".mht", ".mhtml", ".shtml", ".swf" };
+        if (Array.IndexOf(blockedExts, ext) >= 0)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        var authed = (await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme)).Succeeded
+            || (await context.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme)).Succeeded;
+        if (!authed)
+        {
+            // 404 (not 401) so we don't confirm the file exists to an anonymous caller.
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    }
+    await next();
+});
+
 app.UseStaticFiles();
 
 // Apply the request culture (cookie → Accept-Language) before routing so
@@ -687,9 +952,12 @@ app.UseAuthorization();
 // disabled (tests / health-only deploys). Same `Hangfire:Enabled` flag.
 if (hangfireEnabled)
 {
+    // SECURITY: the dashboard exposes every company's job arguments and lets
+    // the viewer trigger/delete jobs, so it is SuperAdmin-only. (The shared
+    // HangfireAdminAuthorizationFilter also admits per-company Admins.)
     app.UseHangfireDashboard("/hangfire", new DashboardOptions
     {
-        Authorization = new[] { new RentCollection.Web.Services.HangfireAdminAuthorizationFilter() }
+        Authorization = new Hangfire.Dashboard.IDashboardAuthorizationFilter[] { new HangfireSuperAdminAuthorizationFilter() }
     });
 
 // Schedule recurring jobs on first boot. Idempotent — RecurringJobs.AddOrUpdate
@@ -733,6 +1001,13 @@ using (var scope = app.Services.CreateScope())
         RentCollection.Application.Interfaces.RecurringJobIds.ProcessNotificationOutbox,
         j => j.ProcessNotificationOutboxAsync(),
         "*/2 * * * *");  // every 2 minutes
+    // Phase 3 — expire abandoned KNET payments (Pending with no callback and no
+    // settlement evidence) so reconciliation isn't polluted. Runs daily at 02:15
+    // UTC, well after the near-instant gateway callback window.
+    recurring.AddOrUpdate<RentCollection.Infrastructure.Services.RecurringJobs>(
+        RentCollection.Application.Interfaces.RecurringJobIds.ExpireStaleKnetPayments,
+        j => j.ExpireStaleKnetPaymentsAsync(),
+        Cron.Daily(hour: 2, minute: 15));
     // Sprint 4 — monthly Executive Dashboard email on the 1st at 06:00 UTC.
     // Recipients: `Reports:MonthlyEmailRecipients` (semicolon-separated)
     // or fall back to all admin-role users. Skipped silently if neither
@@ -771,3 +1046,18 @@ app.Run();
 // (Sprint 4 A8). Top-level statements compile Program as `internal` by
 // default; making it `public partial` lets the test host resolve it.
 public partial class Program { }
+
+/// <summary>
+/// Hangfire dashboard gate: authenticated back-office cookie AND the SuperAdmin
+/// role. Lives here (not in Services/) so the dashboard registration above is
+/// self-evidently SuperAdmin-only.
+/// </summary>
+internal sealed class HangfireSuperAdminAuthorizationFilter : Hangfire.Dashboard.IDashboardAuthorizationFilter
+{
+    public bool Authorize(Hangfire.Dashboard.DashboardContext context)
+    {
+        var http = context.GetHttpContext();
+        if (http?.User?.Identity?.IsAuthenticated != true) return false;
+        return http.User.IsInRole(Roles.SuperAdmin);
+    }
+}

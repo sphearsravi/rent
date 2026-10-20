@@ -17,7 +17,7 @@ namespace RentCollection.E2ETests;
 ///   the mobile API and SEES it Paid.
 ///
 /// Run against the demo (keeps data there for manual testing):
-///   RC_E2E_BASE_URL=http://demo.example.com
+///   RC_E2E_BASE_URL=http://<DEMO_HOST>
 ///   RC_E2E_DB="<prod connection string>"      (used only to read back the IDs)
 ///   dotnet test --filter FullWorkflowManualTest
 /// Watch it live: add RC_E2E_HEADED=1 RC_E2E_SLOWMO=800
@@ -192,11 +192,11 @@ public sealed class FullWorkflowManualTest : IClassFixture<E2EFixture>
         sb.AppendLine($"  Invoice  : id={invoiceId}  amount={invoiceAmount:0.000} KWD  status=Paid");
         sb.AppendLine($"  Payment  : id={paymentId}  status=Completed(2)  (approved)");
         sb.AppendLine("  ---------------------------------------------------------------------------------------");
-        sb.AppendLine($"  MOBILE-APP LOGIN →  Civil ID: {civilId}   Password: {tenantPassword}");
+        sb.AppendLine($"  MOBILE-APP LOGIN →  Civil ID: {civilId}   Password: ***");
         sb.AppendLine("  (tenant logged in via API and their invoice shows PAID ✓)");
         sb.AppendLine("=========================================================================================");
         Console.WriteLine(sb.ToString());
         Console.WriteLine($"WORKFLOW_MANUAL_OK property={propertyId} unit={unitId} tenant={tenantId} lease={leaseId} " +
-            $"invoice={invoiceId} payment={paymentId} civilId={civilId} password={tenantPassword} docs={docCount}");
+            $"invoice={invoiceId} payment={paymentId} civilId={civilId} password=*** docs={docCount}");
     }
 }

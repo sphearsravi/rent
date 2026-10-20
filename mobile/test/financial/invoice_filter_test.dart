@@ -24,7 +24,7 @@ void main() {
     test('every filter has a non-empty label', () {
       for (final filter in InvoiceFilter.values) {
         expect(filter.label, isNotEmpty,
-            reason: '${filter.name} should have a non-empty label');
+            reason: '${filter.name} should have a non-empty label',);
       }
     });
   });

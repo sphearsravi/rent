@@ -25,6 +25,8 @@
         </div>
     </div>
 
+    @await Html.PartialAsync("_AlertMessages")
+
     <div class="details-card">
         <div class="status-header">
             <div class="status-badges">
@@ -107,6 +109,24 @@
                 <div class="info-value description-box">@Model.Description</div>
             </div>
         </div>
+
+        @if (Model.Photos != null && Model.Photos.Any())
+        {
+            <div class="details-section">
+                <h3 class="section-title"><i class="fas fa-images"></i> @L["Photos"] (@Model.Photos.Count)</h3>
+                <div style="display:flex; flex-wrap:wrap; gap:.75rem;">
+                    @foreach (var p in Model.Photos.OrderBy(x => x.MaintenancePhotoId))
+                    {
+                        <a href="/Maintenance/Photo/@p.MaintenancePhotoId" target="_blank" rel="noopener"
+                           style="display:block; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; width:150px; text-decoration:none;">
+                            <img src="/Maintenance/Photo/@p.MaintenancePhotoId" alt="@p.FileName"
+                                 style="width:150px; height:120px; object-fit:cover; display:block;" loading="lazy" />
+                            <span style="display:block; padding:.35rem .5rem; font-size:.75rem; color:#64748b;">@p.Kind</span>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
 
         @if (Model.Status == "Completed" || Model.CompletedDate != null || Model.ActualCost != null || !string.IsNullOrEmpty(Model.Notes))
         {
@@ -199,7 +219,7 @@
 @section Styles {
     <style>
         body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #c7d2fe 100%);
+            background: linear-gradient(135deg, #f8fafc 0%, #f2e8c8 50%, #e6d4a0 100%);
             color: #1e293b;
             min-height: 100vh;
         }
@@ -268,7 +288,7 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white;
         }
 
@@ -301,7 +321,7 @@
 
         .details-card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             overflow: hidden;
@@ -405,7 +425,7 @@
             content: '';
             width: 4px;
             height: 24px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             border-radius: 2px;
         }
 
@@ -469,7 +489,7 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white;
             display: flex;
             align-items: center;

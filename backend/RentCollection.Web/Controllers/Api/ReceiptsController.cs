@@ -37,7 +37,7 @@ public class ReceiptsController : ControllerBase
     /// </summary>
     [HttpGet("{paymentId}/receipt.pdf")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme + "," + Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme)]
-    public async Task<IActionResult> Get(int paymentId)
+    public async Task<IActionResult> Get(int paymentId, [FromQuery] string? culture = null)
     {
         var payment = await _context.Payments
             .AsNoTracking()
@@ -47,6 +47,7 @@ public class ReceiptsController : ControllerBase
                 .ThenInclude(l => l.Unit)
                     .ThenInclude(u => u.Property)
             .Include(p => p.Invoice)
+            .Include(p => p.CashPayment)
             .FirstOrDefaultAsync(p => p.PaymentId == paymentId);
 
         if (payment == null) return NotFound();
@@ -79,7 +80,17 @@ public class ReceiptsController : ControllerBase
             Currency = "KWD",
             TransactionReference = payment.TransactionReference,
             InvoiceNumber = payment.InvoiceId.HasValue ? $"INV-{payment.InvoiceId:D6}" : null,
+            ManualReceiptNumber = payment.CashPayment?.ManualReceiptNumber,
             Notes = payment.Notes,
+            // 2026-10 redesign: what is still owed on the invoice, and the
+            // render language (explicit ?culture= wins, else the request culture).
+            InvoiceBalanceAfter = payment.Invoice != null
+                ? payment.Invoice.TotalAmount - payment.Invoice.PaidAmount
+                : null,
+            Culture = !string.IsNullOrWhiteSpace(culture)
+                ? culture!
+                : System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
+            GeneratedAt = DateTime.UtcNow,
         };
 
         var bytes = _pdf.RenderReceipt(model);
@@ -99,10 +110,15 @@ public class ReceiptsController : ControllerBase
         if (int.TryParse(claim, out var claimTenantId) && claimTenantId == payment.TenantId)
             return true;
 
-        // Cookie path: admin portal — any authenticated user is allowed.
-        // (Property/Company filtering happens via the global query filter.)
+        // Cookie path: admin portal. SECURITY (audit C7): Payment has NO company
+        // query filter, so "any authenticated admin" would leak other companies'
+        // receipts. Verify the payment's company (via its Tenant) against the
+        // caller's company claim. SuperAdmin is cross-company by design.
         var hasCookieAuth = User.Identities.Any(i =>
             i.AuthenticationType == Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
-        return hasCookieAuth;
+        if (!hasCookieAuth) return false;
+        if (User.IsInRole(RentCollection.Core.Entities.Roles.SuperAdmin)) return true;
+        return int.TryParse(User.FindFirstValue("companyId"), out var cid)
+            && payment.Tenant?.CompanyId == cid;
     }
 }

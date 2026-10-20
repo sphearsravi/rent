@@ -7,7 +7,7 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appName => 'ڤيجار للمستأجرين';
+  String get appName => 'الرتم';
 
   @override
   String get loginTitle => 'تسجيل الدخول';
@@ -191,6 +191,82 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dashboardNoMaintenance => 'لا توجد طلبات صيانة معلّقة';
+
+  @override
+  String get dashboardAmountDue => 'المبلغ المستحق';
+
+  @override
+  String get dashboardAllPaidUp => 'لا توجد مستحقات';
+
+  @override
+  String get dashboardAllPaidUpBody => 'لا توجد فواتير غير مدفوعة — لا شيء للدفع الآن.';
+
+  @override
+  String dashboardOverdueChip(int count) {
+    return '$count متأخرة';
+  }
+
+  @override
+  String get dashboardNextPaymentDue => 'الدفعة القادمة';
+
+  @override
+  String get dashboardDueToday => 'مستحقة اليوم';
+
+  @override
+  String dashboardDueInDays(int days) {
+    return 'مستحقة خلال $days يوم';
+  }
+
+  @override
+  String dashboardOverdueByDays(int days) {
+    return 'متأخرة $days يوم';
+  }
+
+  @override
+  String get dashboardPayNow => 'ادفع الآن';
+
+  @override
+  String get dashboardQuickActions => 'إجراءات سريعة';
+
+  @override
+  String get dashboardActionPay => 'دفع';
+
+  @override
+  String get dashboardActionRequest => 'طلب جديد';
+
+  @override
+  String get dashboardActionLeases => 'عقودي';
+
+  @override
+  String get dashboardActionProfile => 'الملف الشخصي';
+
+  @override
+  String get dashboardStatOutstanding => 'المستحق';
+
+  @override
+  String get dashboardStatOverdue => 'متأخرة';
+
+  @override
+  String get dashboardStatOpenRequests => 'طلبات مفتوحة';
+
+  @override
+  String get dashboardStatMonthlyRent => 'الإيجار الشهري';
+
+  @override
+  String dashboardLeaseExpiring(int days) {
+    return 'ينتهي العقد خلال $days يوم';
+  }
+
+  @override
+  String get dashboardLeaseExpiringAction => 'تواصل مع المكتب للتجديد';
+
+  @override
+  String get dashboardInvoicesDueOne => 'فاتورة واحدة للدفع';
+
+  @override
+  String dashboardInvoicesDueMany(int count) {
+    return '$count فواتير للدفع';
+  }
 
   @override
   String get invoicesTitle => 'الفواتير';
@@ -472,7 +548,7 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get aboutTagline => 'نظام VIIJAR لتحصيل الإيجار - تطبيق المستأجر';
+  String get aboutTagline => 'نظام Alrtam لتحصيل الإيجار - تطبيق المستأجر';
 
   @override
   String get aboutDescription => 'أدِر عقود إيجارك، وادفع مستحقاتك، وقدّم طلبات الصيانة من مكان واحد.';
@@ -563,6 +639,104 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get paymentCashOfficeHours => 'ساعات العمل: الأحد - الخميس، 9 صباحًا - 5 مساءً. يُصدر الإيصال بعد التحقق من الدفعة.';
+
+  @override
+  String get paymentCashRequest => 'إبلاغ المكتب — سأدفع نقداً';
+
+  @override
+  String get paymentCashRequestSuccess => 'تم إبلاغ المكتب. ادفع لدى الكاونتر وسيؤكد الموظفون العملية.';
+
+  @override
+  String get paymentCashRequestFailed => 'تعذّر إرسال طلب الدفع النقدي. حاول مرة أخرى.';
+
+  @override
+  String get paymentCashRequestTitle => 'الدفع نقداً في المكتب';
+
+  @override
+  String get paymentCashRequestIntro => 'أخبر المكتب بالمبلغ الذي ستحضره. يمكنك دفع جزء من المبلغ الآن والباقي لاحقاً.';
+
+  @override
+  String get paymentCashRequestAmountLabel => 'المبلغ الذي سأدفعه (د.ك)';
+
+  @override
+  String paymentCashRequestAmountInvalid(String balance) {
+    return 'أدخل مبلغاً بين 0.001 و $balance د.ك';
+  }
+
+  @override
+  String paymentCashRequestPartialHint(String remaining) {
+    return 'المتبقي بعد هذه الدفعة: $remaining د.ك';
+  }
+
+  @override
+  String get paymentCashRequestFullBalance => 'كامل المبلغ';
+
+  @override
+  String get paymentCashRequestConfirm => 'إبلاغ المكتب';
+
+  @override
+  String get errorInvalidCredentials => 'الرقم المدني أو كلمة المرور غير صحيحة.';
+
+  @override
+  String get statusPendingVerification => 'بانتظار التحقق';
+
+  @override
+  String get maintCatPlumbing => 'سباكة';
+
+  @override
+  String get maintCatElectrical => 'كهرباء';
+
+  @override
+  String get maintCatHvac => 'تكييف';
+
+  @override
+  String get maintCatAppliance => 'أجهزة';
+
+  @override
+  String get maintCatStructural => 'إنشائي';
+
+  @override
+  String get maintCatOther => 'أخرى';
+
+  @override
+  String get maintPrioLow => 'منخفضة';
+
+  @override
+  String get maintPrioMedium => 'متوسطة';
+
+  @override
+  String get maintPrioHigh => 'عالية';
+
+  @override
+  String get maintPrioEmergency => 'طارئة';
+
+  @override
+  String get maintenanceSubmitFailed => 'تعذّر إرسال الطلب. حاول مرة أخرى.';
+
+  @override
+  String get dashboardBalanceUnavailable => 'تعذّر تحميل رصيدك';
+
+  @override
+  String get dashboardBalanceUnavailableBody => 'تحقق من الاتصال واسحب للأسفل للتحديث.';
+
+  @override
+  String get paymentChooseMethodButton => 'اختر طريقة الدفع';
+
+  @override
+  String paymentForInvoice(String id) {
+    return 'دفع الفاتورة رقم $id';
+  }
+
+  @override
+  String get paymentAmountDueLabel => 'المبلغ المستحق';
+
+  @override
+  String get payOldestFirstTitle => 'ادفع أقدم فاتورة أولاً';
+
+  @override
+  String payOldestFirstGoTo(String id) {
+    return 'الانتقال إلى الفاتورة رقم $id';
+  }
 
   @override
   String get paymentNoPendingInvoices => 'لا توجد فواتير مستحقة';
@@ -763,4 +937,45 @@ class AppLocalizationsAr extends AppLocalizations {
   String payInvoiceFirst(String id) {
     return 'ادفع الفاتورة #$id أولاً';
   }
+
+  @override
+  String get legalCase => 'قضية قانونية';
+
+  @override
+  String legalCaseNextHearing(String date) {
+    return 'الجلسة القادمة: $date';
+  }
+
+  @override
+  String get caseStatusOpen => 'مفتوحة';
+
+  @override
+  String get caseStatusHearing => 'جلسة';
+
+  @override
+  String get caseStatusWon => 'كسبت';
+
+  @override
+  String get caseStatusLost => 'خسرت';
+
+  @override
+  String get caseStatusSettled => 'تسوية';
+
+  @override
+  String get caseStatusWithdrawn => 'مسحوبة';
+
+  @override
+  String get caseStatusClosed => 'مغلقة';
+
+  @override
+  String get caseTypeEviction => 'إخلاء';
+
+  @override
+  String get caseTypeNonPayment => 'عدم السداد';
+
+  @override
+  String get caseTypeDamages => 'أضرار';
+
+  @override
+  String get caseTypeOther => 'أخرى';
 }

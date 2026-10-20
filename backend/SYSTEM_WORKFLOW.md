@@ -363,10 +363,10 @@ the `<form>` wrapper and use the `.fr-zone` / `.fr-field` markup.
 (`RAVIWST\SQLEXPRESS\RentCollectionDB`), Hangfire SQL in the same DB.
 
 **Production / Demo** (SmarterASP.NET shared hosting):
-- Site: `http://<deploy-host>`
+- Site: `http://<DEMO_HOST>`
 - App pool: `alrtam-001` (.NET 8, **must be 64-bit** — 32-bit breaks
   SQLite/EPPlus native deps)
-- DB: SmarterASP MSSQL (`<sql-host>`), connection string in
+- DB: SmarterASP MSSQL (`<DB_HOST>`), connection string in
   `appsettings.json` (rotate after every transcript that touches it!)
 - Secrets to set via env var on real prod: `Jwt__Key`, `Gemini__ApiKey`,
   `Knet__TranportalPwd`. Never hard-code these.

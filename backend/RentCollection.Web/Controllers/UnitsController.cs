@@ -8,6 +8,7 @@ using RentCollection.Application.Interfaces;
 using RentCollection.Core.Entities;
 using RentCollection.Core.Enums;
 using RentCollection.Infrastructure.Data;
+using RentCollection.Web.Models.ViewModels;
 
 namespace RentCollection.Web.Controllers;
 
@@ -47,18 +48,20 @@ public class UnitsController : Controller
     /// </summary>
     public async Task<IActionResult> Index(
         int? propertyId, string? status, string? unitType,
-        int? floor, string? sizeBand, string? search)
+        string? floor, string? sizeBand, string? search)
     {
-        var q = _context.Units
+        var q = ScopedUnits()
             .Include(u => u.Property)
-            .Include(u => u.Leases.Where(l => l.Status == LeaseStatuses.Active))
+            // Pending (deposit-awaiting) leases are included so the list can show
+            // the unit as Reserved instead of Vacant while the lease is pending.
+            .Include(u => u.Leases.Where(l => l.Status == LeaseStatuses.Active || l.Status == LeaseStatuses.Pending))
                 .ThenInclude(l => l.Tenant)
             .AsQueryable();
 
         if (propertyId.HasValue) q = q.Where(u => u.PropertyId == propertyId.Value);
         if (!string.IsNullOrEmpty(status)) q = q.Where(u => u.Status == status);
         if (!string.IsNullOrEmpty(unitType)) q = q.Where(u => u.UnitType == unitType);
-        if (floor.HasValue) q = q.Where(u => u.FloorNumber == floor.Value);
+        if (!string.IsNullOrWhiteSpace(floor)) q = q.Where(u => u.FloorNumber == floor);
         if (!string.IsNullOrEmpty(sizeBand)) q = q.Where(u => u.SizeBand == sizeBand);
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -95,10 +98,12 @@ public class UnitsController : Controller
     /// + average occupancy. Drives the chip badges + the top cards.
     /// Cached 30s like the other Snapshot endpoints.
     /// </summary>
-    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "propertyId" })]
+    // SECURITY: Location=Client (not Any) — a shared/proxy cache must never
+    // serve one company's figures to another company's user.
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "propertyId" })]
     public async Task<IActionResult> Snapshot(int? propertyId)
     {
-        var q = _context.Units.AsQueryable();
+        var q = ScopedUnits();
         if (propertyId.HasValue) q = q.Where(u => u.PropertyId == propertyId.Value);
 
         var total = await q.CountAsync();
@@ -130,7 +135,7 @@ public class UnitsController : Controller
     /// current-lease end, and last-tenant name. Mirrors the
     /// TenantKpiBatch/LeasesKpiBatch pattern.
     /// </summary>
-    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "ids" })]
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "ids" })]
     public async Task<IActionResult> KpiBatch(string? ids)
     {
         var idList = (ids ?? "")
@@ -139,8 +144,10 @@ public class UnitsController : Controller
             .Where(n => n > 0).Distinct().ToList();
         if (idList.Count == 0) return Json(Array.Empty<object>());
 
+        // Leases have no company filter — pin them to units the caller can see.
         var leases = await _context.Leases
-            .Where(l => idList.Contains(l.UnitId))
+            .Where(l => idList.Contains(l.UnitId)
+                && _context.Properties.Any(p => p.PropertyId == l.Unit.PropertyId))
             .Select(l => new
             {
                 l.UnitId,
@@ -185,7 +192,8 @@ public class UnitsController : Controller
         if (!UnitStatuses.All.Contains(newStatus))
             return BadRequest(new { error = "invalid status" });
 
-        var unit = await _context.Units.FirstOrDefaultAsync(u => u.UnitId == id);
+        // ScopedUnits() → NotFound for another company's unit.
+        var unit = await ScopedUnits().FirstOrDefaultAsync(u => u.UnitId == id);
         if (unit == null) return NotFound();
 
         // Refuse to mark a unit with an active lease as anything other than Occupied.
@@ -223,7 +231,7 @@ public class UnitsController : Controller
     /// </summary>
     public async Task<IActionResult> Details(int id)
     {
-        var unit = await _context.Units
+        var unit = await ScopedUnits()
             .Include(u => u.Property)
             .FirstOrDefaultAsync(u => u.UnitId == id);
         if (unit == null) return NotFound();
@@ -250,7 +258,7 @@ public class UnitsController : Controller
     /// </summary>
     public async Task<IActionResult> History(int id)
     {
-        var unit = await _context.Units
+        var unit = await ScopedUnits()
             .Include(u => u.Property)
             .FirstOrDefaultAsync(u => u.UnitId == id);
         if (unit == null) return NotFound();
@@ -328,13 +336,13 @@ public class UnitsController : Controller
     /// "vacant.xlsx", "tower-b-2bhk.xlsx" etc. are distinguishable.
     /// </summary>
     public async Task<IActionResult> ExportExcel(int? propertyId, string? status,
-        string? unitType, int? floor, string? sizeBand, string? search)
+        string? unitType, string? floor, string? sizeBand, string? search)
     {
-        var q = _context.Units.Include(u => u.Property).AsQueryable();
+        var q = ScopedUnits().Include(u => u.Property).AsQueryable();
         if (propertyId.HasValue) q = q.Where(u => u.PropertyId == propertyId.Value);
         if (!string.IsNullOrEmpty(status)) q = q.Where(u => u.Status == status);
         if (!string.IsNullOrEmpty(unitType)) q = q.Where(u => u.UnitType == unitType);
-        if (floor.HasValue) q = q.Where(u => u.FloorNumber == floor.Value);
+        if (!string.IsNullOrWhiteSpace(floor)) q = q.Where(u => u.FloorNumber == floor);
         if (!string.IsNullOrEmpty(sizeBand)) q = q.Where(u => u.SizeBand == sizeBand);
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -390,6 +398,135 @@ public class UnitsController : Controller
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name);
     }
 
+    /// <summary>
+    /// Bulk "Unit Setup" grid. Reached automatically after creating a property
+    /// with <c>NumberOfUnits &gt; 0</c> (and from the property Edit page when the
+    /// count is raised above the units that exist). Renders one editable row per
+    /// unit still to be created — numbered <c>{prefix}{n}</c> starting just past
+    /// any units the property already has — so a whole building is filled in and
+    /// saved in one POST.
+    /// </summary>
+    public async Task<IActionResult> Setup(int propertyId, int? count, string? prefix)
+    {
+        var property = await _context.Properties
+            .FirstOrDefaultAsync(p => p.PropertyId == propertyId);
+        if (property == null) return NotFound();
+
+        var existingCount = await _context.Units.CountAsync(u => u.PropertyId == propertyId);
+
+        // Default target: however many units are still missing versus the
+        // property's declared NumberOfUnits. Caller can override via ?count=.
+        var toCreate = count ?? Math.Max(0, property.NumberOfUnits - existingCount);
+        if (toCreate <= 0)
+        {
+            TempData["SuccessMessage"] =
+                $"'{property.PropertyName}' already has all {existingCount} unit(s). Add more below if you need to.";
+            toCreate = 1; // still let them add at least one ad-hoc unit
+        }
+        // Hard cap so a fat-fingered NumberOfUnits can't render thousands of rows.
+        toCreate = Math.Min(toCreate, 200);
+
+        var start = existingCount + 1;
+        var vm = new UnitSetupViewModel
+        {
+            PropertyId = propertyId,
+            PropertyName = property.PropertyName,
+            Prefix = prefix,
+            StartNumber = start,
+            Units = Enumerable.Range(0, toCreate).Select(i => new UnitSetupRow
+            {
+                UnitNumber = $"{prefix}{start + i}"
+            }).ToList()
+        };
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Setup(UnitSetupViewModel vm)
+    {
+        var property = await _context.Properties
+            .FirstOrDefaultAsync(p => p.PropertyId == vm.PropertyId);
+        if (property == null) return NotFound();
+        vm.PropertyName = property.PropertyName;
+
+        // Drop rows the user blanked out entirely (removed via the grid).
+        vm.Units = (vm.Units ?? new List<UnitSetupRow>())
+            .Where(u => !string.IsNullOrWhiteSpace(u.UnitNumber))
+            .ToList();
+
+        if (vm.Units.Count == 0)
+            ModelState.AddModelError(string.Empty, "Add at least one unit before saving.");
+
+        // In-batch duplicate check (case-insensitive) so two rows can't claim
+        // the same number before we ever hit the DB.
+        var dupInBatch = vm.Units
+            .GroupBy(u => u.UnitNumber.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+        foreach (var d in dupInBatch)
+            ModelState.AddModelError(string.Empty, $"Unit number '{d}' is used more than once in the grid.");
+
+        // Collision with units already on the property (respects the
+        // (PropertyId, UnitNumber) unique index).
+        var existingNumbers = await _context.Units
+            .Where(u => u.PropertyId == vm.PropertyId)
+            .Select(u => u.UnitNumber)
+            .ToListAsync();
+        var existingSet = new HashSet<string>(existingNumbers, StringComparer.OrdinalIgnoreCase);
+        foreach (var row in vm.Units)
+            if (existingSet.Contains(row.UnitNumber.Trim()))
+                ModelState.AddModelError(string.Empty,
+                    $"Unit number '{row.UnitNumber.Trim()}' already exists on this property.");
+
+        if (!ModelState.IsValid)
+            return View(vm);
+
+        var now = DateTime.UtcNow;
+        foreach (var row in vm.Units)
+        {
+            var unit = new Unit
+            {
+                PropertyId = vm.PropertyId,
+                UnitNumber = row.UnitNumber.Trim(),
+                UnitType = row.UnitType ?? string.Empty,
+                FloorNumber = row.FloorNumber,
+                Bedrooms = row.Bedrooms,
+                Bathrooms = row.Bathrooms,
+                SquareFeet = row.SquareFeet,
+                MonthlyRent = row.MonthlyRent,
+                Status = UnitStatuses.Vacant,
+                SizeBand = UnitSizeBands.Derive(row.Bedrooms, row.UnitType ?? string.Empty),
+                CreatedDate = now
+            };
+            _context.Add(unit);
+        }
+
+        await _audit.WriteAsync(
+            entityType: "Unit",
+            entityId: vm.PropertyId,
+            action: "BulkCreated",
+            byUser: User.Identity?.Name ?? "system",
+            payload: new { vm.PropertyId, Count = vm.Units.Count, Numbers = vm.Units.Select(u => u.UnitNumber.Trim()) });
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsUniqueIndexViolation(ex, "idx_units_property_number"))
+        {
+            // Race safety net — someone slipped a duplicate number in between
+            // our checks and the save.
+            ModelState.AddModelError(string.Empty,
+                "One of the unit numbers was just taken by another change. Adjust the duplicates and save again.");
+            return View(vm);
+        }
+
+        TempData["SuccessMessage"] = $"{vm.Units.Count} unit(s) created for '{property.PropertyName}'.";
+        return RedirectToAction(nameof(Index), new { propertyId = vm.PropertyId });
+    }
+
     public async Task<IActionResult> Create(int? propertyId)
     {
         await PopulateDropdownsAsync(propertyId);
@@ -406,6 +543,12 @@ public class UnitsController : Controller
             ModelState.AddModelError(nameof(Unit.UnitNumber), "Unit number is required.");
         if (unit.MonthlyRent < 0)
             ModelState.AddModelError(nameof(Unit.MonthlyRent), "Rent cannot be negative.");
+
+        // SECURITY: the property must belong to the caller's company. The
+        // Properties DbSet is company-filtered, so a foreign PropertyId → NotFound.
+        if (unit.PropertyId > 0
+            && !await _context.Properties.AnyAsync(p => p.PropertyId == unit.PropertyId))
+            return NotFound();
 
         // Proactive duplicate check against the (PropertyId, UnitNumber)
         // unique index. Without this the DB raises a SqlException that
@@ -427,16 +570,19 @@ public class UnitsController : Controller
             unit.CreatedDate = DateTime.UtcNow;
             _context.Add(unit);
 
-            await _audit.WriteAsync(
-                entityType: "Unit",
-                entityId: 0, // populated by DB after save
-                action: "Created",
-                byUser: User.Identity?.Name ?? "system",
-                payload: new { unit.PropertyId, unit.UnitNumber, unit.UnitType });
-
             try
             {
                 await _context.SaveChangesAsync();
+
+                // Audit AFTER the save so the entry carries the real UnitId
+                // (it was previously written with entityId 0).
+                await _audit.WriteAsync(
+                    entityType: "Unit",
+                    entityId: unit.UnitId,
+                    action: "Created",
+                    byUser: User.Identity?.Name ?? "system",
+                    payload: new { unit.PropertyId, unit.UnitNumber, unit.UnitType });
+
                 TempData["SuccessMessage"] = $"Unit '{unit.UnitNumber}' created.";
                 return RedirectToAction(nameof(Details), new { id = unit.UnitId });
             }
@@ -466,7 +612,9 @@ public class UnitsController : Controller
 
     public async Task<IActionResult> Edit(int id)
     {
-        var unit = await _context.Units.FindAsync(id);
+        var unit = await ScopedUnits()
+            .Include(u => u.Property)
+            .FirstOrDefaultAsync(u => u.UnitId == id);
         if (unit == null) return NotFound();
         await PopulateDropdownsAsync(unit.PropertyId);
         return View(unit);
@@ -474,18 +622,34 @@ public class UnitsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("UnitId,PropertyId,UnitNumber,UnitType,SquareFeet,Bathrooms,Bedrooms,MonthlyRent,FloorNumber,RowVersion,CreatedDate,Status")] Unit unit)
+    public async Task<IActionResult> Edit(int id, [Bind("UnitId,UnitNumber,UnitType,SquareFeet,Bathrooms,Bedrooms,MonthlyRent,FloorNumber,RowVersion")] Unit unit)
     {
         if (id != unit.UnitId) return NotFound();
+
+        // The form still posts PropertyId / Status / CreatedDate as hidden
+        // fields; they are intentionally unbound (Status changes go through
+        // ChangeStatus, a unit is never moved between properties).
+        ModelState.Remove(nameof(Unit.PropertyId));
+        ModelState.Remove(nameof(Unit.Status));
+        ModelState.Remove(nameof(Unit.CreatedDate));
+
+        // LOAD-THEN-COPY. `_context.Update(postedModel)` marked EVERY column
+        // modified, so AvailableFromDate / SizeBand / anything unposted was
+        // overwritten with defaults. ScopedUnits() also enforces company scope.
+        var existing = await ScopedUnits()
+            .Include(u => u.Property)
+            .FirstOrDefaultAsync(u => u.UnitId == id);
+        if (existing == null) return NotFound();
 
         if (unit.MonthlyRent < 0)
             ModelState.AddModelError(nameof(Unit.MonthlyRent), "Rent cannot be negative.");
 
         // Same duplicate guard as Create — but skip the row being edited.
-        if (unit.PropertyId > 0 && !string.IsNullOrWhiteSpace(unit.UnitNumber))
+        // Always against the unit's REAL property, never a posted one.
+        if (!string.IsNullOrWhiteSpace(unit.UnitNumber))
         {
             var taken = await _context.Units.AnyAsync(u =>
-                u.PropertyId == unit.PropertyId
+                u.PropertyId == existing.PropertyId
                 && u.UnitNumber == unit.UnitNumber
                 && u.UnitId != unit.UnitId);
             if (taken)
@@ -497,9 +661,20 @@ public class UnitsController : Controller
         {
             try
             {
-                unit.SizeBand = UnitSizeBands.Derive(unit.Bedrooms, unit.UnitType);
-                unit.ModifiedDate = DateTime.UtcNow;
-                _context.Update(unit);
+                // Optimistic concurrency: compare against the RowVersion the
+                // form was rendered with, not the one we just loaded.
+                if (unit.RowVersion != null)
+                    _context.Entry(existing).Property(u => u.RowVersion).OriginalValue = unit.RowVersion;
+
+                existing.UnitNumber = unit.UnitNumber;
+                existing.UnitType = unit.UnitType ?? string.Empty;
+                existing.SquareFeet = unit.SquareFeet;
+                existing.Bathrooms = unit.Bathrooms;
+                existing.Bedrooms = unit.Bedrooms;
+                existing.MonthlyRent = unit.MonthlyRent;
+                existing.FloorNumber = unit.FloorNumber;
+                existing.SizeBand = UnitSizeBands.Derive(existing.Bedrooms, existing.UnitType);
+                existing.ModifiedDate = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Unit updated.";
                 return RedirectToAction(nameof(Details), new { id });
@@ -515,9 +690,22 @@ public class UnitsController : Controller
                     $"Unit number '{unit.UnitNumber}' already exists in this property. Pick a different number.");
             }
         }
+        // Re-render with the real (unbound) property/status so the view stays honest.
+        unit.PropertyId = existing.PropertyId;
+        unit.Property = existing.Property;
+        unit.Status = existing.Status;
+        unit.CreatedDate = existing.CreatedDate;
         await PopulateDropdownsAsync(unit.PropertyId);
         return View(unit);
     }
+
+    /// <summary>
+    /// Units have no company query filter of their own. Restricting through the
+    /// filtered Properties DbSet (a correlated EXISTS) yields only the caller's
+    /// company's units; SuperAdmin sees all because the Property filter is bypassed.
+    /// </summary>
+    private IQueryable<Unit> ScopedUnits() =>
+        _context.Units.Where(u => _context.Properties.Any(p => p.PropertyId == u.PropertyId));
 
     private async Task PopulateDropdownsAsync(int? selectedPropertyId)
     {

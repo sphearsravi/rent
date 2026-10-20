@@ -27,7 +27,7 @@
         }
 
         .page-title i {
-            color: #6366f1;
+            color: #8a6d1f;
             margin-right: 0.5rem;
         }
 
@@ -58,7 +58,7 @@
         .btn-back {
             background: rgba(255, 255, 255, 0.9);
             color: #475569;
-            border: 1px solid rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(138, 109, 31, 0.3);
         }
 
         .btn-back:hover {
@@ -116,15 +116,15 @@
 
         .card {
             background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(138, 109, 31, 0.2);
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .card-header {
-            background: rgba(99, 102, 241, 0.08);
+            background: rgba(138, 109, 31, 0.08);
             padding: 1rem 1.5rem;
-            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            border-bottom: 1px solid rgba(138, 109, 31, 0.1);
             border-radius: 12px 12px 0 0;
         }
 
@@ -139,7 +139,7 @@
         }
 
         .card-header h5 i {
-            color: #6366f1;
+            color: #8a6d1f;
         }
 
         .card-body {
@@ -156,7 +156,7 @@
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #8a6d1f, #b8860b);
             color: white;
             display: flex;
             align-items: center;
@@ -193,8 +193,8 @@
         }
 
         .badge-info {
-            background: rgba(99, 102, 241, 0.1);
-            color: #6366f1;
+            background: rgba(138, 109, 31, 0.1);
+            color: #8a6d1f;
         }
 
         .badge-success {
@@ -247,7 +247,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 0.75rem 0;
-            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            border-bottom: 1px solid rgba(138, 109, 31, 0.1);
         }
 
         .status-item:last-child {
@@ -498,7 +498,7 @@
     </div>
 
     @* Recent activity (Phase D of role-access plan). Shows the last 10
-       AuditLog rows tied to this user Ã¢â‚¬” created, role changes, deletes. *@
+       AuditLog rows tied to this user - created, role changes, deletes. *@
     @{
         var recent = ViewBag.RecentEvents as List<RentCollection.Core.Entities.AuditLog>
                      ?? new List<RentCollection.Core.Entities.AuditLog>();
@@ -508,7 +508,7 @@
         <div class="info-card" style="margin-top:1.5rem; padding:1rem 1.25rem;">
             <div class="info-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
                 <h2 class="info-card-title" style="font-size:1.05rem; color:#334155; margin:0;">
-                    <i class="fas fa-clock-rotate-left" style="color:#6366f1;"></i>
+                    <i class="fas fa-clock-rotate-left" style="color:#8a6d1f;"></i>
                     @L["Recent activity"]
                 </h2>
                 <span class="badge badge-secondary">@recent.Count event@(recent.Count == 1 ? "" : "s")</span>
@@ -519,7 +519,7 @@
                     var (icon, colour) = ev.Action switch
                     {
                         "Created"      => ("fa-circle-plus",   "#10b981"),
-                        "RoleChanged"  => ("fa-user-shield",   "#6366f1"),
+                        "RoleChanged"  => ("fa-user-shield",   "#8a6d1f"),
                         "Deleted"      => ("fa-trash",         "#dc2626"),
                         _              => ("fa-circle",        "#64748b"),
                     };

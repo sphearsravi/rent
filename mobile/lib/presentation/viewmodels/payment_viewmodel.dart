@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../../data/models/payment_model.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/tenant_api_service.dart';
@@ -54,6 +55,21 @@ class PaymentViewModel extends ChangeNotifier {
     _tenantId = tenantId;
   }
 
+  /// Drop all tenant data (logout). See `resetSessionState`.
+  void reset() {
+    _state = PaymentState.initial;
+    _errorMessage = null;
+    _blockedByInvoiceId = null;
+    _blockedByBalance = null;
+    _payments = [];
+    _pendingInvoices = [];
+    _selectedPayment = null;
+    _currentPage = 1;
+    _hasMorePages = true;
+    _tenantId = null;
+    notifyListeners();
+  }
+
   /// Completed payments
   List<PaymentModel> get completedPayments =>
       _payments.where((p) => p.isCompleted).toList();
@@ -84,7 +100,6 @@ class PaymentViewModel extends ChangeNotifier {
       final newPayments = await _apiService.getPayments(
         tenantId,
         pageNumber: _currentPage,
-        pageSize: 20,
       );
 
       if (newPayments.length < 20) {
@@ -116,6 +131,10 @@ class PaymentViewModel extends ChangeNotifier {
   Future<void> loadPaymentDetails(int tenantId, int paymentId) async {
     _state = PaymentState.loading;
     _errorMessage = null;
+    // Clear the previous payment FIRST. Otherwise a failed poll leaves an older
+    // completed payment in place and the result screen reports "Payment
+    // successful" for a payment that never settled.
+    _selectedPayment = null;
     notifyListeners();
 
     try {
@@ -124,8 +143,12 @@ class PaymentViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
       _state = PaymentState.error;
+      // Surface the failure to the caller so the result screen can retry
+      // instead of silently reading a null/stale payment.
+      rethrow;
+    } finally {
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   /// Select a payment from the list
@@ -197,8 +220,15 @@ class PaymentViewModel extends ChangeNotifier {
         tenantId: tenantId,
         propertyId: invoice.propertyId ?? 0,
         leaseId: invoice.leaseId ?? 0,
-        amount: invoice.totalAmount,
-        language: 'en',
+        // Pay what is still OWED, not the invoice total. The server rejects any
+        // amount above Total − Paid, so sending totalAmount made KNET fail for
+        // every partially-paid invoice.
+        amount: invoice.balance,
+        // Send the app's current language so the KNET gateway + the
+        // success/failure landing page render in Arabic when the tenant
+        // is using the app in Arabic. Intl.defaultLocale is kept in sync
+        // by LocaleProvider.
+        language: (Intl.defaultLocale ?? 'en').startsWith('ar') ? 'ar' : 'en',
       );
 
       final response = await _apiService.initiateKNETPayment(request);
@@ -232,7 +262,13 @@ class PaymentViewModel extends ChangeNotifier {
     }
   }
 
-  /// Submit bank transfer details
+  /// Submit bank transfer details.
+  ///
+  /// [tenantId] is optional: the server derives the tenant from the JWT and
+  /// ignores the body value (it's only there for the DTO binder). The old code
+  /// refused to call the API unless `setTenantId()` had been called — and that
+  /// only happened on the legacy "pick an invoice" path, so the normal
+  /// "Pay now from an invoice" flow always failed with "Tenant ID not set".
   Future<bool> submitBankTransfer({
     required int invoiceId,
     required double amount,
@@ -241,13 +277,10 @@ class PaymentViewModel extends ChangeNotifier {
     required String proofFilePath,
     String? referenceNumber,
     String? notes,
+    int? tenantId,
   }) async {
-    if (_tenantId == null) {
-      _errorMessage = 'Tenant ID not set';
-      _state = PaymentState.error;
-      notifyListeners();
-      return false;
-    }
+    final effectiveTenantId = tenantId ?? _tenantId ?? 0;
+    if (tenantId != null) _tenantId = tenantId;
 
     _state = PaymentState.submitting;
     _errorMessage = null;
@@ -257,7 +290,7 @@ class PaymentViewModel extends ChangeNotifier {
 
     try {
       final success = await _apiService.submitBankTransfer(
-        tenantId: _tenantId!,
+        tenantId: effectiveTenantId,
         invoiceId: invoiceId,
         amount: amount,
         bankName: bankName,
@@ -279,6 +312,53 @@ class PaymentViewModel extends ChangeNotifier {
       }
     } on ApiException catch (e) {
       // Sprint 26 — pay-oldest-first rule on the bank-transfer path too.
+      if (e.kind == ApiErrorKind.paymentBlocked) {
+        _blockedByInvoiceId = e.oldestInvoiceId;
+        _blockedByBalance = e.oldestBalance;
+      }
+      _errorMessage = e.message;
+      _state = PaymentState.error;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _state = PaymentState.error;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Tenant requests to pay an invoice in cash at the office. Creates a
+  /// pending cash record the office then confirms. Surfaces the same
+  /// pay-oldest-first (409) block as the other methods.
+  ///
+  /// [amount] null = full balance; a smaller value declares a partial payment.
+  Future<bool> requestCashPayment({
+    required int invoiceId,
+    double? amount,
+    String? notes,
+  }) async {
+    _state = PaymentState.submitting;
+    _errorMessage = null;
+    _blockedByInvoiceId = null;
+    _blockedByBalance = null;
+    notifyListeners();
+
+    try {
+      final ok = await _apiService.requestCashPayment(
+        invoiceId: invoiceId,
+        amount: amount,
+        notes: notes,
+      );
+      if (ok) {
+        _state = PaymentState.submitted;
+      } else {
+        _errorMessage = 'Failed to request cash payment';
+        _state = PaymentState.error;
+      }
+      notifyListeners();
+      return ok;
+    } on ApiException catch (e) {
       if (e.kind == ApiErrorKind.paymentBlocked) {
         _blockedByInvoiceId = e.oldestInvoiceId;
         _blockedByBalance = e.oldestBalance;

@@ -36,6 +36,10 @@ sealed class Failure {
           return const ServerFailure();
         case ApiErrorKind.badRequest:
           return BadRequestFailure(error.message);
+        case ApiErrorKind.invalidCredentials:
+          return const InvalidCredentialsFailure();
+        case ApiErrorKind.conflict:
+          return BadRequestFailure(error.message);
         case ApiErrorKind.paymentBlocked:
           // 409 — server message tells the tenant which invoice to pay first.
           return BadRequestFailure(error.message);
@@ -73,6 +77,16 @@ class UnauthenticatedFailure extends Failure {
   @override
   String localizedMessage(BuildContext context) =>
       AppLocalizations.of(context)?.errorSessionExpired ?? 'Session expired';
+}
+
+/// 401 from the login endpoint: wrong Civil ID / password (NOT an expired
+/// session, so no re-auth redirect).
+class InvalidCredentialsFailure extends Failure {
+  const InvalidCredentialsFailure();
+  @override
+  String localizedMessage(BuildContext context) =>
+      AppLocalizations.of(context)?.errorInvalidCredentials ??
+      'Invalid Civil ID or password';
 }
 
 class ForbiddenFailure extends Failure {

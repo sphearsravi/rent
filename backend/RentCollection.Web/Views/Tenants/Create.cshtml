@@ -1,4 +1,5 @@
 @model RentCollection.Core.Entities.Tenant
+@inject RentCollection.Web.Services.ILookupService Lookups
 
 @{
     ViewData["Title"] = "Create Tenant";
@@ -124,10 +125,10 @@
                 </div>
                 <div class="fr-field">
                     <label asp-for="BuildingPACINumber">
-                        <i class="fas fa-building"></i> @L["Building PACI"] <span class="required">*</span>
+                        <i class="fas fa-building"></i> @L["Building PACI"] <span class="optional">@L["optional"]</span>
                     </label>
-                    <input asp-for="BuildingPACINumber" placeholder="@(L["Property's PACI number"].Value)" required />
-                    <span class="fr-hint">@L["Tenant auto-linked to this building"]</span>
+                    <input asp-for="BuildingPACINumber" placeholder="@(L["Property's PACI number"].Value)" />
+                    <span class="fr-hint">@L["Optional. The unit is assigned later through a lease; this only pre-filters the tenant list by building."]</span>
                 </div>
             </div>
         </div>
@@ -212,15 +213,10 @@
                             <label>@L["Document Type"]</label>
                             <select name="DocumentTypes[]">
                                 <option value="">@L["-- Select Type --"]</option>
-                                <option value="Civil ID">@L["Civil ID (PACI)"]</option>
-                                <option value="Passport">@L["Passport"]</option>
-                                <option value="Visa">@L["Visa"]</option>
-                                <option value="Insurance Document">@L["Insurance"]</option>
-                                <option value="Employment Letter">@L["Employment Letter"]</option>
-                                <option value="Salary Certificate">@L["Salary Certificate"]</option>
-                                <option value="Bank Statement">@L["Bank Statement"]</option>
-                                <option value="Reference Letter">@L["Reference Letter"]</option>
-                                <option value="Other">@L["Other"]</option>
+                                @foreach (var opt in await Lookups.GetOptionsAsync("TenantDocumentType"))
+                                {
+                                    <option value="@opt.Code">@opt.Label</option>
+                                }
                             </select>
                         </div>
                         <div class="fr-field">
@@ -318,22 +314,16 @@
             var row = document.createElement('div');
             row.className = 'document-row';
             row.style.marginTop = '0.75rem';
+            // Reuse the server-rendered (bilingual, admin-managed) options from the
+            // first Document Type select so cloned rows match it exactly.
+            var firstTypeSel = document.querySelector('select[name="DocumentTypes[]"]');
+            var typeOptions = firstTypeSel ? firstTypeSel.innerHTML
+                : '<option value="">-- Select Type --</option>';
             row.innerHTML = `
                 <div class="fr-row fr-row-3">
                     <div class="fr-field">
                         <label>Document Type</label>
-                        <select name="DocumentTypes[]">
-                            <option value="">-- Select Type --</option>
-                            <option value="Civil ID">Civil ID (PACI)</option>
-                            <option value="Passport">Passport</option>
-                            <option value="Visa">Visa</option>
-                            <option value="Insurance Document">Insurance</option>
-                            <option value="Employment Letter">Employment Letter</option>
-                            <option value="Salary Certificate">Salary Certificate</option>
-                            <option value="Bank Statement">Bank Statement</option>
-                            <option value="Reference Letter">Reference Letter</option>
-                            <option value="Other">Other</option>
-                        </select>
+                        <select name="DocumentTypes[]">${typeOptions}</select>
                     </div>
                     <div class="fr-field">
                         <label>File</label>

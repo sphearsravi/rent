@@ -126,7 +126,7 @@ say:
 | Environment      | URL                                       | DB                      | Purpose                       |
 | ---------------- | ----------------------------------------- | ----------------------- | ----------------------------- |
 | **Dev / local**  | http://localhost:5032                     | `RAVIWST\SQLEXPRESS\RentCollectionDB` | Developer iteration |
-| **Demo**         | http://<deploy-host>      | `<database>`    | Vendor system tests + UAT     |
+| **Demo**         | http://<DEMO_HOST>      | `<DB_NAME>`    | Vendor system tests + UAT     |
 | **Pre-prod**     | TBD (subdomain on SmarterASP, separate DB) | Separate restored DB    | Final regression before go-live |
 | **Production**   | TBD (alrtam.com.kw or similar)            | Separate restored DB    | Go-live                       |
 

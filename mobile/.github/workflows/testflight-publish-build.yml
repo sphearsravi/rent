@@ -1,0 +1,100 @@
+name: TestFlight Publish Latest Build
+
+# Adds the latest VALID build to the external "public" beta group and submits
+# it for Beta App Review, so the public TestFlight link serves it.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+      ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      APP_ID: "6795531787"
+    steps:
+      - run: pip3 install "pyjwt[crypto]" requests
+      - name: Add latest build to external group + submit for beta review
+        run: |
+          python3 - <<'PY'
+          import os, time, json, jwt, requests
+          BASE = "https://api.appstoreconnect.apple.com"
+          tok = jwt.encode(
+              {"iss": os.environ["ASC_ISSUER_ID"], "iat": int(time.time()),
+               "exp": int(time.time())+900, "aud": "appstoreconnect-v1"},
+              os.environ["ASC_PRIVATE_KEY"], algorithm="ES256",
+              headers={"kid": os.environ["ASC_KEY_ID"], "typ": "JWT"})
+          H = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+          APP = os.environ["APP_ID"]
+
+          def req(m, p, **k):
+              r = requests.request(m, BASE+p, headers=H, timeout=60, **k)
+              if r.status_code >= 300:
+                  print(f"  [{r.status_code}] {m} {p}\n  {r.text[:400]}")
+              return r
+
+          # 1) latest build
+          r = req("GET", f"/v1/builds?filter[app]={APP}&sort=-uploadedDate&limit=1")
+          b = r.json()["data"][0]
+          bid = b["id"]; ver = b["attributes"]["version"]; st = b["attributes"]["processingState"]
+          print(f"Latest build: {ver} (id={bid}) state={st}")
+          if st != "VALID":
+              raise SystemExit(f"Build not VALID yet ({st}); wait for processing.")
+
+          # 2) find the external beta group (public)
+          r = req("GET", f"/v1/apps/{APP}/betaGroups?limit=50")
+          groups = r.json().get("data", [])
+          ext = [g for g in groups if not g["attributes"].get("isInternalGroup", True)]
+          if not ext:
+              raise SystemExit("No external beta group found. Create one in TestFlight first.")
+          g = ext[0]; gid = g["id"]
+          print(f"External group: {g['attributes'].get('name')!r} id={gid} "
+                f"publicLink={g['attributes'].get('publicLink')}")
+
+          # 3) what-to-test for the build
+          r = req("GET", f"/v1/builds/{bid}/betaBuildLocalizations")
+          locs = {l['attributes']['locale']: l['id'] for l in r.json().get('data', [])}
+          whats = "Updated build: new Alrtam app icon, permission & SDK fixes. Log in with the demo Civil ID/password from the review notes."
+          if 'en-US' in locs:
+              req("PATCH", f"/v1/betaBuildLocalizations/{locs['en-US']}", data=json.dumps(
+                  {"data": {"type": "betaBuildLocalizations", "id": locs['en-US'],
+                            "attributes": {"whatsNew": whats}}}))
+          else:
+              req("POST", "/v1/betaBuildLocalizations", data=json.dumps(
+                  {"data": {"type": "betaBuildLocalizations",
+                            "attributes": {"locale": "en-US", "whatsNew": whats},
+                            "relationships": {"build": {"data": {"type": "builds", "id": bid}}}}}))
+
+          # 4) add build to the external group
+          r = req("POST", f"/v1/betaGroups/{gid}/relationships/builds",
+                  data=json.dumps({"data": [{"type": "builds", "id": bid}]}))
+          print("Added to group." if r.status_code < 300 else "Add-to-group returned above (may already be in).")
+
+          # 5) submit for beta review (adding to an external group may already
+          #    auto-submit it, which returns 409/422 — tolerate that)
+          r = req("POST", "/v1/betaAppReviewSubmissions", data=json.dumps(
+              {"data": {"type": "betaAppReviewSubmissions",
+                        "relationships": {"build": {"data": {"type": "builds", "id": bid}}}}}))
+          if r.status_code < 300:
+              print(f"SUBMITTED FOR BETA REVIEW -> {r.json()['data']['attributes'].get('betaReviewState')}")
+          elif r.status_code in (409, 422):
+              print("Explicit submit returned {} — likely already submitted by the group add.".format(r.status_code))
+          else:
+              raise SystemExit("Beta review submission failed (see above).")
+
+          # 6) report the build's ACTUAL review state
+          r = req("GET", f"/v1/builds/{bid}/betaAppReviewSubmission")
+          if r.status_code < 300 and r.json().get("data"):
+              state = r.json()["data"]["attributes"].get("betaReviewState")
+              print(f"\n>>> Build {ver} beta review state: {state}")
+          else:
+              print("\n>>> No beta review submission on the build yet.")
+
+          # confirm it's in the external group
+          r = req("GET", f"/v1/betaGroups/{gid}/builds?limit=50")
+          ids = [b2["id"] for b2 in r.json().get("data", [])]
+          print(f">>> Build in external group: {bid in ids}")
+          print(f">>> Public link: {g['attributes'].get('publicLink')}")
+          PY

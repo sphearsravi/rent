@@ -15,15 +15,18 @@ public class AuthController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<AuthController> _logger;
+    private readonly RentCollection.Web.Services.ILoginThrottle _loginThrottle;
 
     public AuthController(
         ApplicationDbContext context,
         IJwtTokenService jwtTokenService,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        RentCollection.Web.Services.ILoginThrottle loginThrottle)
     {
         _context = context;
         _jwtTokenService = jwtTokenService;
         _logger = logger;
+        _loginThrottle = loginThrottle;
     }
 
     [HttpPost("login")]
@@ -44,22 +47,35 @@ public class AuthController : ControllerBase
                 return Ok(CustomResponseDto<LoginResponseData>.ErrorResponse("Username and password are required", 400));
             }
 
-            // Find tenant by email or PACI number (lookup without password comparison)
+            // SECURITY (audit H2): per-account brute-force lockout.
+            if (_loginThrottle.IsLockedOut(username, out _))
+            {
+                return Ok(CustomResponseDto<LoginResponseData>.ErrorResponse("Too many failed attempts. Please try again later.", 429));
+            }
+
+            // SECURITY (audit H3): do NOT allow login by PACINumber. PACI is a
+            // shared BUILDING identifier (many tenants in one building share it),
+            // not a per-person secret, so it's an unsafe login identity. Look up by
+            // the per-tenant email only. (The primary tenant login lives at
+            // /api/tenant/login and uses the Civil ID / GovernmentId.)
             var tenant = await _context.Tenants
                 .Include(t => t.Company)
-                .FirstOrDefaultAsync(t =>
-                    t.Email == username || t.PACINumber == username);
+                .FirstOrDefaultAsync(t => t.Email == username);
 
             if (tenant == null)
             {
+                _loginThrottle.RecordFailure(username);
                 return Ok(CustomResponseDto<LoginResponseData>.ErrorResponse("Invalid credentials", 401));
             }
 
             // Verify password using BCrypt (matching web portal login behavior)
             if (string.IsNullOrEmpty(tenant.Password) || !BCrypt.Net.BCrypt.Verify(password, tenant.Password))
             {
+                _loginThrottle.RecordFailure(username);
                 return Ok(CustomResponseDto<LoginResponseData>.ErrorResponse("Invalid credentials", 401));
             }
+
+            _loginThrottle.Reset(username);
 
             // Check if tenant is active
             if (tenant.Status != "Active")
@@ -68,7 +84,8 @@ public class AuthController : ControllerBase
             }
 
             // Generate JWT token
-            var token = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? "");
+            var token = _jwtTokenService.GenerateToken(tenant.TenantId, tenant.Email ?? "",
+                RentCollection.Web.Services.JwtTokenService.ComputeSecurityStamp(tenant.Password));
 
             // Prepare response data
             var responseData = new LoginResponseData

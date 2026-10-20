@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/status_localizer.dart';
 import '../../l10n/app_localizations.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/maintenance_viewmodel.dart';
@@ -90,7 +91,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
 
             if (viewModel.state == MaintenanceState.error && !viewModel.hasRequests) {
               return _buildErrorState(viewModel.errorMessage ??
-                  AppLocalizations.of(context)!.maintenanceFailedToLoad);
+                  AppLocalizations.of(context)!.maintenanceFailedToLoad,);
             }
 
             if (!viewModel.hasRequests) {
@@ -281,17 +282,30 @@ class _CreateMaintenanceRequestSheetState extends State<CreateMaintenanceRequest
       photoPaths: _pickedPhotos.map((x) => x.path).toList(),
     );
 
-    if (success && mounted) {
-      final msg = AppLocalizations.of(context)!.maintenanceSubmitted;
+    if (!mounted) return;
+    final l = AppLocalizations.of(context)!;
+    // Capture the messenger BEFORE popping — after pop this sheet's context
+    // is gone and ScaffoldMessenger.of(context) would be invalid.
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (success) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-          content: Text(msg),
+          content: Text(l.maintenanceSubmitted),
           backgroundColor: AppTheme.successGreen,
         ),
       );
       // Refresh the list
       await maintenanceViewModel.refresh(widget.tenantId);
+    } else {
+      // Previously a failure was silent — the sheet just stayed open.
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(maintenanceViewModel.errorMessage ?? l.maintenanceSubmitFailed),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
     }
   }
 
@@ -356,7 +370,7 @@ class _CreateMaintenanceRequestSheetState extends State<CreateMaintenanceRequest
                             items: leaseViewModel.leases.map((lease) {
                               return DropdownMenuItem(
                                 value: lease.leaseId,
-                                child: Text('${lease.propertyName} - Unit ${lease.unitNumber}'),
+                                child: Text('${lease.propertyName} – ${l.labelUnit} ${lease.unitNumber}'),
                               );
                             }).toList(),
                             onChanged: (value) => setState(() => _selectedLeaseId = value),
@@ -374,8 +388,8 @@ class _CreateMaintenanceRequestSheetState extends State<CreateMaintenanceRequest
                             ),
                             items: AppConstants.maintenanceCategories.map((category) {
                               return DropdownMenuItem(
-                                value: category,
-                                child: Text(category),
+                                value: category, // English API value
+                                child: Text(localizeMaintenanceCategory(context, category)),
                               );
                             }).toList(),
                             onChanged: (value) => setState(() => _selectedCategory = value),
@@ -393,8 +407,8 @@ class _CreateMaintenanceRequestSheetState extends State<CreateMaintenanceRequest
                             ),
                             items: AppConstants.maintenancePriorities.map((priority) {
                               return DropdownMenuItem(
-                                value: priority,
-                                child: Text(priority),
+                                value: priority, // English API value
+                                child: Text(localizeMaintenancePriority(context, priority)),
                               );
                             }).toList(),
                             onChanged: (value) => setState(() => _selectedPriority = value),
@@ -444,7 +458,7 @@ class _CreateMaintenanceRequestSheetState extends State<CreateMaintenanceRequest
                               ),
                               const SizedBox(width: 8),
                               Text('${_pickedPhotos.length}/5',
-                                  style: TextStyle(color: AppTheme.textMuted)),
+                                  style: const TextStyle(color: AppTheme.textMuted),),
                             ],
                           ),
                           if (_pickedPhotos.isNotEmpty) ...[
@@ -501,7 +515,7 @@ class _CreateMaintenanceRequestSheetState extends State<CreateMaintenanceRequest
                                   : const Icon(Icons.send),
                               label: Text(maintenanceViewModel.isSubmitting
                                   ? l.maintenanceSubmitting
-                                  : l.maintenanceSubmitRequest),
+                                  : l.maintenanceSubmitRequest,),
                             ),
                           ),
                         ],

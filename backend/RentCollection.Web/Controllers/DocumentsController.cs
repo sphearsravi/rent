@@ -11,11 +11,16 @@ public class DocumentsController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _environment;
+    private readonly ILogger<DocumentsController> _logger;
 
-    public DocumentsController(ApplicationDbContext context, IWebHostEnvironment environment)
+    public DocumentsController(
+        ApplicationDbContext context,
+        IWebHostEnvironment environment,
+        ILogger<DocumentsController> logger)
     {
         _context = context;
         _environment = environment;
+        _logger = logger;
     }
 
     // Allowed extensions/MIME for document uploads. Keep narrow — any executable
@@ -49,40 +54,54 @@ public class DocumentsController : Controller
     {
         try
         {
-            // Pull the joined doc+links set. Doing it as a single projection
-            // keeps it to one round-trip; we'll resolve entity names below.
-            var raw = await _context.Documents
-                .Include(d => d.Links)
-                .Include(d => d.UploadedByUser)
-                .OrderByDescending(d => d.UploadedDate)
-                .ToListAsync();
+            // Company scope is applied IN SQL. The previous version loaded every
+            // company's documents and filtered in memory — slow, and a scoped
+            // admin with no companyId claim skipped the filter entirely. A doc
+            // is visible if at least one link resolves to an entity the caller
+            // can see through the filtered Tenants/Properties sets (Leases via
+            // their Tenant, MaintenanceRequests via their Property), or it is
+            // unlinked and the caller uploaded it. SuperAdmin / migrations
+            // bypass (BypassCompanyFilter). A scoped admin with no company
+            // claim has CurrentCompanyId == null, so the filtered sets match
+            // nothing → deny-by-default.
+            IQueryable<Document> q = _context.Documents.Include(d => d.Links);
+
+            if (!_context.BypassCompanyFilter)
+            {
+                var me = User.Identity?.Name ?? "";
+                q = q.Where(d =>
+                    d.Links.Any(l =>
+                        (l.EntityType == DocumentLinkEntityTypes.Tenant
+                            && _context.Tenants.Any(t => t.TenantId == l.EntityId))
+                        || (l.EntityType == DocumentLinkEntityTypes.Property
+                            && _context.Properties.Any(p => p.PropertyId == l.EntityId))
+                        || (l.EntityType == DocumentLinkEntityTypes.Lease
+                            && _context.Leases.Any(le => le.LeaseId == l.EntityId
+                                && _context.Tenants.Any(t => t.TenantId == le.TenantId)))
+                        || (l.EntityType == DocumentLinkEntityTypes.MaintenanceRequest
+                            && _context.MaintenanceRequests.Any(m => m.RequestId == l.EntityId
+                                && _context.Properties.Any(p => p.PropertyId == m.PropertyId))))
+                    || (!d.Links.Any() && d.UploadedBy == me));
+            }
 
             // Type filter — keep documents that have at least one matching link.
             // Special case: "Unlinked" shows docs with zero links.
             if (!string.IsNullOrEmpty(type))
             {
-                raw = type == "Unlinked"
-                    ? raw.Where(d => d.Links.Count == 0).ToList()
-                    : raw.Where(d => d.Links.Any(l => l.EntityType == type
-                        && (!entityId.HasValue || l.EntityId == entityId.Value))).ToList();
+                q = type == "Unlinked"
+                    ? q.Where(d => !d.Links.Any())
+                    : q.Where(d => d.Links.Any(l => l.EntityType == type
+                        && (!entityId.HasValue || l.EntityId == entityId.Value)));
             }
+
+            var raw = await q
+                .OrderByDescending(d => d.UploadedDate)
+                .ToListAsync();
 
             // Resolve names for every distinct (EntityType, EntityId) pair the
             // visible docs reference — one batched query per entity type, even
-            // if 200 docs link 50 distinct tenants. Also use this pass to
-            // compute the per-doc CompanyId so we can scope below.
+            // if 200 docs link 50 distinct tenants.
             var nameMap = await BuildEntityNameMapAsync(raw.SelectMany(d => d.Links));
-
-            // Company scope. SuperAdmin / migrations bypass this.
-            if (!_context.BypassCompanyFilter && _context.CurrentCompanyId.HasValue)
-            {
-                var myCompany = _context.CurrentCompanyId.Value;
-                var me = User.Identity?.Name ?? "";
-                raw = raw.Where(d =>
-                    d.Links.Any(l => nameMap.GetCompanyId(l.EntityType, l.EntityId) == myCompany)
-                    || (d.Links.Count == 0 && d.UploadedBy == me)
-                ).ToList();
-            }
 
             // Text search — match doc name, description, or any linked entity's name.
             if (!string.IsNullOrWhiteSpace(search))
@@ -101,8 +120,11 @@ public class DocumentsController : Controller
             ViewBag.FilterSearch = search;
             return View(raw);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Don't make a query failure look identical to "no documents".
+            _logger.LogError(ex, "Error loading documents index");
+            TempData["ErrorMessage"] = "Could not load documents. Please try again.";
             return View(new List<Document>());
         }
     }
@@ -113,7 +135,10 @@ public class DocumentsController : Controller
     /// </summary>
     public async Task<IActionResult> ByEntity(string type, int id)
     {
-        if (string.IsNullOrEmpty(type)) return BadRequest(new { error = "type required" });
+        if (string.IsNullOrEmpty(type) || !DocumentLinkEntityTypes.All.Contains(type))
+            return BadRequest(new { error = "type required" });
+        // Company scope: the target entity itself must be the caller's.
+        if (!await CanAccessEntityAsync(type, id)) return NotFound();
 
         var docs = await _context.Documents
             .Where(d => d.Links.Any(l => l.EntityType == type && l.EntityId == id))
@@ -339,6 +364,11 @@ public class DocumentsController : Controller
 
         var doc = await _context.Documents.FindAsync(docId);
         if (doc == null) return NotFound();
+        // Company scope: both the document AND the target entity must be the
+        // caller's — otherwise a scoped admin could attach their doc to another
+        // company's tenant (or pull another company's doc into their scope).
+        if (!await CanAccessDocumentAsync(doc)) return NotFound();
+        if (!await CanAccessEntityAsync(type, entityId)) return NotFound();
 
         var exists = await _context.DocumentLinks.AnyAsync(l =>
             l.DocumentId == docId && l.EntityType == type && l.EntityId == entityId);
@@ -366,6 +396,11 @@ public class DocumentsController : Controller
     {
         var link = await _context.DocumentLinks.FindAsync(linkId);
         if (link == null) return NotFound();
+        // Company scope: the document must be accessible AND the link must
+        // point at an entity in the caller's company.
+        var doc = await _context.Documents.FindAsync(link.DocumentId);
+        if (doc == null || !await CanAccessDocumentAsync(doc)) return NotFound();
+        if (!await CanAccessEntityAsync(link.EntityType, link.EntityId)) return NotFound();
         _context.DocumentLinks.Remove(link);
         await _context.SaveChangesAsync();
         return Json(new { unlinked = true });
@@ -374,6 +409,45 @@ public class DocumentsController : Controller
     #endregion
 
     #region Download / Delete
+
+    /// <summary>
+    /// SECURITY (audit C7): Download/Delete previously fetched a Document by raw id
+    /// with NO ownership/company check (Index scopes carefully, these did not), so
+    /// an Operational user of company A could enumerate ids and pull/destroy any
+    /// company's tenant IDs, contracts, and bank-transfer proofs. This mirrors the
+    /// exact Index scoping: a scoped admin may access a doc only if one of its links
+    /// is in their company, or (for an unlinked doc) they uploaded it. SuperAdmin /
+    /// migrations bypass.
+    /// </summary>
+    private async Task<bool> CanAccessDocumentAsync(Document document)
+    {
+        if (_context.BypassCompanyFilter || !_context.CurrentCompanyId.HasValue)
+            return true;
+        var myCompany = _context.CurrentCompanyId.Value;
+        var me = User.Identity?.Name ?? "";
+        var links = await _context.DocumentLinks
+            .Where(l => l.DocumentId == document.DocumentId).ToListAsync();
+        if (links.Count == 0)
+            return document.UploadedBy == me;
+        var nameMap = await BuildEntityNameMapAsync(links);
+        return links.Any(l => nameMap.GetCompanyId(l.EntityType, l.EntityId) == myCompany);
+    }
+
+    /// <summary>
+    /// Company check for a single (entityType, entityId) target — used by
+    /// Link / Unlink / ByEntity so a scoped admin can't reach another
+    /// company's entity by id. Reuses the name-map resolver (which already
+    /// knows each entity type's company path). SuperAdmin / migrations
+    /// bypass; a scoped admin with no company claim is denied.
+    /// </summary>
+    private async Task<bool> CanAccessEntityAsync(string type, int id)
+    {
+        if (_context.BypassCompanyFilter) return true;
+        if (!_context.CurrentCompanyId.HasValue) return false;
+        var map = await BuildEntityNameMapAsync(
+            new[] { new DocumentLink { EntityType = type, EntityId = id } });
+        return map.GetCompanyId(type, id) == _context.CurrentCompanyId.Value;
+    }
 
     public async Task<IActionResult> Download(int? id)
     {
@@ -387,6 +461,7 @@ public class DocumentsController : Controller
         {
             return NotFound();
         }
+        if (!await CanAccessDocumentAsync(document)) return NotFound();   // audit C7
 
         var filePath = Path.Combine(_environment.WebRootPath, document.FilePath);
         if (!System.IO.File.Exists(filePath))
@@ -412,6 +487,8 @@ public class DocumentsController : Controller
         var document = await _context.Documents.FindAsync(id);
         if (document != null)
         {
+            if (!await CanAccessDocumentAsync(document)) return NotFound();   // audit C7
+
             // Delete file from disk
             var filePath = Path.Combine(_environment.WebRootPath, document.FilePath);
             if (System.IO.File.Exists(filePath))

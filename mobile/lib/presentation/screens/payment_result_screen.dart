@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -39,10 +41,13 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
   @override
   void initState() {
     super.initState();
-    _checkPaymentStatus();
+    // AppLocalizations.of(context) and setState() are not safe in initState
+    // (inherited lookup + "setState before mount"). Run after the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPaymentStatus());
   }
 
   Future<void> _checkPaymentStatus() async {
+    if (!mounted) return;
     final l = AppLocalizations.of(context)!;
     final authViewModel = context.read<AuthViewModel>();
     final paymentViewModel = context.read<PaymentViewModel>();
@@ -69,15 +74,29 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
     _attempts++;
     // First attempt: short grace period for the gateway callback to land.
     await Future.delayed(
-        _attempts == 1 ? const Duration(seconds: 2) : _pollInterval);
+        _attempts == 1 ? const Duration(seconds: 2) : _pollInterval,);
     if (!mounted) return;
 
     try {
       await paymentViewModel.loadPaymentDetails(
-          authViewModel.tenantId!, paymentIdInt);
+          authViewModel.tenantId!, paymentIdInt,);
       if (!mounted) return;
 
+      // Only trust a result that is for THIS payment. (The view-model now
+      // clears the previous payment before loading, but guard the id too.)
       final payment = paymentViewModel.selectedPayment;
+      if (payment != null && payment.paymentId != paymentIdInt) {
+        if (_attempts < _maxAutoAttempts) {
+          unawaited(_checkPaymentStatus());
+        } else {
+          setState(() {
+            _isChecking = false;
+            _status = l.paymentUnableToVerify;
+            _isSuccess = null;
+          });
+        }
+        return;
+      }
       if (payment != null && payment.isCompleted) {
         setState(() {
           _isChecking = false;
@@ -97,7 +116,7 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
           _status = l.paymentProcessing;
           _isSuccess = null;
         });
-        _checkPaymentStatus();
+        unawaited(_checkPaymentStatus());
       } else {
         setState(() {
           _isChecking = false;
@@ -108,7 +127,7 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
     } catch (e) {
       if (!mounted) return;
       if (_attempts < _maxAutoAttempts) {
-        _checkPaymentStatus();
+        unawaited(_checkPaymentStatus());
       } else {
         setState(() {
           _isChecking = false;
@@ -192,7 +211,7 @@ class _PaymentResultScreenState extends State<PaymentResultScreen> {
                           Text(
                             l.paymentReferenceLabel,
                             style: const TextStyle(
-                                color: AppTheme.textMuted, fontSize: 14),
+                                color: AppTheme.textMuted, fontSize: 14,),
                           ),
                           Text(
                             widget.transactionReference!,

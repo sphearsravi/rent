@@ -7,12 +7,12 @@
                  ?? new List<RentCollection.Web.Controllers.LeasesController.ChainTile>();
     var filter = (string)(ViewBag.Filter ?? "all");
 
-    // Friendly display data per action type Ã¢â‚¬” drives icon + colour + label.
+    // Friendly display data per action type - drives icon + colour + label.
     var actionMeta = new Dictionary<string, (string Icon, string Colour, string Verb)>
     {
         { "Created",     ("fa-circle-plus",    "#10b981", "Created") },
         { "Edited",      ("fa-pen",            "#3b82f6", "Edited") },
-        { "Renewed",     ("fa-arrows-rotate",  "#6366f1", "Renewed") },
+        { "Renewed",     ("fa-arrows-rotate",  "#8a6d1f", "Renewed") },
         { "Terminated",  ("fa-circle-stop",    "#ef4444", "Terminated") },
         { "Transferred", ("fa-arrow-right-arrow-left", "#f59e0b", "Transferred") },
         { "Expired",     ("fa-clock",          "#94a3b8", "Expired") },
@@ -23,8 +23,8 @@
 <div class="page-container">
     @await Html.PartialAsync("_PageHeader", new ViewDataDictionary(ViewData)
     {
-        ["Title"] = $"Lease #{lease.LeaseId} Ã¢â‚¬” History",
-        ["Subtitle"] = $"{lease.Tenant?.FirstName} {lease.Tenant?.LastName} Ã‚· {lease.Unit?.Property?.PropertyName} Unit {lease.Unit?.UnitNumber}",
+        ["Title"] = $"Lease #{lease.LeaseId} — History",
+        ["Subtitle"] = $"{lease.Tenant?.FirstName} {lease.Tenant?.LastName} · {lease.Unit?.Property?.PropertyName} Unit {lease.Unit?.UnitNumber}",
         ["Crumbs"] = new (string label, string? href)[]
         {
             (L["Admin"].Value, "/Dashboard"),
@@ -42,7 +42,7 @@
         </a>
     </div>
 
-    @* Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ Renewal chain bar Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ *@
+    @* --- Renewal chain bar --- *@
     @if (chain.Count > 1)
     {
         <div class="chain-card">
@@ -55,7 +55,7 @@
                         <a href="/Leases/@(tile.IsCurrent ? "History" : "Details")/@tile.LeaseId" title="@tile.Status">
                             <div class="chain-id">#@tile.LeaseId</div>
                             <div class="chain-status status-@tile.Status.ToLower()">@tile.Status</div>
-                            <div class="chain-period">@tile.Start.ToString("MMM yyyy") Ã¢â€ ’ @tile.End.ToString("MMM yyyy")</div>
+                            <div class="chain-period">@tile.Start.ToString("MMM yyyy") &rarr; @tile.End.ToString("MMM yyyy")</div>
                         </a>
                     </li>
                 }
@@ -63,7 +63,7 @@
         </div>
     }
 
-    @* Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ Filter chips Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ *@
+    @* --- Filter chips --- *@
     <div class="history-toolbar">
         <div class="filter-chips" role="tablist">
             @{
@@ -88,7 +88,7 @@
         <div class="history-meta">@Model.Count @(Model.Count == 1 ? L["event"].Value : L["events"].Value)</div>
     </div>
 
-    @* Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ Timeline Ã¢”â‚¬Ã¢”â‚¬Ã¢”â‚¬ *@
+    @* --- Timeline --- *@
     @if (Model.Any())
     {
         <ol class="timeline">
@@ -107,7 +107,7 @@
                         synth = payload != null && payload.TryGetValue("synthesised", out var s)
                                 && s.ValueKind == JsonValueKind.True;
                     }
-                    catch { /* malformed Ã¢â‚¬” render raw below */ }
+                    catch { /* malformed - render raw below */ }
                 }
                 // Was this event on a chain lease that ISN'T the one we're
                 // viewing? Surface the link so the operator can jump.
@@ -183,7 +183,7 @@
     .page-container { padding: 1.5rem 2rem; max-width: 1100px; margin: 0 auto; }
     .header-back { margin-bottom: 1rem; }
     .btn-link {
-        color: #6366f1; text-decoration: none; font-size: 0.9rem;
+        color: #8a6d1f; text-decoration: none; font-size: 0.9rem;
         display: inline-flex; align-items: center; gap: 0.4rem;
     }
     .btn-link:hover { text-decoration: underline; }
@@ -191,12 +191,12 @@
     /* Chain */
     .chain-card {
         background: rgba(255,255,255,0.95);
-        border: 1px solid rgba(99, 102, 241,0.18);
+        border: 1px solid rgba(138, 109, 31,0.18);
         border-radius: 12px;
         padding: 1rem 1.25rem; margin-bottom: 1.25rem;
     }
     .chain-title { margin: 0 0 0.85rem; color: #334155; font-size: 0.95rem; display: flex; align-items: center; gap: 0.45rem; }
-    .chain-title i { color: #6366f1; }
+    .chain-title i { color: #8a6d1f; }
     .chain-strip {
         display: flex; gap: 0.6rem; flex-wrap: wrap;
         list-style: none; padding: 0; margin: 0;
@@ -209,9 +209,9 @@
         border: 1px solid #e2e8f0; border-radius: 10px;
         text-decoration: none; transition: all 0.15s;
     }
-    .chain-tile a:hover { border-color: #6366f1; box-shadow: 0 4px 10px rgba(99, 102, 241,0.12); }
+    .chain-tile a:hover { border-color: #8a6d1f; box-shadow: 0 4px 10px rgba(138, 109, 31,0.12); }
     .chain-tile.is-current a {
-        border-color: #6366f1; background: linear-gradient(135deg, rgba(99, 102, 241,0.06), rgba(139, 92, 246,0.06));
+        border-color: #8a6d1f; background: linear-gradient(135deg, rgba(138, 109, 31,0.06), rgba(184, 134, 11,0.06));
     }
     .chain-id { font-weight: 700; color: #0f172a; font-size: 0.95rem; }
     .chain-status {
@@ -220,7 +220,7 @@
         font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
     }
     .chain-status.status-active     { background: rgba(16,185,129,0.12); color: #065f46; }
-    .chain-status.status-renewed    { background: rgba(99, 102, 241,0.12); color: #4338ca; }
+    .chain-status.status-renewed    { background: rgba(138, 109, 31,0.12); color: #5a4512; }
     .chain-status.status-terminated { background: rgba(239,68,68,0.10); color: #b91c1c; }
     .chain-status.status-expired    { background: rgba(245,158,11,0.15); color: #92400e; }
     .chain-status.status-pending    { background: #f1f5f9; color: #475569; }
@@ -234,16 +234,16 @@
     .filter-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
     .filter-chip {
         padding: 0.4rem 0.85rem;
-        background: rgba(99, 102, 241,0.06);
-        color: #4338ca;
+        background: rgba(138, 109, 31,0.06);
+        color: #5a4512;
         border-radius: 999px;
         font-size: 0.8rem; font-weight: 500;
-        border: 1px solid rgba(99, 102, 241,0.15);
+        border: 1px solid rgba(138, 109, 31,0.15);
         text-decoration: none;
     }
-    .filter-chip:hover { background: rgba(99, 102, 241,0.12); }
+    .filter-chip:hover { background: rgba(138, 109, 31,0.12); }
     .filter-chip.is-active {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        background: linear-gradient(135deg, #8a6d1f, #b8860b);
         color: white; border-color: transparent;
     }
     .history-meta { font-size: 0.85rem; color: #64748b; }
@@ -284,10 +284,10 @@
         color: #94a3b8; font-size: 0.75rem; margin-left: auto;
     }
     .tl-on-other {
-        font-size: 0.75rem; color: #6366f1; text-decoration: none;
-        background: rgba(99, 102, 241,0.08); padding: 0.1rem 0.5rem; border-radius: 6px;
+        font-size: 0.75rem; color: #8a6d1f; text-decoration: none;
+        background: rgba(138, 109, 31,0.08); padding: 0.1rem 0.5rem; border-radius: 6px;
     }
-    .tl-on-other:hover { background: rgba(99, 102, 241,0.16); }
+    .tl-on-other:hover { background: rgba(138, 109, 31,0.16); }
     .tl-synth {
         font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.4px;
         background: #f1f5f9; color: #64748b;
